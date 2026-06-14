@@ -1,0 +1,99 @@
+/**
+ * POST /api/scan/trigger-all
+ * Enqueues all active websites for the authenticated user via the orchestrator.
+ * Does NOT execute scans — the client should follow up with /api/scan/process-queue.
+ *
+ * All per-website cooldown, dedup, plan limit, and rate-limit checks are enforced
+ * inside orchestrator.enqueueScan() — this route is a thin loop wrapper.
+ *
+ * Returns a summary including how many were blocked by plan limits.
+ */
+
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { enqueueScan } from '@/lib/scanner/orchestrator';
+
+export async function POST() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Fetch all active websites for this user
+  const adminSupabase = createAdminClient();
+  const { data: websites, error: fetchErr } = await adminSupabase
+    .from('websites')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_active', true);
+
+  if (fetchErr) {
+    return Response.json({ error: 'Failed to fetch websites' }, { status: 500 });
+  }
+
+  if (!websites || websites.length === 0) {
+    return Response.json({ queued: 0, skipped: 0, blocked: 0, message: 'No active websites found' });
+  }
+
+  let queued = 0;
+  let skipped = 0;
+  let blocked = 0;
+  let blockReason: string | undefined;
+  let upgradeUrl: string | undefined;
+  let rateLimited = false;
+
+  for (const website of websites) {
+    const result = await enqueueScan({ userId: user.id, websiteId: website.id, source: 'api' });
+
+    if (result.queued) {
+      queued++;
+    } else if (result.reason === 'scan_limit_reached' || result.reason === 'website_limit_reached') {
+      blocked++;
+      blockReason = blockReason ?? result.reason;
+      upgradeUrl = upgradeUrl ?? result.upgradeUrl;
+    } else if (result.reason === 'rate_limited') {
+      rateLimited = true;
+      skipped++;
+    } else {
+      skipped++;
+    }
+  }
+
+  // If scan limit was hit and nothing queued, surface it as a 403
+  if (blocked > 0 && queued === 0) {
+    return Response.json(
+      {
+        error: blockReason === 'scan_limit_reached' ? 'USAGE_LIMIT_REACHED' : 'WEBSITE_LIMIT_REACHED',
+        message: blockReason === 'scan_limit_reached'
+          ? 'Daily scan limit reached. Upgrade your plan to scan more websites.'
+          : 'Website limit reached for your plan.',
+        queued: 0,
+        skipped,
+        blocked,
+        blockReason,
+        upgradeUrl: upgradeUrl ?? '/dashboard/settings',
+      },
+      { status: 403 },
+    );
+  }
+
+  if (rateLimited && queued === 0) {
+    return Response.json(
+      { error: 'Rate limit exceeded — too many scan triggers. Please wait before scanning again.' },
+      { status: 429 },
+    );
+  }
+
+  return Response.json({
+    queued,
+    skipped,
+    blocked,
+    blockReason: blocked > 0 ? blockReason : undefined,
+    upgradeUrl: blocked > 0 ? (upgradeUrl ?? '/dashboard/settings') : undefined,
+    message:
+      queued === 0
+        ? `No websites queued — ${skipped} skipped, ${blocked} blocked by plan limit`
+        : `${queued} website(s) queued for scanning${skipped > 0 ? `, ${skipped} skipped` : ''}${blocked > 0 ? `, ${blocked} blocked` : ''}`,
+  });
+}
