@@ -1,6 +1,7 @@
 // CyberShield Scheduler
-// This module will activate automated scanning in a future phase.
-// Current implementation: placeholder only.
+// Placeholder for a future event-driven scheduling layer.
+// Vercel Cron has been removed. Scheduled scans are now triggered manually
+// via POST /api/scan/trigger-scheduled or a future queue-based mechanism.
 
 export interface SchedulerConfig {
   intervalHours: number;
@@ -9,7 +10,7 @@ export interface SchedulerConfig {
 
 export const DEFAULT_CONFIG: SchedulerConfig = {
   intervalHours: 6,
-  enabled: false, // Will be enabled when Vercel Cron or similar is configured
+  enabled: false,
 };
 
 export function startScheduler(config: SchedulerConfig = DEFAULT_CONFIG): void {
@@ -17,6 +18,6 @@ export function startScheduler(config: SchedulerConfig = DEFAULT_CONFIG): void {
     console.log('[Scheduler] Automated scanning is not yet enabled.');
     return;
   }
-  // TODO: integrate with Vercel Cron, node-cron, or Supabase Edge Functions
+  // TODO: integrate with a queue-based trigger or Supabase Edge Functions
   console.log(`[Scheduler] Would scan every ${config.intervalHours} hours`);
 }

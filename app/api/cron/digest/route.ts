@@ -1,16 +1,23 @@
+// Previously ran as weekly cron. Now triggered manually or via future event-driven trigger.
+
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { sendEmail } from '@/lib/email';
 import { weeklyDigestEmail } from '@/lib/emailTemplates';
 
-export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = createAdminClient();
+  const adminSupabase = createAdminClient();
 
-  const { data: users } = await supabase
+  const { data: users } = await adminSupabase
     .from('profiles')
     .select('id, email');
 
@@ -18,18 +25,18 @@ export async function GET(request: Request) {
 
   let sent = 0;
 
-  for (const user of users) {
-    const { data: websites } = await supabase
+  for (const recipient of users) {
+    const { data: websites } = await adminSupabase
       .from('websites')
       .select('id, url, risk_score, last_scanned_at')
-      .eq('user_id', user.id)
+      .eq('user_id', recipient.id)
       .eq('is_active', true);
 
     if (!websites || websites.length === 0) continue;
 
     const websiteData = await Promise.all(
       websites.map(async (site) => {
-        const { data: scan } = await supabase
+        const { data: scan } = await adminSupabase
           .from('scans')
           .select('id, security_score, risk_level, completed_at')
           .eq('website_id', site.id)
@@ -55,10 +62,10 @@ export async function GET(request: Request) {
       process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     await sendEmail({
-      to: user.email as string,
+      to: recipient.email as string,
       subject: `Your weekly security digest — CyberShield`,
       html: weeklyDigestEmail({
-        userEmail: user.email as string,
+        userEmail: recipient.email as string,
         websites: websiteData,
         digestUrl: `${siteUrl}/dashboard`,
       }),

@@ -1,11 +1,16 @@
+// @deprecated The Vercel Cron that called this has been removed.
+// This file is retained for manual triggers via POST /api/scan/trigger-scheduled.
+// Do not delete — it remains useful as an on-demand admin tool.
+
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
 
 /**
- * Designed to be called by a Vercel Cron job or any scheduler.
- * Enqueues all active websites for scanning via the orchestrator.
- * The actual scan execution happens when /api/scan/process-queue is called
- * (either by a separate cron step or by the process-queue endpoint).
+ * Enqueues all active websites across all users for scanning via the orchestrator.
+ * The actual scan execution happens when /api/scan/process-queue is called.
+ *
+ * Previously called by the Vercel Cron job at /api/cron/scan (now removed).
+ * Now called manually via POST /api/scan/trigger-scheduled (authenticated).
  */
 export async function runScheduledScans(): Promise<void> {
   const supabase = createAdminClient();
