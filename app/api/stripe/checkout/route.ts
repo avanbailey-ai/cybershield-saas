@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import type Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
-import { stripe } from '@/lib/stripe/stripe';
+import { getStripe } from '@/lib/stripe/stripe';
 import { STRIPE_PRICE_IDS, isBilledPlan } from '@/lib/billing/plans';
 
 /**
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_APP_URL ||
       'https://example.com';
 
-    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: { userId: user.id, plan },
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
       sessionParams.customer = profile.stripe_customer_id;
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const session = await getStripe().checkout.sessions.create(sessionParams);
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
