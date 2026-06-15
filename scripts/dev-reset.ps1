@@ -7,7 +7,7 @@
 #   .\scripts\dev-reset.ps1 -SkipPull -SkipDev   # cache clean, no dev server
 #
 # Env:
-#   GIT_PATH — full path to git.exe (optional)
+#   GIT_PATH  -  full path to git.exe (optional)
 
 param(
   [switch]$SkipDev,
@@ -33,7 +33,7 @@ if (-not $SkipPull) {
 
   $dirty = Invoke-Git @("status", "--porcelain")
   if ($dirty) {
-    Write-Warning "[dev-reset] Uncommitted changes detected — skipping git pull. Commit or stash first."
+    Write-Warning "[dev-reset] Uncommitted changes detected  -  skipping git pull. Commit or stash first."
   } else {
     Write-Host "[dev-reset] Pulling origin/main..."
     Invoke-Git @("pull", "origin", "main")
@@ -58,7 +58,7 @@ if (Test-Path $LockHashFile) {
 $needsInstall = -not (Test-Path (Join-Path $Root "node_modules")) -or ($currentHash -and $currentHash -ne $storedHash)
 
 if ($needsInstall) {
-  Write-Host "[dev-reset] package-lock.json changed or node_modules missing — running npm install..."
+  Write-Host "[dev-reset] package-lock.json changed or node_modules missing  -  running npm install..."
   npm install
   if ($LASTEXITCODE -ne 0) { throw "npm install failed with exit code $LASTEXITCODE" }
   if ($currentHash) {
@@ -66,7 +66,7 @@ if ($needsInstall) {
     Set-Content -Path $LockHashFile -Value $currentHash -NoNewline
   }
 } else {
-  Write-Host "[dev-reset] package-lock.json unchanged — skipping npm install"
+  Write-Host "[dev-reset] package-lock.json unchanged  -  skipping npm install"
 }
 
 $sha = Invoke-Git @("rev-parse", "--short", "HEAD")
