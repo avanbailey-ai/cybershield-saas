@@ -213,7 +213,7 @@ export async function enqueueScan(params: {
 
   if (limits.maxWebsites !== Infinity) {
 
-    const websiteCount = await getUserWebsiteCount(userId);
+    const websiteCount = await getUserWebsiteCount(userId, orgId);
 
     if (websiteCount > limits.maxWebsites) {
 
@@ -221,7 +221,7 @@ export async function enqueueScan(params: {
 
       console.warn(
 
-        `[ORCHESTRATOR] BLOCK reason=website_limit_reached user=${userId} plan=${plan} websites=${websiteCount} limit=${limits.maxWebsites}`,
+        `[ORCHESTRATOR] BLOCK reason=website_limit_reached user=${userId} orgId=${orgId} plan=${plan} websites=${websiteCount} limit=${limits.maxWebsites}`,
 
       );
 

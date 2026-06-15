@@ -98,15 +98,21 @@ export async function decrementScanUsage(userId: string): Promise<void> {
   }
 }
 
-/** Count how many active websites a user currently has. */
-export async function getUserWebsiteCount(userId: string): Promise<number> {
+/** Count active websites for an org, or for a user when no org is set. */
+export async function getUserWebsiteCount(
+  userId: string,
+  orgId?: string | null,
+): Promise<number> {
   try {
     const supabase = createAdminClient();
-    const { count, error } = await supabase
+    let query = supabase
       .from('websites')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
       .eq('is_active', true);
+
+    query = orgId ? query.eq('org_id', orgId) : query.eq('user_id', userId);
+
+    const { count, error } = await query;
 
     if (error) return 0;
     return count ?? 0;

@@ -73,11 +73,14 @@ export async function POST() {
   });
 
   const adminSupabase = createAdminClient();
-  const { data: websites, error: fetchErr } = await adminSupabase
+  let websitesQuery = adminSupabase
     .from('websites')
     .select('id')
-    .eq('user_id', user.id)
     .eq('is_active', true);
+  websitesQuery = orgId
+    ? websitesQuery.eq('org_id', orgId)
+    : websitesQuery.eq('user_id', user.id);
+  const { data: websites, error: fetchErr } = await websitesQuery;
 
   if (fetchErr) {
     void recordApiLatency('/api/scan/trigger-all', Date.now() - start, 500);
