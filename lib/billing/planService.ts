@@ -99,8 +99,8 @@ export async function getUserWithPlan(userId: string): Promise<UserWithPlan & { 
   return {
     id: userId,
     email: profile.email,
-    plan: subscription.plan ?? profile.plan,
-    subscription_status: subscription.status ?? profile.subscription_status,
+    plan: subscription.plan,
+    subscription_status: subscription.status,
   };
 }
 

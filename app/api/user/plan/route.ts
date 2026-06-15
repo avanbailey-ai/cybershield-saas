@@ -45,7 +45,7 @@ export async function GET() {
 
     return NextResponse.json({
       plan,
-      subscription_status: subscription.status ?? userWithPlan.subscription_status ?? 'inactive',
+      subscription_status: subscription.status,
       current_period_end: subscription.currentPeriodEnd,
       websiteCount: count,
       scansToday: usage.scans_used,

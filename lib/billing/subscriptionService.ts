@@ -25,7 +25,7 @@ export function isPaidPlan(plan: Plan): boolean {
   return plan === 'pro' || plan === 'growth' || plan === 'agency';
 }
 
-/** Load subscription row; fall back to profiles mirror if subscriptions row missing. */
+/** Load subscription row from subscriptions table (source of truth for access control). */
 export async function getUserSubscription(userId: string): Promise<UserSubscription> {
   const supabase = createAdminClient();
 
@@ -46,18 +46,12 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
     };
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, plan, subscription_status, stripe_customer_id, stripe_subscription_id')
-    .eq('id', userId)
-    .maybeSingle();
-
   return {
     userId,
-    plan: normalizePlan(profile?.plan),
-    status: profile?.subscription_status ?? 'inactive',
-    stripeCustomerId: profile?.stripe_customer_id ?? null,
-    stripeSubscriptionId: profile?.stripe_subscription_id ?? null,
+    plan: 'free',
+    status: 'inactive',
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
     currentPeriodEnd: null,
   };
 }

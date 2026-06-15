@@ -42,7 +42,7 @@ function effectiveRank(user: UserForFeatureGate): number {
   return PLAN_RANK[plan] ?? 0;
 }
 
-/** Central feature gate — Stripe plan + subscription_status from Supabase. */
+/** Central feature gate — plan + status from subscriptions table only. */
 export function canAccessFeature(user: UserForFeatureGate, feature: Feature): boolean {
   if (isOwner(user.email)) return true;
 
