@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getRedirectPath } from '@/lib/auth/redirect';
-import { isOwner } from '@/lib/auth/owner';
+import { getRedirectPathForSession, type SessionSupabaseClient } from '@/lib/auth/redirect';
 import OnboardingPlans from '@/components/onboarding/OnboardingPlans';
 import ExitIntentModal from '@/components/conversion/ExitIntentModal';
 
@@ -21,26 +20,9 @@ export default async function OnboardingPage() {
     redirect('/login');
   }
 
-  let plan = 'free';
-  let subscriptionStatus: string | null = 'inactive';
-  if (isOwner(user.email)) {
-    plan = 'owner';
-    subscriptionStatus = 'active';
-  } else {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('plan, subscription_status')
-      .eq('id', user.id)
-      .single();
-    plan = profile?.plan ?? 'free';
-    subscriptionStatus = profile?.subscription_status ?? 'inactive';
-  }
-
-  const redirectPath = getRedirectPath({
-    email: user.email,
-    plan,
-    subscription_status: subscriptionStatus,
-  });
+  const redirectPath = await getRedirectPathForSession(
+    supabase as unknown as SessionSupabaseClient,
+  );
   if (redirectPath !== '/onboarding') {
     redirect(redirectPath);
   }

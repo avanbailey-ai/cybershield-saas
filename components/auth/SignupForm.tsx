@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getRedirectPath } from "@/lib/auth/redirect";
+import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { isValidReferralCode } from "@/lib/referrals/code";
@@ -62,16 +62,6 @@ export default function SignupForm() {
 
     // If email confirmation is enabled, show message; otherwise redirect
     if (data.user && data.session) {
-      let plan = "free";
-      let subscriptionStatus: string | null = "inactive";
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("plan, subscription_status")
-        .eq("id", data.user.id)
-        .single();
-      plan = profile?.plan ?? "free";
-      subscriptionStatus = profile?.subscription_status ?? "inactive";
-
       // Attach referral from cookie if present
       try {
         await fetch("/api/referrals/attach", {
@@ -86,11 +76,7 @@ export default function SignupForm() {
       router.push(
         redirectTo && redirectTo.startsWith("/")
           ? redirectTo
-          : getRedirectPath({
-              email: data.user.email,
-              plan,
-              subscription_status: subscriptionStatus,
-            }),
+          : await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient),
       );
       router.refresh();
     } else {

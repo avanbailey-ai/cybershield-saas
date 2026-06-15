@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getRedirectPath } from "@/lib/auth/redirect";
+import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
@@ -47,26 +47,10 @@ export default function LoginForm() {
         return;
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      let plan = "free";
-      let subscriptionStatus: string | null = "inactive";
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("plan, subscription_status")
-          .eq("id", user.id)
-          .single();
-        plan = profile?.plan ?? "free";
-        subscriptionStatus = profile?.subscription_status ?? "inactive";
-      }
-
       router.push(
         redirectTo && redirectTo.startsWith("/")
           ? redirectTo
-          : getRedirectPath({ email: user?.email, plan, subscription_status: subscriptionStatus }),
+          : await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient),
       );
       router.refresh();
     } catch (err) {

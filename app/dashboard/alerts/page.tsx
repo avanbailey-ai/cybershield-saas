@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import AlertsList, { type AlertRow } from '@/components/dashboard/alerts/AlertsList';
 import { canAccessFeature } from '@/lib/auth/featureGate';
-import { isOwner } from '@/lib/auth/owner';
+import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 
 export const metadata: Metadata = {
   title: 'Alerts — CyberShield',
@@ -18,16 +18,13 @@ export default async function AlertsPage() {
 
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('plan, subscription_status')
-    .eq('id', user.id)
-    .single();
+  const access = await getSubscriptionAccessFromSession(
+    supabase as unknown as SessionSubscriptionClient,
+    user.id,
+    user.email,
+  );
 
-  const plan = isOwner(user.email) ? 'owner' : (profile?.plan ?? 'free');
-  const subscriptionStatus = isOwner(user.email) ? 'active' : (profile?.subscription_status ?? 'inactive');
-
-  if (!canAccessFeature({ email: user.email, plan, subscription_status: subscriptionStatus }, 'alerts')) {
+  if (!canAccessFeature({ email: user.email, plan: access.plan, subscription_status: access.status }, 'alerts')) {
     redirect('/dashboard/settings');
   }
 

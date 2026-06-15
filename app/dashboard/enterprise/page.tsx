@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { canAccessEnterprise } from "@/lib/auth/permissions";
-import { isOwner } from "@/lib/auth/owner";
+import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 
 export const metadata: Metadata = {
@@ -27,20 +27,13 @@ export default async function EnterpriseDashboardPage() {
 
   if (!user) redirect("/login");
 
-  const owner = isOwner(user.email);
-  let plan = "free";
-  if (owner) {
-    plan = "owner";
-  } else {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("plan")
-      .eq("id", user.id)
-      .single();
-    plan = profile?.plan ?? "free";
-  }
+  const access = await getSubscriptionAccessFromSession(
+    supabase as unknown as SessionSubscriptionClient,
+    user.id,
+    user.email,
+  );
 
-  if (!canAccessEnterprise({ email: user.email, plan })) {
+  if (!canAccessEnterprise({ email: user.email, plan: access.plan, subscription_status: access.status })) {
     redirect("/dashboard");
   }
 
@@ -101,7 +94,7 @@ export default async function EnterpriseDashboardPage() {
   }
 
   const maxBucket = Math.max(...Object.values(scoreBuckets), 1);
-  const effectivePlan = org?.plan ?? plan;
+  const effectivePlan = org?.plan ?? access.plan;
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
