@@ -14,6 +14,8 @@ import { requirePermission } from '@/lib/auth/rbac'
 
 import { auditLog, extractIp } from '@/lib/audit/log'
 
+import { enqueueScan } from '@/lib/scanner/orchestrator'
+
 
 
 export async function GET() {
@@ -218,7 +220,37 @@ export async function POST(req: NextRequest) {
 
 
 
-  return NextResponse.json(website, { status: 201 })
+  const enqueueResult = await enqueueScan({
+
+    userId: user.id,
+
+    websiteId: website.id,
+
+    source: 'api',
+
+    orgId,
+
+  })
+
+
+
+  return NextResponse.json(
+
+    {
+
+      ...website,
+
+      scanQueued: enqueueResult.queued,
+
+      jobId: enqueueResult.jobId ?? null,
+
+      scanQueueReason: enqueueResult.queued ? null : enqueueResult.reason,
+
+    },
+
+    { status: 201 },
+
+  )
 
 }
 
