@@ -12,6 +12,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
+import { triggerBackgroundQueueProcessing } from '@/lib/scanner/triggerWorker';
 import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
 
 export async function POST() {
@@ -90,6 +91,10 @@ export async function POST() {
       { error: 'Rate limit exceeded — too many scan triggers. Please wait before scanning again.' },
       { status: 429 },
     );
+  }
+
+  if (queued > 0) {
+    triggerBackgroundQueueProcessing(Math.min(queued, 5));
   }
 
   return Response.json({

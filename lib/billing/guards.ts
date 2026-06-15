@@ -10,3 +10,10 @@ export {
   canUseMonitoring,
   getWebsiteUsageMessage,
 } from '@/lib/auth/permissions';
+
+export {
+  type Feature,
+  type UserForFeatureGate,
+  canAccessFeature,
+  getRequiredPlanForFeature,
+} from '@/lib/auth/featureGate';

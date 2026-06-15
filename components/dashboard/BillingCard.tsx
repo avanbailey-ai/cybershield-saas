@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { Plan, BilledPlan } from '@/lib/billing/plans';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
+import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
+import { formatDisplayPriceMonthly } from '@/lib/billing/formatPrice';
 
 interface BillingCardProps {
   currentPlan: Plan;
@@ -16,39 +18,15 @@ function formatWebsiteDescription(plan: Plan): string {
   return `${websites} · ${limits.maxScansPerDay} scans/day`;
 }
 
-const PLAN_META: Record<Plan, { name: string; price: number | null; description: string }> = {
-  free: {
-    name: PLAN_LIMITS.free.name,
-    price: PLAN_LIMITS.free.price,
-    description: formatWebsiteDescription('free'),
-  },
-  pro: {
-    name: PLAN_LIMITS.pro.name,
-    price: PLAN_LIMITS.pro.price,
-    description: formatWebsiteDescription('pro'),
-  },
-  growth: {
-    name: PLAN_LIMITS.growth.name,
-    price: PLAN_LIMITS.growth.price,
-    description: formatWebsiteDescription('growth'),
-  },
-  agency: {
-    name: PLAN_LIMITS.agency.name,
-    price: PLAN_LIMITS.agency.price,
-    description: formatWebsiteDescription('agency'),
-  },
-  owner: {
-    name: PLAN_LIMITS.owner.name,
-    price: PLAN_LIMITS.owner.price,
-    description: 'Unlimited access · Owner override',
-  },
-};
-
 export default function BillingCard({ currentPlan, subscriptionStatus }: BillingCardProps) {
   const [loading, setLoading] = useState<BilledPlan | 'portal' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { prices } = useDisplayPrices();
 
-  const meta = PLAN_META[currentPlan] ?? PLAN_META.free;
+  const meta = {
+    name: PLAN_LIMITS[currentPlan]?.name ?? PLAN_LIMITS.free.name,
+    description: formatWebsiteDescription(currentPlan),
+  };
 
   async function handleUpgrade(plan: BilledPlan) {
     setLoading(plan);
@@ -104,6 +82,15 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
   const isSubscribed =
     (currentPlan !== 'free' && subscriptionStatus === 'active') || currentPlan === 'owner';
 
+  const upgradePlans: BilledPlan[] =
+    currentPlan === 'free'
+      ? ['pro', 'growth', 'agency']
+      : currentPlan === 'pro'
+        ? ['growth', 'agency']
+        : currentPlan === 'growth'
+          ? ['agency']
+          : [];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-800/30 px-4 py-3">
@@ -127,67 +114,24 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
         </div>
       )}
 
-      {currentPlan === 'free' && (
+      {upgradePlans.length > 0 && (
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Upgrade Your Plan
+            {currentPlan === 'growth' ? 'Upgrade to Agency' : 'Upgrade Your Plan'}
           </p>
           <div className="space-y-3">
-            <UpgradeOption
-              plan="pro"
-              meta={PLAN_META.pro}
-              loading={loading === 'pro'}
-              onUpgrade={handleUpgrade}
-            />
-            <UpgradeOption
-              plan="growth"
-              meta={PLAN_META.growth}
-              loading={loading === 'growth'}
-              onUpgrade={handleUpgrade}
-            />
-            <UpgradeOption
-              plan="agency"
-              meta={PLAN_META.agency}
-              loading={loading === 'agency'}
-              onUpgrade={handleUpgrade}
-            />
+            {upgradePlans.map((plan) => (
+              <UpgradeOption
+                key={plan}
+                plan={plan}
+                name={PLAN_LIMITS[plan].name}
+                priceLabel={formatDisplayPriceMonthly(prices[plan])}
+                description={formatWebsiteDescription(plan)}
+                loading={loading === plan}
+                onUpgrade={handleUpgrade}
+              />
+            ))}
           </div>
-        </div>
-      )}
-
-      {currentPlan === 'pro' && (
-        <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Upgrade Your Plan
-          </p>
-          <div className="space-y-3">
-            <UpgradeOption
-              plan="growth"
-              meta={PLAN_META.growth}
-              loading={loading === 'growth'}
-              onUpgrade={handleUpgrade}
-            />
-            <UpgradeOption
-              plan="agency"
-              meta={PLAN_META.agency}
-              loading={loading === 'agency'}
-              onUpgrade={handleUpgrade}
-            />
-          </div>
-        </div>
-      )}
-
-      {currentPlan === 'growth' && (
-        <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Upgrade to Agency
-          </p>
-          <UpgradeOption
-            plan="agency"
-            meta={PLAN_META.agency}
-            loading={loading === 'agency'}
-            onUpgrade={handleUpgrade}
-          />
         </div>
       )}
 
@@ -206,29 +150,31 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
 
 interface UpgradeOptionProps {
   plan: BilledPlan;
-  meta: { name: string; price: number | null; description: string };
+  name: string;
+  priceLabel: string;
+  description: string;
   loading: boolean;
   onUpgrade: (plan: BilledPlan) => void;
 }
 
-function UpgradeOption({ plan, meta, loading, onUpgrade }: UpgradeOptionProps) {
+function UpgradeOption({ plan, name, priceLabel, description, loading, onUpgrade }: UpgradeOptionProps) {
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/30 px-4 py-3">
       <div>
         <p className="text-sm font-semibold text-white">
-          {meta.name}
-          {meta.price !== null && meta.price > 0 && (
-            <span className="ml-2 text-xs font-normal text-gray-400">${meta.price}/mo</span>
+          {name}
+          {priceLabel !== '—' && (
+            <span className="ml-2 text-xs font-normal text-gray-400">{priceLabel}</span>
           )}
         </p>
-        <p className="mt-0.5 text-xs text-gray-500">{meta.description}</p>
+        <p className="mt-0.5 text-xs text-gray-500">{description}</p>
       </div>
       <button
         onClick={() => onUpgrade(plan)}
         disabled={loading}
         className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
       >
-        {loading ? 'Redirecting…' : `Upgrade to ${meta.name}`}
+        {loading ? 'Redirecting…' : `Upgrade to ${name}`}
       </button>
     </div>
   );

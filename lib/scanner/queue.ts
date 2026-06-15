@@ -18,8 +18,11 @@ export interface QueueJob {
   id: string;
   user_id: string;
   website_id: string;
+  org_id?: string | null;
   status: 'pending' | 'processing' | 'done' | 'failed';
   source: string | null;
+  attempts?: number;
+  max_attempts?: number;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;

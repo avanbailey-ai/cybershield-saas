@@ -1,18 +1,18 @@
 import { isOwner } from './owner';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
+import { canAccessFeature, type UserForFeatureGate } from './featureGate';
 
 export type UserWithPlan = {
   id?: string;
   email?: string | null;
   plan?: string | null;
+  subscription_status?: string | null;
 };
 
 const LEGACY_PLAN_MAP: Record<string, Plan> = {
   starter: 'pro',
   business: 'pro',
 };
-
-const PAID_DASHBOARD_PLANS = ['pro', 'growth', 'agency', 'owner'] as const;
 
 export function normalizePlan(raw: string | null | undefined): Plan {
   if (!raw) return 'free';
@@ -29,11 +29,8 @@ export function getEffectivePlan(user: UserWithPlan): Plan {
   return plan;
 }
 
-export function canAccessDashboard(user: UserWithPlan): boolean {
-  if (isOwner(user.email)) return true;
-  return PAID_DASHBOARD_PLANS.includes(
-    (user.plan ?? 'free') as (typeof PAID_DASHBOARD_PLANS)[number],
-  );
+export function canAccessDashboard(user: UserForFeatureGate): boolean {
+  return canAccessFeature(user, 'dashboard');
 }
 
 export function getUserPlan(user: UserWithPlan): Plan {
@@ -81,11 +78,13 @@ export function canAddWebsite(
 export function canRunScan(
   user: UserWithPlan,
   scansToday: number,
+  maxScansOverride?: number,
 ): { allowed: boolean; message?: string } {
   if (isOwner(user.email)) return { allowed: true };
 
   const limits = getPlanLimits(user);
-  if (scansToday >= limits.maxScansPerDay) {
+  const maxScans = maxScansOverride ?? limits.maxScansPerDay;
+  if (scansToday >= maxScans) {
     const plan = getEffectivePlan(user);
     const upgrade =
       plan === 'free'
@@ -99,17 +98,20 @@ export function canRunScan(
       allowed: false,
       message: upgrade
         ? `Upgrade to ${upgrade} for more daily scans`
-        : `You've reached your daily scan limit (${limits.maxScansPerDay})`,
+        : `You've reached your daily scan limit (${maxScans})`,
     };
   }
   return { allowed: true };
 }
 
-export function canUseMonitoring(user: UserWithPlan): boolean {
+export function canUseMonitoring(user: UserForFeatureGate): boolean {
+  return canAccessFeature(user, 'monitoring');
+}
+
+/** Enterprise dashboard: paid plans + platform owner. */
+export function canAccessEnterprise(user: UserForFeatureGate): boolean {
   if (isOwner(user.email)) return true;
-  return PAID_DASHBOARD_PLANS.includes(
-    (user.plan ?? 'free') as (typeof PAID_DASHBOARD_PLANS)[number],
-  );
+  return canAccessFeature(user, 'team');
 }
 
 export function getWebsiteUsageMessage(current: number, user: UserWithPlan): string {

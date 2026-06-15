@@ -12,20 +12,28 @@
  *   5. Duplicate pending/processing job check
  *   6. 60-second burst rate limit (api/manual only)
  *   7. Increment usage counter atomically
- *   8. Insert job into scan_queue
+ *   8. Per-org hourly rate limit (when org_id present)
+ *   9. Insert job into scan_queue (with optional org_id)
+ *
+ * This IS the enterprise job queue — no separate lib/jobs/queue.ts.
+ * processQueue.ts is the worker; orchestrator is the gateway.
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getUserWithPlan, getUserPlan, getPlanLimits } from '@/lib/billing/planService';
+import { getUserWithPlan, getUserPlan, getPlanLimits, getEffectiveMaxScansPerDay } from '@/lib/billing/planService';
 import { canAddWebsite, canRunScan } from '@/lib/auth/permissions';
 import type { Plan } from '@/lib/billing/plans';
 import { getUsage, incrementScanUsage, decrementScanUsage, getUserWebsiteCount } from '@/lib/billing/usageService';
+import { getActiveOrgId, getOrganization } from '@/lib/org/context';
+import { getOrgHourlyScanLimit } from '@/lib/billing/orgPlans';
+import { auditLog } from '@/lib/audit/log';
 
 export type ScanSource = 'api' | 'manual' | 'cron';
 
 export interface EnqueueResult {
   queued: boolean;
   jobId?: string;
+  jobStatus?: 'pending' | 'processing';
   /** Reason when queued === false */
   reason?:
     | 'too_recent'
@@ -56,8 +64,10 @@ export async function enqueueScan(params: {
   userId: string;
   websiteId: string;
   source: ScanSource;
+  orgId?: string | null;
 }): Promise<EnqueueResult> {
   const { userId, websiteId, source } = params;
+  let orgId = params.orgId ?? null;
 
   console.log(
     `[ORCHESTRATOR] ${new Date().toISOString()} — enqueueScan source=${source} websiteId=${websiteId} userId=${userId}`,
@@ -68,9 +78,8 @@ export async function enqueueScan(params: {
   // ── 1. Validate website ownership ─────────────────────────────────────────
   const { data: website, error: wErr } = await supabase
     .from('websites')
-    .select('id, last_scanned_at')
+    .select('id, last_scanned_at, org_id, user_id')
     .eq('id', websiteId)
-    .eq('user_id', userId)
     .single();
 
   if (wErr || !website) {
@@ -78,17 +87,40 @@ export async function enqueueScan(params: {
     return { queued: false, reason: 'website_not_found' };
   }
 
+  // Ownership: direct user_id OR org membership (org_id resolved below)
+  if (website.user_id !== userId) {
+    if (!website.org_id) {
+      console.warn(`[ORCHESTRATOR] website_not_found — websiteId=${websiteId} userId=${userId}`);
+      return { queued: false, reason: 'website_not_found' };
+    }
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('org_id')
+      .eq('user_id', userId)
+      .eq('org_id', website.org_id)
+      .maybeSingle();
+    if (!membership) {
+      console.warn(`[ORCHESTRATOR] website_not_found — websiteId=${websiteId} userId=${userId}`);
+      return { queued: false, reason: 'website_not_found' };
+    }
+  }
+
+  if (!orgId) {
+    orgId = website.org_id ?? (await getActiveOrgId(userId));
+  }
+
   // ── 2. Billing: daily scan limit ──────────────────────────────────────────
   const userWithPlan = await getUserWithPlan(userId);
   const plan = await getUserPlan(userId);
   const limits = getPlanLimits(plan);
+  const effectiveMaxScans = await getEffectiveMaxScansPerDay(userId);
   const today = new Date().toISOString().split('T')[0];
   const usage = await getUsage(userId, today);
 
-  const scanCheck = canRunScan(userWithPlan, usage.scans_used);
+  const scanCheck = canRunScan(userWithPlan, usage.scans_used, effectiveMaxScans);
   if (!scanCheck.allowed) {
     console.warn(
-      `[ORCHESTRATOR] BLOCK reason=scan_limit_reached user=${userId} plan=${plan} scansToday=${usage.scans_used} limit=${limits.maxScansPerDay}`,
+      `[ORCHESTRATOR] BLOCK reason=scan_limit_reached user=${userId} plan=${plan} scansToday=${usage.scans_used} limit=${effectiveMaxScans}`,
     );
     return {
       queued: false,
@@ -98,7 +130,7 @@ export async function enqueueScan(params: {
       upgradeUrl: '/dashboard/settings',
       plan,
       scansUsed: usage.scans_used,
-      scansLimit: limits.maxScansPerDay,
+      scansLimit: effectiveMaxScans,
     };
   }
 
@@ -145,7 +177,12 @@ export async function enqueueScan(params: {
     console.log(
       `[ORCHESTRATOR] already_queued — websiteId=${websiteId} status=${existingJobs[0].status}`,
     );
-    return { queued: false, reason: 'already_queued' };
+    return {
+      queued: false,
+      reason: 'already_queued',
+      jobId: existingJobs[0].id,
+      jobStatus: existingJobs[0].status as 'pending' | 'processing',
+    };
   }
 
   // ── 6. Burst rate limit: api/manual only ───────────────────────────────────
@@ -174,18 +211,58 @@ export async function enqueueScan(params: {
   // This ensures usage is tracked even if the queue insert fails.
   await incrementScanUsage(userId);
 
-  // ── 8. Insert job — the ONLY place that writes to scan_queue ───────────────
+  // ── 8. Per-org hourly rate limit ───────────────────────────────────────────
+  if (orgId && source !== 'cron') {
+    const org = await getOrganization(orgId);
+    const orgPlan = org?.plan ?? 'free';
+    const hourlyLimit = getOrgHourlyScanLimit(orgPlan);
+    const hourStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: orgRecentScans } = await supabase
+      .from('scan_queue')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId)
+      .gte('created_at', hourStart);
+
+    if ((orgRecentScans ?? 0) >= hourlyLimit) {
+      console.warn(
+        `[ORCHESTRATOR] org_rate_limited — orgId=${orgId} recent=${orgRecentScans}/${hourlyLimit}`,
+      );
+      return {
+        queued: false,
+        reason: 'rate_limited',
+        error: 'RATE_LIMITED',
+        message: 'Organization hourly scan limit reached. Please wait before scanning again.',
+      };
+    }
+  }
+
+  // ── 9. Insert job — the ONLY place that writes to scan_queue ───────────────
   try {
     const { data: job, error: insertErr } = await supabase
       .from('scan_queue')
-      .insert({ website_id: websiteId, user_id: userId, status: 'pending', source })
+      .insert({
+        website_id: websiteId,
+        user_id: userId,
+        org_id: orgId,
+        status: 'pending',
+        source,
+        attempts: 0,
+        max_attempts: 3,
+      })
       .select('id')
       .single();
 
     if (insertErr) throw insertErr;
 
+    auditLog({
+      orgId,
+      userId,
+      action: 'scan_enqueued',
+      metadata: { websiteId, jobId: job.id, source },
+    });
+
     console.log(
-      `[ORCHESTRATOR] ALLOW source=${source} websiteId=${websiteId} jobId=${job.id} plan=${plan} scansToday=${usage.scans_used + 1}/${limits.maxScansPerDay}`,
+      `[ORCHESTRATOR] ALLOW source=${source} websiteId=${websiteId} jobId=${job.id} orgId=${orgId} plan=${plan} scansToday=${usage.scans_used + 1}/${effectiveMaxScans}`,
     );
     return { queued: true, jobId: job.id };
   } catch (err) {

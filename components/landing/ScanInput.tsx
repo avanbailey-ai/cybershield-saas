@@ -1,23 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-
-interface PublicScanResult {
-  url: string;
-  score: number;
-  riskLevel: string;
-  issues: string[];
-  vulnerabilitiesCount: number;
-  genericMessage: string;
-  riskDetected: boolean;
-}
+import ScanResultPaywall, { type PublicScanResult } from '@/components/conversion/ScanResultPaywall';
+import { ConversionProvider, useConversion } from '@/components/conversion/ConversionProvider';
+import {
+  canRunPublicScan,
+  getOrCreateScanSessionId,
+  recordPublicScan,
+  MAX_PUBLIC_SCANS_PER_DAY,
+} from '@/lib/conversion/limits';
+import { trackEvent } from '@/lib/conversion/track';
+import { getUrgencyMessage } from '@/lib/conversion/urgency';
 
 interface ScanInputProps {
   showUpgradeCta?: boolean;
 }
 
-export default function ScanInput({ showUpgradeCta = false }: ScanInputProps) {
+function ScanInputInner(_props: ScanInputProps) {
+  const { openUpgradeModal } = useConversion();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,14 +44,35 @@ export default function ScanInput({ showUpgradeCta = false }: ScanInputProps) {
       return;
     }
 
+    const { allowed, count } = canRunPublicScan();
+    if (!allowed) {
+      openUpgradeModal({ trigger: 'second_scan', score: 50, domain: normalizedUrl });
+      setError(`Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY}/day). Upgrade for unlimited monitoring.`);
+      return;
+    }
+
+    if (count >= 1) {
+      openUpgradeModal({ trigger: 'second_scan', score: 50, domain: normalizedUrl });
+    }
+
     setLoading(true);
+    trackEvent('scan_started', { domain: normalizedUrl });
 
     try {
+      const sessionId = getOrCreateScanSessionId();
       const res = await fetch('/api/scan/public', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-scan-session-id': sessionId,
+        },
         body: JSON.stringify({ url: normalizedUrl }),
       });
+
+      if (res.status === 429) {
+        openUpgradeModal({ trigger: 'second_scan', domain: normalizedUrl });
+        throw new Error('Daily scan limit reached. Upgrade for unlimited monitoring.');
+      }
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -60,18 +81,20 @@ export default function ScanInput({ showUpgradeCta = false }: ScanInputProps) {
 
       const data = (await res.json()) as PublicScanResult;
       setResult(data);
+
+      recordPublicScan(normalizedUrl);
+      sessionStorage.setItem('cybershield_last_score', String(data.score));
+
+      trackEvent('scan_completed', {
+        score: data.score,
+        domain: normalizedUrl,
+        vulnerabilitiesCount: data.vulnerabilitiesCount,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
-  }
-
-  function scoreColor(score: number): string {
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-yellow-400';
-    if (score >= 40) return 'text-orange-400';
-    return 'text-red-400';
   }
 
   return (
@@ -119,81 +142,27 @@ export default function ScanInput({ showUpgradeCta = false }: ScanInputProps) {
         )}
 
         {result && (
-          <div
-            className={`mt-6 rounded-xl border p-6 text-left ${
-              result.riskDetected
-                ? 'border-red-500/30 bg-red-500/10'
-                : 'border-green-500/30 bg-green-500/10'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  result.riskDetected ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
-                }`}
-              >
-                {result.riskDetected ? (
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`font-semibold ${result.riskDetected ? 'text-red-300' : 'text-green-300'}`}>
-                  {result.riskDetected
-                    ? `Risk Detected on ${result.url}`
-                    : `No major issues found on ${result.url}`}
-                </p>
-                <p className="mt-2 text-sm text-gray-300">
-                  Security score:{' '}
-                  <span className={`font-bold ${scoreColor(result.score)}`}>{result.score}/100</span>
-                  {' · '}
-                  Risk level: <span className="capitalize">{result.riskLevel}</span>
-                </p>
-                <p className="mt-1 text-sm text-gray-400">{result.genericMessage}</p>
-
-                {result.issues.length > 0 && (
-                  <div className="mt-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Vulnerabilities ({result.vulnerabilitiesCount})
-                    </p>
-                    <ul className="space-y-1.5">
-                      {result.issues.slice(0, 5).map((issue) => (
-                        <li key={issue} className="flex items-start gap-2 text-sm text-gray-300">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-                          {issue}
-                        </li>
-                      ))}
-                      {result.issues.length > 5 && (
-                        <li className="text-xs text-gray-500">
-                          +{result.issues.length - 5} more — upgrade for full report
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-
-                <Link
-                  href="/#pricing"
-                  className={`mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    result.riskDetected
-                      ? 'bg-red-600/80 text-white hover:bg-red-600'
-                      : 'bg-blue-600/80 text-white hover:bg-blue-600'
-                  }`}
-                >
-                  {showUpgradeCta || result.riskDetected
-                    ? 'Upgrade to monitor continuously →'
-                    : 'Get continuous monitoring →'}
-                </Link>
-              </div>
-            </div>
-          </div>
+          <ScanResultPaywall
+            result={result}
+            onUpgradeClick={() =>
+              openUpgradeModal({
+                score: result.score,
+                domain: result.url,
+                trigger: 'full_report',
+                recommendedPlan: getUrgencyMessage(result.score, result.url).highlightPlan,
+              })
+            }
+          />
         )}
       </div>
     </section>
+  );
+}
+
+export default function ScanInput(props: ScanInputProps) {
+  return (
+    <ConversionProvider>
+      <ScanInputInner {...props} />
+    </ConversionProvider>
   );
 }

@@ -70,7 +70,35 @@ export default async function AdminPage() {
         </div>
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
-          <h3 className="mb-4 text-sm font-semibold text-white">Users by Plan</h3>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Users by Plan</h3>
+            <div className="flex flex-wrap gap-4">
+              <a
+                href="/dashboard/admin/ceo-dashboard"
+                className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
+              >
+                CEO Dashboard →
+              </a>
+              <a
+                href="/dashboard/admin/revenue-intelligence"
+                className="text-xs font-medium text-purple-400 hover:text-purple-300"
+              >
+                Revenue Intelligence →
+              </a>
+              <a
+                href="/dashboard/admin/sales"
+                className="text-xs font-medium text-blue-400 hover:text-blue-300"
+              >
+                Sales CRM →
+              </a>
+              <a
+                href="/dashboard/admin/analytics"
+                className="text-xs font-medium text-blue-400 hover:text-blue-300"
+              >
+                Analytics →
+              </a>
+            </div>
+          </div>
           <ul className="space-y-2">
             {Object.entries(planCounts).map(([plan, count]) => (
               <li

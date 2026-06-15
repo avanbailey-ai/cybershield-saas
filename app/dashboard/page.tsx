@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import DashboardUpgradeBanner from "@/components/conversion/DashboardUpgradeBanner";
 import StatCard from "@/components/dashboard/StatCard";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
 import type { DashboardStats, HeaderChecks, RiskLevel } from "@/types";
@@ -90,7 +91,9 @@ export default async function DashboardPage() {
       .select("security_score")
       .eq("user_id", user.id)
       .eq("status", "completed")
-      .not("security_score", "is", null),
+      .not("security_score", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(100),
     supabase
       .from("alerts")
       .select("*", { count: "exact", head: true })
@@ -177,6 +180,8 @@ export default async function DashboardPage() {
       <DashboardHeader email={user.email ?? "User"} />
 
       <main className="flex-1 overflow-auto p-6">
+        <DashboardUpgradeBanner />
+
         {/* Welcome */}
         <div className="mb-8 flex items-center justify-between">
           <div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
 import { usePlan } from "@/lib/billing/usePlan";
 import { getWebsiteUsageMessage } from "@/lib/billing/guards";
+import { useConversion } from "@/components/conversion/ConversionProvider";
 
 interface LatestScan {
   id: string;
@@ -42,6 +43,7 @@ function scoreBadgeClass(score: number): string {
 
 export default function WebsiteList() {
   const { plan, limits, websiteCount, websitesRemaining, scansRemaining, scansToday, loading: planLoading } = usePlan();
+  const { openUpgradeModal } = useConversion();
   const [websites, setWebsites] = useState<WebsiteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +96,7 @@ export default function WebsiteList() {
         setUpgradeRequired(true);
         setUpgradeMessage(data.message ?? "Website limit reached.");
         setAddError(data.message ?? "Website limit reached.");
+        openUpgradeModal({ trigger: 'add_website', recommendedPlan: plan === 'pro' ? 'growth' : 'agency' });
         return;
       }
       if (!res.ok) throw new Error(data.error ?? "Failed to add website");
@@ -108,8 +111,24 @@ export default function WebsiteList() {
     }
   }
 
+  async function pollScanJob(jobId: string): Promise<{ score: number } | null> {
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const res = await fetch(`/api/scan?jobId=${encodeURIComponent(jobId)}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.done && data.status === "done" && typeof data.score === "number") {
+        return { score: data.score };
+      }
+      if (data.done && data.status === "failed") {
+        throw new Error(data.error ?? "Scan failed");
+      }
+    }
+    return null;
+  }
+
   async function handleScan(websiteId: string) {
-    if (scanningId !== null) return; // Prevent scanning multiple sites simultaneously
+    if (scanningId !== null) return;
     setScanningId(websiteId);
     setScanResult(null);
     setLimitError(null);
@@ -138,7 +157,38 @@ export default function WebsiteList() {
         setError(data.error ?? "Already queued — a scan for this site is already in progress");
         return;
       }
-      if (!res.ok) throw new Error(data.error ?? "Scan failed");
+      if (res.status === 200 && data.already_queued && data.jobId) {
+        const result = await pollScanJob(data.jobId);
+        if (result) {
+          setScanResult({ id: websiteId, score: result.score });
+          await fetchWebsites();
+        } else {
+          setError("Scan is still running — refresh the page to see results");
+        }
+        return;
+      }
+      if (!res.ok && res.status !== 202) throw new Error(data.error ?? "Scan failed");
+
+      // Cached recent scan
+      if (data.cached && typeof data.score === "number") {
+        setScanResult({ id: websiteId, score: data.score });
+        await fetchWebsites();
+        return;
+      }
+
+      // Async: poll for completion
+      if (res.status === 202 && data.jobId) {
+        const result = await pollScanJob(data.jobId);
+        if (result) {
+          setScanResult({ id: websiteId, score: result.score });
+          await fetchWebsites();
+        } else {
+          setError("Scan is still running — refresh the page to see results");
+        }
+        return;
+      }
+
+      // Legacy synchronous response (if any)
       setScanResult({ id: websiteId, score: data.result?.score ?? data.scan?.security_score ?? data.score ?? 0 });
       await fetchWebsites();
     } catch (e) {
@@ -185,8 +235,14 @@ export default function WebsiteList() {
             <ScanAllButton />
           )}
           <button
-            onClick={() => { setShowAddForm(!showAddForm); setAddError(null); }}
-            disabled={websiteLimitReached}
+            onClick={() => {
+              if (websiteCount >= 1 && websiteLimitReached) {
+                openUpgradeModal({ trigger: 'add_website', recommendedPlan: plan === 'pro' ? 'growth' : 'agency' });
+              }
+              setShowAddForm(!showAddForm);
+              setAddError(null);
+            }}
+            disabled={websiteLimitReached && websiteCount === 0}
             title={websiteLimitReached ? (upgradeMessage ?? "Upgrade to add more websites") : undefined}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           >

@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { gateReport } from '@/lib/accessControl';
+import { auditLog } from '@/lib/audit/log';
+import { getActiveOrgId } from '@/lib/org/context';
 import type { RiskLevel, UserPlan, HeaderChecks } from '@/types';
 
 interface ScanRow {
@@ -77,7 +79,7 @@ export default async function ReportPage({ params }: PageProps) {
   // Fetch scan with joined website
   const { data: scan, error } = await supabase
     .from('scans')
-    .select('id, user_id, website_id, started_at, completed_at, security_score, ssl_valid, headers, issues, passed, explanation, risk_score, risk_level, findings, breakdown, recommendations, is_public, websites(url, label, user_id)')
+    .select('id, user_id, org_id, website_id, started_at, completed_at, security_score, ssl_valid, headers, issues, passed, explanation, risk_score, risk_level, findings, breakdown, recommendations, is_public, websites(url, label, user_id)')
     .eq('id', id)
     .single();
 
@@ -94,12 +96,24 @@ export default async function ReportPage({ params }: PageProps) {
     );
   }
 
-  const scanRow = scan as unknown as ScanRow;
+  const scanRow = scan as unknown as ScanRow & { org_id?: string | null };
 
-  // Verify ownership
-  if (scanRow.user_id !== user.id) {
+  // Verify ownership or org membership
+  let canView = scanRow.user_id === user.id;
+  if (!canView && scanRow.org_id) {
+    const orgId = await getActiveOrgId(user.id);
+    canView = orgId === scanRow.org_id;
+  }
+  if (!canView) {
     redirect('/dashboard');
   }
+
+  auditLog({
+    userId: user.id,
+    orgId: scanRow.org_id ?? (await getActiveOrgId(user.id)),
+    action: 'report_accessed',
+    metadata: { scanId: id },
+  });
 
   // Get user plan from profile
   const { data: profile } = await supabase

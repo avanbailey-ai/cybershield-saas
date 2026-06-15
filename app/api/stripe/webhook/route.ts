@@ -3,6 +3,66 @@ import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { planFromPriceId, type BilledPlan } from '@/lib/billing/plans';
+import { getVariant, recordConversion } from '@/lib/analytics/experiments';
+import { applyReferralConversionReward } from '@/lib/referrals/rewards';
+import { auditLog } from '@/lib/audit/log';
+import { logWebhookFailure, logWebhookProcessing } from '@/lib/observability/log';
+import { rateLimitWebhook } from '@/lib/rateLimit/limiter';
+import { getSeatLimitForPlan } from '@/lib/billing/orgPlans';
+import { emitEvent } from '@/lib/brain/eventBus';
+
+async function claimWebhookEvent(
+  supabase: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  eventType: string,
+): Promise<boolean> {
+  const { error } = await supabase.from('stripe_webhook_events').insert({
+    event_id: eventId,
+    event_type: eventType,
+  });
+
+    if (error) {
+      if (error.code === '23505') {
+        console.log(`[webhook] duplicate event skipped: ${eventId}`);
+        return false;
+      }
+      if (error.code === '42P01') {
+        console.warn('[webhook] stripe_webhook_events table missing — apply migration for idempotency');
+        return true;
+      }
+      console.error('[webhook] idempotency insert failed:', error);
+    }
+
+  return true;
+}
+
+async function updateOrgFromWebhook(
+  supabase: ReturnType<typeof createAdminClient>,
+  orgId: string,
+  plan: BilledPlan,
+  customerId: string | null,
+  subscriptionId: string | null,
+  status?: string,
+): Promise<void> {
+  const update: Record<string, string | number | null> = {
+    plan,
+    seat_limit: getSeatLimitForPlan(plan),
+  };
+  if (customerId) update.stripe_customer_id = customerId;
+  if (subscriptionId) update.stripe_subscription_id = subscriptionId;
+
+  const { error } = await supabase.from('organizations').update(update).eq('id', orgId);
+  if (error) {
+    console.error('[webhook] org update failed', { orgId, error });
+  } else {
+    console.log(`[webhook] org ${orgId} updated to plan ${plan}`);
+    auditLog({
+      orgId,
+      action: 'billing_webhook',
+      metadata: { plan, status: status ?? 'active', customerId, subscriptionId },
+    });
+  }
+}
 
 function validateStripeEnv(): string | null {
   if (!process.env.STRIPE_SECRET_KEY) return 'STRIPE_SECRET_KEY';
@@ -35,6 +95,14 @@ async function resolvePlanFromSession(session: Stripe.Checkout.Session): Promise
  * IMPORTANT: Always returns 200 even on errors — Stripe retries non-200s.
  */
 export async function POST(req: Request) {
+  const webhookStart = Date.now();
+  const sourceIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'stripe';
+  const webhookRate = rateLimitWebhook(sourceIp);
+  if (!webhookRate.allowed) {
+    console.warn('[webhook] rate limit exceeded for', sourceIp);
+    return NextResponse.json({ received: true });
+  }
+
   const missingEnv = validateStripeEnv();
   if (missingEnv) {
     console.error(`[webhook] ${missingEnv} is not set`);
@@ -66,6 +134,11 @@ export async function POST(req: Request) {
 
   const supabase = createAdminClient();
 
+  const shouldProcess = await claimWebhookEvent(supabase, event.id, event.type);
+  if (!shouldProcess) {
+    return NextResponse.json({ received: true, duplicate: true });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -85,6 +158,12 @@ export async function POST(req: Request) {
           break;
         }
 
+        const { data: buyerProfile } = await supabase
+          .from('profiles')
+          .select('referred_by_code')
+          .eq('id', userId)
+          .single();
+
         const { error } = await supabase.from('profiles').update({
           plan,
           stripe_customer_id: customerId,
@@ -94,9 +173,75 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error('[webhook] checkout.session.completed: DB update failed', error);
+          logWebhookFailure(event.type, error);
         } else {
           console.log(`[webhook] checkout.session.completed: user ${userId} upgraded to ${plan}`);
+
+          auditLog({
+            userId,
+            action: 'billing_webhook',
+            metadata: { event: 'checkout.session.completed', plan, sessionId: session.id },
+          });
+
+          const orgId = session.metadata?.orgId;
+          if (orgId) {
+            await updateOrgFromWebhook(supabase, orgId, plan, customerId, subscriptionId, 'active');
+          }
+
+          await supabase.from('analytics_events').insert({
+            event_type: 'checkout_completed',
+            user_id: userId,
+            metadata: {
+              plan,
+              sessionId: session.id,
+              referredByCode: buyerProfile?.referred_by_code ?? null,
+            },
+          });
+
+          void emitEvent(
+            'checkout_completed',
+            { plan, sessionId: session.id },
+            userId,
+            null,
+            'stripe',
+          );
+
+          if (buyerProfile?.referred_by_code) {
+            void applyReferralConversionReward(userId).catch((err) =>
+              console.error('[webhook] referral reward failed:', err),
+            );
+          }
+
+          const checkoutEvents = await supabase
+            .from('analytics_events')
+            .select('session_id')
+            .eq('user_id', userId)
+            .eq('event_type', 'checkout_started')
+            .order('created_at', { ascending: false })
+            .limit(1);
+          const analyticsSessionId = checkoutEvents.data?.[0]?.session_id;
+          if (analyticsSessionId) {
+            for (const expName of ['cta_text', 'paywall_timing'] as const) {
+              const { variant } = await getVariant(expName, analyticsSessionId);
+              await recordConversion(expName, variant);
+            }
+          }
+
+          const { error: abandonedErr } = await supabase
+            .from('abandoned_checkouts')
+            .update({ status: 'converted', converted_at: new Date().toISOString() })
+            .eq('session_id', session.id);
+
+          if (abandonedErr) {
+            console.error('[webhook] abandoned_checkouts update failed:', abandonedErr);
+          }
         }
+        break;
+      }
+
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`[webhook] checkout.session.expired: session ${session.id} — eligible for recovery email`);
         break;
       }
 
@@ -142,8 +287,18 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error('[webhook] invoice.paid: DB update failed', error);
+          logWebhookFailure(event.type, error);
         } else {
           console.log(`[webhook] invoice.paid: customer ${customerId} marked active${plan ? `, plan → ${plan}` : ''}`);
+          if (plan) {
+            const { data: orgs } = await supabase
+              .from('organizations')
+              .select('id')
+              .eq('stripe_customer_id', customerId);
+            for (const org of orgs ?? []) {
+              await updateOrgFromWebhook(supabase, org.id, plan, customerId, null, 'active');
+            }
+          }
         }
         break;
       }
@@ -160,8 +315,15 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error('[webhook] customer.subscription.deleted: DB update failed', error);
+          logWebhookFailure(event.type, error);
         } else {
           console.log(`[webhook] customer.subscription.deleted: customer ${customerId} downgraded to free`);
+          await supabase.from('organizations').update({
+            plan: 'free',
+            seat_limit: 1,
+            stripe_subscription_id: null,
+          }).eq('stripe_customer_id', customerId);
+          auditLog({ action: 'billing_webhook', metadata: { event: 'subscription.deleted', customerId } });
         }
         break;
       }
@@ -184,8 +346,25 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error('[webhook] customer.subscription.updated: DB update failed', error);
+          logWebhookFailure(event.type, error);
         } else {
           console.log(`[webhook] customer.subscription.updated: customer ${customerId} status → ${status}${plan ? `, plan → ${plan}` : ''}`);
+          if (plan && (status === 'active' || status === 'trialing')) {
+            const { data: orgs } = await supabase
+              .from('organizations')
+              .select('id')
+              .eq('stripe_customer_id', customerId);
+            for (const org of orgs ?? []) {
+              await updateOrgFromWebhook(
+                supabase,
+                org.id,
+                plan,
+                customerId,
+                subscription.id,
+                status,
+              );
+            }
+          }
         }
         break;
       }
@@ -195,7 +374,9 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error(`[webhook] Unhandled error processing event ${event.type}:`, err);
+    logWebhookFailure(event.type, err);
   }
 
+  logWebhookProcessing(event.type, Date.now() - webhookStart);
   return NextResponse.json({ received: true });
 }

@@ -22,6 +22,9 @@ export interface PlanLimits {
 export interface UserProfile {
   plan: string | null;
   email: string | null;
+  subscription_status: string | null;
+  bonus_scans: number;
+  pro_unlock_until: string | null;
 }
 
 /** Return the limits for a given plan. */
@@ -42,15 +45,40 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('profiles')
-      .select('plan, email')
+      .select('plan, email, subscription_status, bonus_scans, pro_unlock_until')
       .eq('id', userId)
       .single();
 
-    if (error || !data) return { plan: 'free', email: null };
-    return { plan: data.plan ?? 'free', email: data.email ?? null };
+    if (error || !data) {
+      return { plan: 'free', email: null, subscription_status: null, bonus_scans: 0, pro_unlock_until: null };
+    }
+    return {
+      plan: data.plan ?? 'free',
+      email: data.email ?? null,
+      subscription_status: data.subscription_status ?? null,
+      bonus_scans: data.bonus_scans ?? 0,
+      pro_unlock_until: data.pro_unlock_until ?? null,
+    };
   } catch {
-    return { plan: 'free', email: null };
+    return { plan: 'free', email: null, subscription_status: null, bonus_scans: 0, pro_unlock_until: null };
   }
+}
+
+/** Effective daily scan cap including referral bonus scans and temporary Pro unlock. */
+export async function getEffectiveMaxScansPerDay(userId: string): Promise<number> {
+  const profile = await getUserProfile(userId);
+  const plan = getEffectivePlan(profile);
+  const baseLimit = getPlanLimits(plan).maxScansPerDay;
+
+  let effectiveLimit = baseLimit;
+
+  const proUnlockActive =
+    profile.pro_unlock_until !== null && new Date(profile.pro_unlock_until) > new Date();
+  if (proUnlockActive && plan === 'free') {
+    effectiveLimit = getPlanLimits('pro').maxScansPerDay;
+  }
+
+  return effectiveLimit + (profile.bonus_scans ?? 0);
 }
 
 /**
@@ -68,6 +96,7 @@ export async function getUserWithPlan(userId: string): Promise<UserWithPlan & { 
     id: userId,
     email: profile.email,
     plan: profile.plan,
+    subscription_status: profile.subscription_status,
   };
 }
 

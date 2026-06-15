@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getRedirectPath } from "@/lib/auth/redirect";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
@@ -14,6 +15,8 @@ const supabaseConfigured =
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,7 +47,27 @@ export default function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      let plan = "free";
+      let subscriptionStatus: string | null = "inactive";
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan, subscription_status")
+          .eq("id", user.id)
+          .single();
+        plan = profile?.plan ?? "free";
+        subscriptionStatus = profile?.subscription_status ?? "inactive";
+      }
+
+      router.push(
+        redirectTo && redirectTo.startsWith("/")
+          ? redirectTo
+          : getRedirectPath({ email: user?.email, plan, subscription_status: subscriptionStatus }),
+      );
       router.refresh();
     } catch (err) {
       setError(

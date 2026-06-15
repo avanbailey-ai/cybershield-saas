@@ -1,19 +1,34 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getRedirectPath } from "@/lib/auth/redirect";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { isValidReferralCode } from "@/lib/referrals/code";
 
 export default function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref && isValidReferralCode(ref)) {
+      void fetch("/api/referrals/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "click", code: ref }),
+      });
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,7 +62,36 @@ export default function SignupForm() {
 
     // If email confirmation is enabled, show message; otherwise redirect
     if (data.user && data.session) {
-      router.push("/#pricing");
+      let plan = "free";
+      let subscriptionStatus: string | null = "inactive";
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan, subscription_status")
+        .eq("id", data.user.id)
+        .single();
+      plan = profile?.plan ?? "free";
+      subscriptionStatus = profile?.subscription_status ?? "inactive";
+
+      // Attach referral from cookie if present
+      try {
+        await fetch("/api/referrals/attach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+      } catch {
+        // Non-blocking
+      }
+
+      router.push(
+        redirectTo && redirectTo.startsWith("/")
+          ? redirectTo
+          : getRedirectPath({
+              email: data.user.email,
+              plan,
+              subscription_status: subscriptionStatus,
+            }),
+      );
       router.refresh();
     } else {
       setMessage("Check your email to confirm your account before signing in.");

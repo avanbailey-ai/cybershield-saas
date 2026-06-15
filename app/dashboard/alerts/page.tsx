@@ -1,11 +1,13 @@
-import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import AlertsList, { type AlertRow } from "@/components/dashboard/alerts/AlertsList";
+import type { Metadata } from 'next';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import AlertsList, { type AlertRow } from '@/components/dashboard/alerts/AlertsList';
+import { canAccessFeature } from '@/lib/auth/featureGate';
+import { isOwner } from '@/lib/auth/owner';
 
 export const metadata: Metadata = {
-  title: "Alerts — CyberShield",
+  title: 'Alerts — CyberShield',
 };
 
 export default async function AlertsPage() {
@@ -14,17 +16,30 @@ export default async function AlertsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect('/login');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('plan, subscription_status')
+    .eq('id', user.id)
+    .single();
+
+  const plan = isOwner(user.email) ? 'owner' : (profile?.plan ?? 'free');
+  const subscriptionStatus = isOwner(user.email) ? 'active' : (profile?.subscription_status ?? 'inactive');
+
+  if (!canAccessFeature({ email: user.email, plan, subscription_status: subscriptionStatus }, 'alerts')) {
+    redirect('/dashboard/settings');
+  }
 
   const { data: alerts } = await supabase
-    .from("alerts")
+    .from('alerts')
     .select(`id, title, message, severity, is_read, created_at, website_id, scan_id, websites(url, label)`)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email={user.email ?? "User"} />
+      <DashboardHeader email={user.email ?? 'User'} />
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white">Alerts</h2>

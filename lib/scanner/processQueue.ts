@@ -16,6 +16,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { fetchPendingJobs } from './queue';
 import { runScan } from './runScan';
 import { postProcessScan } from './postProcessScan';
+import { logScanTiming } from '@/lib/observability/log';
+
+/**
+ * Enterprise job queue worker — pairs with orchestrator.ts (gateway).
+ * Do NOT create a separate lib/jobs/queue.ts; extend orchestrator + processQueue instead.
+ */
 
 // Jobs stuck in "processing" beyond this threshold are considered stale and recovered
 const STALE_PROCESSING_TIMEOUT_MS = 15 * 60 * 1000;
@@ -129,12 +135,14 @@ export async function processQueue(
 
     // Create a scan record to track this execution
     let scanRecordId!: string;
+    const orgId = job.org_id ?? null;
     try {
       const { data: scan, error: scanErr } = await supabase
         .from('scans')
         .insert({
           website_id: website.id,
           user_id: website.user_id,
+          org_id: orgId,
           status: 'running',
           started_at: new Date().toISOString(),
         })
@@ -155,6 +163,7 @@ export async function processQueue(
 
     // Execute the scan
     let scanResult: Awaited<ReturnType<typeof runScan>> | null = null;
+    const scanStart = Date.now();
     try {
       log('running scan');
       scanResult = await runScan(website.url);
@@ -162,6 +171,7 @@ export async function processQueue(
       if (typeof scanResult.score !== 'number') throw new Error('Invalid scan result: score missing');
       if (!Array.isArray(scanResult.issues)) throw new Error('Invalid scan result: issues not array');
 
+      logScanTiming(scanRecordId, Date.now() - scanStart);
       log('scan complete', { score: scanResult.score, riskLevel: scanResult.riskLevel });
     } catch (err) {
       logError('scan failed', err);
@@ -169,10 +179,32 @@ export async function processQueue(
         .from('scans')
         .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
         .eq('id', scanRecordId);
-      await supabase
-        .from('scan_queue')
-        .update({ status: 'failed', error: String(err), completed_at: new Date().toISOString() })
-        .eq('id', job.id);
+
+      const jobAttempts = (job.attempts ?? 0) + 1;
+      const maxAttempts = job.max_attempts ?? 3;
+
+      if (jobAttempts < maxAttempts) {
+        await supabase
+          .from('scan_queue')
+          .update({
+            status: 'pending',
+            attempts: jobAttempts,
+            started_at: null,
+            error: String(err),
+          })
+          .eq('id', job.id);
+        log(`retry scheduled attempt ${jobAttempts}/${maxAttempts}`);
+      } else {
+        await supabase
+          .from('scan_queue')
+          .update({
+            status: 'failed',
+            attempts: jobAttempts,
+            error: String(err),
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', job.id);
+      }
       results.push({ jobId: job.id, websiteId: job.website_id, url: website.url, success: false, error: String(err) });
       continue;
     }

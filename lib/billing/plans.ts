@@ -1,21 +1,19 @@
 /**
- * plans.ts — Stripe Price IDs and plan limits (source of truth).
+ * plans.ts — Plan limits and feature metadata (NOT billing prices).
  *
- * Set STRIPE_PRICE_PRO, STRIPE_PRICE_GROWTH, and STRIPE_PRICE_AGENCY in your
- * environment after creating the corresponding products in the Stripe Dashboard.
+ * Billing authority: Stripe price IDs via env vars below.
+ * Display amounts: fetched from Stripe via lib/billing/stripeDisplayPrices.ts
  */
 
 export const PLAN_LIMITS = {
   free: {
     name: 'Free',
-    price: 0,
     websites: 0,
     maxScansPerDay: 0,
     scanFrequency: 'manual' as const,
   },
   pro: {
     name: 'Pro',
-    price: 49,
     websites: 25,
     maxScansPerDay: 50,
     scanFrequency: 'weekly' as const,
@@ -23,7 +21,6 @@ export const PLAN_LIMITS = {
   },
   growth: {
     name: 'Growth',
-    price: 99,
     websites: 100,
     maxScansPerDay: 200,
     scanFrequency: 'daily' as const,
@@ -32,7 +29,6 @@ export const PLAN_LIMITS = {
   },
   agency: {
     name: 'Agency',
-    price: 199,
     websites: Infinity,
     maxScansPerDay: 500,
     scanFrequency: 'hourly' as const,
@@ -40,7 +36,6 @@ export const PLAN_LIMITS = {
   },
   owner: {
     name: 'Owner',
-    price: 0,
     websites: Infinity,
     maxScansPerDay: Infinity,
     scanFrequency: 'hourly' as const,

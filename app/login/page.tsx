@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import AuthCard from "@/components/auth/AuthCard";
 import LoginForm from "@/components/auth/LoginForm";
 
@@ -41,7 +42,9 @@ export default function LoginPage() {
       panelDescription="Access your security monitoring dashboard and stay ahead of threats."
       panelBullets={bullets}
     >
-      <LoginForm />
+      <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>
+        <LoginForm />
+      </Suspense>
     </AuthCard>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import AuthCard from "@/components/auth/AuthCard";
 import SignupForm from "@/components/auth/SignupForm";
 
@@ -25,7 +26,9 @@ export default function SignupPage() {
       panelDescription="Create your account, then choose a plan to unlock the monitoring dashboard."
       panelBullets={bullets}
     >
-      <SignupForm />
+      <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>
+        <SignupForm />
+      </Suspense>
     </AuthCard>
   );
 }

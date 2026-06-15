@@ -1,0 +1,9 @@
+-- Idempotent Stripe webhook processing
+CREATE TABLE IF NOT EXISTS public.stripe_webhook_events (
+  event_id    TEXT        PRIMARY KEY,
+  event_type  TEXT        NOT NULL,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS stripe_webhook_events_processed_at_idx
+  ON public.stripe_webhook_events (processed_at);

@@ -14,7 +14,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assessRisk } from '@/lib/riskEngine';
 import { sendSecurityAlert } from '@/lib/sendAlertEmail';
+import { generateAndStoreReport, extractDomain } from '@/lib/ai/storeReport';
+import { updateLeaderboard } from '@/lib/leaderboard/update';
+import { triggerScanEmailFunnel } from '@/lib/email/funnel';
+import { emitEvent } from '@/lib/brain/eventBus';
 import type { ScanResult } from './runScan';
+import { getActiveOrgId } from '@/lib/org/context';
 
 export async function postProcessScan(params: {
   scanId: string;
@@ -33,6 +38,13 @@ export async function postProcessScan(params: {
   const risk = assessRisk(scanResult);
   const now = new Date().toISOString();
   const newRiskScore = 100 - scanResult.score;
+
+  const { data: websiteRow } = await supabase
+    .from('websites')
+    .select('org_id')
+    .eq('id', websiteId)
+    .single();
+  const orgId = websiteRow?.org_id ?? (await getActiveOrgId(userId));
 
   // Fetch the previous scan's risk score for risk-increase detection
   const { data: prevScans } = await supabase
@@ -93,6 +105,7 @@ export async function postProcessScan(params: {
           user_id: userId,
           website_id: websiteId,
           scan_id: scanId,
+          org_id: orgId,
           title: `No HTTPS detected on ${url}`,
           message:
             'This website does not use HTTPS. All traffic is unencrypted and users are at risk of data interception.',
@@ -122,6 +135,7 @@ export async function postProcessScan(params: {
           user_id: userId,
           website_id: websiteId,
           scan_id: scanId,
+          org_id: orgId,
           title: `Security issues detected on ${url}`,
           message: scanResult.explanation,
           severity,
@@ -155,6 +169,7 @@ export async function postProcessScan(params: {
           user_id: userId,
           website_id: websiteId,
           scan_id: scanId,
+          org_id: orgId,
           type: 'risk_increase',
           title: 'Risk Score Increased',
           message: `Risk on ${url} increased from ${previousRiskScore} to ${newRiskScore}`,
@@ -171,6 +186,47 @@ export async function postProcessScan(params: {
       `[POST-PROCESS] Risk increase detected for ${url}: ${previousRiskScore} → ${newRiskScore}`,
     );
   }
+
+  // 4. Growth Engine V2 — fire-and-forget (never block critical path)
+  const domain = extractDomain(url);
+
+  void generateAndStoreReport({ scanId, domain, userId, scanResult }).catch((err) =>
+    console.error('[POST-PROCESS] Report generation failed (non-fatal):', err),
+  );
+
+  void updateLeaderboard(domain, scanResult.score).catch((err) =>
+    console.error('[POST-PROCESS] Leaderboard update failed (non-fatal):', err),
+  );
+
+  void emitEvent(
+    'scan_completed',
+    { domain, score: scanResult.score, websiteId, scanId },
+    userId,
+    null,
+    'app',
+  );
+
+  void (async () => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      if (profile?.email) {
+        await triggerScanEmailFunnel({
+          userId,
+          email: profile.email,
+          domain,
+          score: scanResult.score,
+          reportSummary: scanResult.explanation,
+        });
+      }
+    } catch (err) {
+      console.error('[POST-PROCESS] Email funnel failed (non-fatal):', err);
+    }
+  })();
 
   console.log(`[POST-PROCESS] Complete — scanId=${scanId}`);
 }

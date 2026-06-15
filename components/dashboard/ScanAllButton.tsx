@@ -53,18 +53,12 @@ export default function ScanAllButton() {
         return;
       }
 
-      setStatus(`Processing ${enqueueData.queued} website(s)...`);
+      setStatus(`Queued ${enqueueData.queued} website(s) — processing in background...`);
 
-      const processRes = await fetch('/api/scan/process-queue', { method: 'POST' });
-      const processData = await processRes.json();
-
-      const parts: string[] = [];
-      if (processData.succeeded > 0) parts.push(`${processData.succeeded} succeeded`);
-      if (processData.failed > 0) parts.push(`${processData.failed} failed`);
-      if (enqueueData.blocked > 0) parts.push(`${enqueueData.blocked} blocked by plan limit`);
-
-      setStatus(`Done: ${parts.join(', ') || 'no results'}`);
+      // Poll queue status briefly (non-blocking UX)
+      await new Promise((r) => setTimeout(r, 2000));
       router.refresh();
+      setStatus(`Done: ${enqueueData.queued} scan(s) queued${enqueueData.blocked > 0 ? `, ${enqueueData.blocked} blocked` : ''}`);
     } catch (err) {
       setStatus('Error — check console for details');
       console.error('[ScanAll]', err);

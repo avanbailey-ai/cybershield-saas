@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -30,7 +31,7 @@ export async function signUp(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/#pricing");
+  redirect(await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient));
 }
 
 export async function signIn(formData: FormData) {
@@ -49,7 +50,7 @@ export async function signIn(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient));
 }
 
 export async function signOut() {

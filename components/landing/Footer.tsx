@@ -1,9 +1,13 @@
 import Link from "next/link";
+import TrustSignals from "@/components/enterprise/TrustSignals";
 
 export default function Footer() {
   return (
     <footer className="border-t border-gray-800 py-10 px-4">
       <div className="mx-auto max-w-7xl">
+        <div className="mb-8">
+          <TrustSignals compact />
+        </div>
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -22,6 +26,9 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-5">
+            <Link href="/enterprise/pricing" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Enterprise
+            </Link>
             <Link href="/login" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
               Sign In
             </Link>
