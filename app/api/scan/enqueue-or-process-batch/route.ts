@@ -1,10 +1,14 @@
 /**
- * POST/GET /api/workers/process-scans
+ * POST/GET /api/scan/enqueue-or-process-batch
  *
- * Legacy alias — delegates to the shared scan batch handler.
- * Prefer /api/scan/enqueue-or-process-batch for cron-job.org (every 5 min).
+ * Production cron endpoint — reclaims stale locks, claims pending scan jobs,
+ * processes a bounded batch (default 10). Idempotent and multi-instance safe.
  *
- * Auth: CRON_SECRET bearer (Vercel cron / cron-job.org / GitHub Actions).
+ * Auth: Authorization: Bearer CRON_SECRET
+ *
+ * Recommended cron-job.org URL (every 5 min):
+ *   GET https://your-app.vercel.app/api/scan/enqueue-or-process-batch
+ *   Header: Authorization: Bearer YOUR_CRON_SECRET
  */
 
 import { NextResponse } from 'next/server';
@@ -12,35 +16,33 @@ import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { logApiTiming } from '@/lib/observability/log';
 
-async function handleWorker(req: Request) {
+async function handleRequest(req: Request) {
   if (!isWorkerAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const result = await handleScanBatch();
 
-  logApiTiming('/api/workers/process-scans', result.durationMs, 200, {
+  logApiTiming('/api/scan/enqueue-or-process-batch', result.durationMs, 200, {
     processed: result.processed,
     failed: result.failed,
+    skipped: result.skipped,
     reclaimed: result.reclaimed,
   });
 
   return NextResponse.json({
-    ok: result.ok,
     processed: result.processed,
-    succeeded: result.succeeded,
     failed: result.failed,
     skipped: result.skipped,
     reclaimed: result.reclaimed,
     durationMs: result.durationMs,
-    migrateTo: '/api/scan/enqueue-or-process-batch',
   });
 }
 
 export async function POST(req: Request) {
-  return handleWorker(req);
+  return handleRequest(req);
 }
 
 export async function GET(req: Request) {
-  return handleWorker(req);
+  return handleRequest(req);
 }

@@ -1,7 +1,7 @@
 /**
  * POST /api/scan/trigger-all
  * Enqueues all active websites for the authenticated user via the orchestrator.
- * Does NOT execute scans — workers at /api/workers/process-scans process the queue.
+ * Does NOT execute scans — /api/scan/enqueue-or-process-batch processes the queue.
  *
  * Plan limits, dedup, and rate-limit checks are enforced inside orchestrator.enqueueScan().
  * Scan All bypasses the per-website cooldown so explicit user intent to scan now is honored.

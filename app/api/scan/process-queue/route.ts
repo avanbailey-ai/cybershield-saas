@@ -1,17 +1,15 @@
 /**
- * @deprecated Use /api/workers/process-scans instead.
+ * @deprecated Use /api/scan/enqueue-or-process-batch instead.
  * Thin delegation shim — kept for backward-compatible cron URLs.
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
-import { runScanWorker } from '@/lib/scanner/processQueue';
+import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { logApiTiming } from '@/lib/observability/log';
 
 export async function POST(req: Request) {
-  const started = Date.now();
-
   if (!isWorkerAuthorized(req)) {
     const supabase = await createClient();
     const {
@@ -23,13 +21,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const result = await runScanWorker();
-  logApiTiming('/api/scan/process-queue', Date.now() - started, 200, { processed: result.processed, deprecated: true });
+  const result = await handleScanBatch();
+  logApiTiming('/api/scan/process-queue', result.durationMs, 200, { processed: result.processed, deprecated: true });
 
   return NextResponse.json({
     ...result,
     deprecated: true,
-    migrateTo: '/api/workers/process-scans',
+    migrateTo: '/api/scan/enqueue-or-process-batch',
   });
 }
 
@@ -38,13 +36,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const started = Date.now();
-  const result = await runScanWorker();
-  logApiTiming('/api/scan/process-queue', Date.now() - started, 200, { processed: result.processed, source: 'cron', deprecated: true });
+  const result = await handleScanBatch();
+  logApiTiming('/api/scan/process-queue', result.durationMs, 200, { processed: result.processed, source: 'cron', deprecated: true });
 
   return NextResponse.json({
     ...result,
     deprecated: true,
-    migrateTo: '/api/workers/process-scans',
+    migrateTo: '/api/scan/enqueue-or-process-batch',
   });
 }

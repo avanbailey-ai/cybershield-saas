@@ -4,7 +4,7 @@
  * This replaces the former Vercel Cron job at /api/cron/scan (removed).
  *
  * Requires an authenticated user session. Intended for admin use.
- * Scan execution is handled by /api/workers/process-scans (cron or external scheduler).
+ * Scan execution is handled by /api/scan/enqueue-or-process-batch (cron-job.org every 5 min).
  */
 
 import { createClient } from '@/lib/supabase/server';

@@ -1,7 +1,7 @@
 /**
  * Scan queue worker — atomic claim, idempotent execution, controlled concurrency.
  *
- * Pairs with orchestrator.ts (enqueue gateway). Invoked only by /api/workers/process-scans.
+ * Pairs with orchestrator.ts (enqueue gateway). Invoked by cron batch endpoints.
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
