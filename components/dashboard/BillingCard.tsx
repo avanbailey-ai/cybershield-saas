@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Plan } from '@/lib/billing/plans';
-import type { BilledPlan } from '@/lib/billing/plans';
+import type { Plan, BilledPlan } from '@/lib/billing/plans';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
 
 interface BillingCardProps {
@@ -10,26 +9,33 @@ interface BillingCardProps {
   subscriptionStatus: string | null;
 }
 
+function formatWebsiteDescription(plan: Plan): string {
+  const limits = PLAN_LIMITS[plan];
+  const websites =
+    limits.websites === Infinity ? 'Unlimited websites' : `${limits.websites} website${limits.websites === 1 ? '' : 's'}`;
+  return `${websites} · ${limits.maxScansPerDay} scans/day`;
+}
+
 const PLAN_META: Record<Plan, { name: string; price: number | null; description: string }> = {
   free: {
-    name: 'Free',
-    price: 0,
-    description: `${PLAN_LIMITS.free.websites} website · ${PLAN_LIMITS.free.maxScansPerDay} scans/day`,
+    name: PLAN_LIMITS.free.name,
+    price: PLAN_LIMITS.free.price,
+    description: formatWebsiteDescription('free'),
   },
   pro: {
-    name: 'Pro',
-    price: 49,
-    description: `${PLAN_LIMITS.pro.websites} websites · ${PLAN_LIMITS.pro.maxScansPerDay} scan/day`,
+    name: PLAN_LIMITS.pro.name,
+    price: PLAN_LIMITS.pro.price,
+    description: formatWebsiteDescription('pro'),
   },
   growth: {
-    name: 'Growth',
-    price: 99,
-    description: `${PLAN_LIMITS.growth.websites} websites · ${PLAN_LIMITS.growth.maxScansPerDay} scans/day`,
+    name: PLAN_LIMITS.growth.name,
+    price: PLAN_LIMITS.growth.price,
+    description: formatWebsiteDescription('growth'),
   },
   agency: {
-    name: 'Agency',
-    price: 199,
-    description: `${PLAN_LIMITS.agency.websites} websites · ${PLAN_LIMITS.agency.maxScansPerDay} scans/day`,
+    name: PLAN_LIMITS.agency.name,
+    price: PLAN_LIMITS.agency.price,
+    description: formatWebsiteDescription('agency'),
   },
 };
 
@@ -51,9 +57,12 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 503) {
-          setError('Stripe payments not yet configured. Please contact support.');
+          setError(data.error ?? 'Stripe payments not yet configured. Please contact support.');
         } else {
-          setError(data.error ?? 'Something went wrong. Please try again.');
+          const message = data.details
+            ? `${data.error ?? 'Checkout failed'}: ${data.details}`
+            : (data.error ?? 'Something went wrong. Please try again.');
+          setError(message);
         }
         return;
       }
@@ -91,7 +100,6 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
 
   return (
     <div className="space-y-4">
-      {/* Current plan row */}
       <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-800/30 px-4 py-3">
         <div>
           <p className="text-sm font-medium text-gray-200">Current Plan</p>
@@ -113,7 +121,6 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
         </div>
       )}
 
-      {/* Upgrade options */}
       {currentPlan === 'free' && (
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -178,7 +185,6 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
         </div>
       )}
 
-      {/* Manage subscription (for paying customers) */}
       {isSubscribed && (
         <button
           onClick={handlePortal}
@@ -205,7 +211,7 @@ function UpgradeOption({ plan, meta, loading, onUpgrade }: UpgradeOptionProps) {
       <div>
         <p className="text-sm font-semibold text-white">
           {meta.name}
-          {meta.price !== null && (
+          {meta.price !== null && meta.price > 0 && (
             <span className="ml-2 text-xs font-normal text-gray-400">${meta.price}/mo</span>
           )}
         </p>

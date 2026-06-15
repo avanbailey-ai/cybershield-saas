@@ -101,7 +101,7 @@ export async function enqueueScan(params: {
   }
 
   // ── 3. Billing: website limit (skip for cron — cron scans existing sites) ─
-  if (source !== 'cron') {
+  if (source !== 'cron' && limits.maxWebsites !== Infinity) {
     const websiteCount = await getUserWebsiteCount(userId);
     if (websiteCount > limits.maxWebsites) {
       const websiteCheck = canAddWebsite({ id: userId, plan }, websiteCount);

@@ -5,10 +5,20 @@ export type UserWithPlan = {
   plan?: string | null;
 };
 
+const LEGACY_PLAN_MAP: Record<string, Plan> = {
+  starter: 'pro',
+  business: 'pro',
+};
+
+export function normalizePlan(raw: string | null | undefined): Plan {
+  if (!raw) return 'free';
+  if (raw in LEGACY_PLAN_MAP) return LEGACY_PLAN_MAP[raw];
+  if (raw in PLAN_LIMITS) return raw as Plan;
+  return 'free';
+}
+
 export function getUserPlan(user: UserWithPlan): Plan {
-  const plan = user.plan as Plan;
-  if (plan && plan in PLAN_LIMITS) return plan;
-  return 'pro';
+  return normalizePlan(user.plan);
 }
 
 export function getPlanLimits(user: UserWithPlan) {
@@ -20,9 +30,16 @@ export function canAddWebsite(
   currentWebsiteCount: number,
 ): { allowed: boolean; message?: string } {
   const limits = getPlanLimits(user);
-  if (currentWebsiteCount >= limits.websites) {
+  if (limits.websites !== Infinity && currentWebsiteCount >= limits.websites) {
     const plan = getUserPlan(user);
-    const upgrade = plan === 'pro' ? 'Growth' : plan === 'growth' ? 'Agency' : null;
+    const upgrade =
+      plan === 'free'
+        ? 'Pro'
+        : plan === 'pro'
+          ? 'Growth'
+          : plan === 'growth'
+            ? 'Agency'
+            : null;
     return {
       allowed: false,
       message: upgrade
@@ -40,7 +57,14 @@ export function canRunScan(
   const limits = getPlanLimits(user);
   if (scansToday >= limits.maxScansPerDay) {
     const plan = getUserPlan(user);
-    const upgrade = plan === 'pro' ? 'Growth' : plan === 'growth' ? 'Agency' : null;
+    const upgrade =
+      plan === 'free'
+        ? 'Pro'
+        : plan === 'pro'
+          ? 'Growth'
+          : plan === 'growth'
+            ? 'Agency'
+            : null;
     return {
       allowed: false,
       message: upgrade
@@ -53,5 +77,8 @@ export function canRunScan(
 
 export function getWebsiteUsageMessage(current: number, user: UserWithPlan): string {
   const limits = getPlanLimits(user);
+  if (limits.websites === Infinity) {
+    return `${current} websites (unlimited)`;
+  }
   return `${current} / ${limits.websites} websites used`;
 }

@@ -13,11 +13,16 @@ export interface PlanInfo {
   loading: boolean;
 }
 
-const DEFAULT_LIMITS = PLAN_LIMITS.pro;
+const DEFAULT_LIMITS = PLAN_LIMITS.free;
+
+function computeWebsitesRemaining(limits: (typeof PLAN_LIMITS)[Plan], websiteCount: number): number {
+  if (limits.websites === Infinity) return Infinity;
+  return Math.max(0, limits.websites - websiteCount);
+}
 
 export function usePlan(): PlanInfo {
   const [info, setInfo] = useState<PlanInfo>({
-    plan: 'pro',
+    plan: 'free',
     limits: DEFAULT_LIMITS,
     websiteCount: 0,
     scansToday: 0,
@@ -37,16 +42,22 @@ export function usePlan(): PlanInfo {
         const data = await res.json();
         if (cancelled) return;
 
-        const plan = (data.plan as Plan) ?? 'pro';
+        const plan = (data.plan as Plan) ?? 'free';
         const limits = PLAN_LIMITS[plan] ?? DEFAULT_LIMITS;
+        const websiteCount = data.websiteCount ?? 0;
+        const scansToday = data.scansToday ?? 0;
 
         setInfo({
           plan,
           limits,
-          websiteCount: data.websiteCount ?? 0,
-          scansToday: data.scansToday ?? 0,
-          websitesRemaining: data.websitesRemaining ?? Math.max(0, limits.websites - (data.websiteCount ?? 0)),
-          scansRemaining: data.scansRemaining ?? Math.max(0, limits.maxScansPerDay - (data.scansToday ?? 0)),
+          websiteCount,
+          scansToday,
+          websitesRemaining:
+            typeof data.websitesRemaining === 'number'
+              ? data.websitesRemaining
+              : computeWebsitesRemaining(limits, websiteCount),
+          scansRemaining:
+            data.scansRemaining ?? Math.max(0, limits.maxScansPerDay - scansToday),
           loading: false,
         });
       } catch {

@@ -4,6 +4,28 @@ import { getStripe } from '@/lib/stripe/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { planFromPriceId, type BilledPlan } from '@/lib/billing/plans';
 
+function validateStripeEnv(): string | null {
+  if (!process.env.STRIPE_SECRET_KEY) return 'STRIPE_SECRET_KEY';
+  return null;
+}
+
+async function resolvePlanFromSession(session: Stripe.Checkout.Session): Promise<BilledPlan | null> {
+  const metadataPlan = session.metadata?.plan;
+  if (metadataPlan === 'pro' || metadataPlan === 'growth' || metadataPlan === 'agency') {
+    return metadataPlan;
+  }
+
+  try {
+    const lineItems = await getStripe().checkout.sessions.listLineItems(session.id, { limit: 1 });
+    const priceId = lineItems.data[0]?.price?.id;
+    if (priceId) return planFromPriceId(priceId);
+  } catch (err) {
+    console.error('[webhook] Failed to resolve plan from checkout line items:', err);
+  }
+
+  return null;
+}
+
 /**
  * POST /api/stripe/webhook
  *
@@ -13,16 +35,22 @@ import { planFromPriceId, type BilledPlan } from '@/lib/billing/plans';
  * IMPORTANT: Always returns 200 even on errors — Stripe retries non-200s.
  */
 export async function POST(req: Request) {
+  const missingEnv = validateStripeEnv();
+  if (missingEnv) {
+    console.error(`[webhook] ${missingEnv} is not set`);
+    return NextResponse.json({ received: true });
+  }
+
   const body = await req.text();
   const sig = req.headers.get('stripe-signature');
 
   if (!sig) {
-    console.error('[stripe/webhook] Missing stripe-signature header');
+    console.error('[webhook] Missing stripe-signature header');
     return NextResponse.json({ received: true });
   }
 
   if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error('[stripe/webhook] STRIPE_WEBHOOK_SECRET is not set');
+    console.error('[webhook] STRIPE_WEBHOOK_SECRET is not set');
     return NextResponse.json({ received: true });
   }
 
@@ -30,12 +58,11 @@ export async function POST(req: Request) {
   try {
     event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('[stripe/webhook] Signature verification failed:', err);
-    // Return 400 only for signature errors so Stripe stops retrying bad payloads
+    console.error('[webhook] Signature verification failed:', err);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  console.log('[webhook] event', event.type, event.id);
+  console.log('[webhook]', event.type, event.id);
 
   const supabase = createAdminClient();
 
@@ -44,12 +71,17 @@ export async function POST(req: Request) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.userId ?? session.client_reference_id;
-        const plan = session.metadata?.plan as BilledPlan | undefined;
+        const plan = await resolvePlanFromSession(session);
         const customerId = session.customer as string | null;
         const subscriptionId = session.subscription as string | null;
 
-        if (!userId || !plan) {
-          console.error('[webhook] Missing userId or plan in session metadata', session.id);
+        if (!userId) {
+          console.error('[webhook] Missing userId in session metadata', session.id);
+          break;
+        }
+
+        if (!plan) {
+          console.error('[webhook] Could not resolve plan for session', session.id);
           break;
         }
 
@@ -61,9 +93,9 @@ export async function POST(req: Request) {
         }).eq('id', userId);
 
         if (error) {
-          console.error('[stripe/webhook] checkout.session.completed: DB update failed', error);
+          console.error('[webhook] checkout.session.completed: DB update failed', error);
         } else {
-          console.log(`[stripe/webhook] checkout.session.completed: user ${userId} upgraded to ${plan}`);
+          console.log(`[webhook] checkout.session.completed: user ${userId} upgraded to ${plan}`);
         }
         break;
       }
@@ -79,9 +111,39 @@ export async function POST(req: Request) {
           .eq('stripe_customer_id', customerId);
 
         if (error) {
-          console.error('[stripe/webhook] invoice.payment_failed: DB update failed', error);
+          console.error('[webhook] invoice.payment_failed: DB update failed', error);
         } else {
-          console.log(`[stripe/webhook] invoice.payment_failed: customer ${customerId} marked past_due`);
+          console.log(`[webhook] invoice.payment_failed: customer ${customerId} marked past_due`);
+        }
+        break;
+      }
+
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string | null;
+
+        if (!customerId) break;
+
+        let priceId: string | null = null;
+        const pricingPrice = invoice.lines.data[0]?.pricing?.price_details?.price;
+        if (typeof pricingPrice === 'string') {
+          priceId = pricingPrice;
+        } else if (pricingPrice && typeof pricingPrice === 'object' && 'id' in pricingPrice) {
+          priceId = (pricingPrice as Stripe.Price).id;
+        }
+
+        const plan = priceId ? planFromPriceId(priceId) : null;
+        const update: Record<string, string> = { subscription_status: 'active' };
+        if (plan) update.plan = plan;
+
+        const { error } = await supabase.from('profiles')
+          .update(update)
+          .eq('stripe_customer_id', customerId);
+
+        if (error) {
+          console.error('[webhook] invoice.paid: DB update failed', error);
+        } else {
+          console.log(`[webhook] invoice.paid: customer ${customerId} marked active${plan ? `, plan → ${plan}` : ''}`);
         }
         break;
       }
@@ -97,9 +159,9 @@ export async function POST(req: Request) {
         }).eq('stripe_customer_id', customerId);
 
         if (error) {
-          console.error('[stripe/webhook] customer.subscription.deleted: DB update failed', error);
+          console.error('[webhook] customer.subscription.deleted: DB update failed', error);
         } else {
-          console.log(`[stripe/webhook] customer.subscription.deleted: customer ${customerId} downgraded to free`);
+          console.log(`[webhook] customer.subscription.deleted: customer ${customerId} downgraded to free`);
         }
         break;
       }
@@ -121,20 +183,18 @@ export async function POST(req: Request) {
           .eq('stripe_customer_id', customerId);
 
         if (error) {
-          console.error('[stripe/webhook] customer.subscription.updated: DB update failed', error);
+          console.error('[webhook] customer.subscription.updated: DB update failed', error);
         } else {
-          console.log(`[stripe/webhook] customer.subscription.updated: customer ${customerId} status → ${status}${plan ? `, plan → ${plan}` : ''}`);
+          console.log(`[webhook] customer.subscription.updated: customer ${customerId} status → ${status}${plan ? `, plan → ${plan}` : ''}`);
         }
         break;
       }
 
       default:
-        // Unhandled event — not an error
         break;
     }
   } catch (err) {
-    // Log but do not throw — always return 200 so Stripe doesn't retry
-    console.error(`[stripe/webhook] Unhandled error processing event ${event.type}:`, err);
+    console.error(`[webhook] Unhandled error processing event ${event.type}:`, err);
   }
 
   return NextResponse.json({ received: true });

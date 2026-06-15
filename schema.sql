@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar_url  TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ,
-  plan        TEXT        NOT NULL DEFAULT 'free' CHECK (plan IN ('free','pro','business','agency'))
+  plan                    TEXT        NOT NULL DEFAULT 'free' CHECK (plan IN ('free','pro','growth','agency')),
+  stripe_customer_id      TEXT,
+  stripe_subscription_id  TEXT,
+  subscription_status     TEXT        NOT NULL DEFAULT 'inactive'
 );
 
 CREATE INDEX IF NOT EXISTS profiles_email_idx ON public.profiles (email);

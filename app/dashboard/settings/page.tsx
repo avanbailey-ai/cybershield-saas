@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
-import type { Plan } from "@/lib/billing/plans";
+import { normalizePlan } from "@/lib/billing/guards";
 
 export const metadata: Metadata = {
   title: "Settings — CyberShield",
@@ -30,7 +30,7 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .single();
 
-  const currentPlan = (profile?.plan ?? "free") as Plan;
+  const currentPlan = normalizePlan(profile?.plan ?? null);
   const subscriptionStatus = profile?.subscription_status ?? null;
 
   return (

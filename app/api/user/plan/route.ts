@@ -36,12 +36,15 @@ export async function GET() {
     const usage = await getUsage(user.id, today);
     const count = websiteCount ?? 0;
 
+    const websitesRemaining =
+      limits.websites === Infinity ? null : Math.max(0, limits.websites - count);
+
     return NextResponse.json({
       plan,
       websiteCount: count,
       scansToday: usage.scans_used,
       limits: PLAN_LIMITS[plan],
-      websitesRemaining: Math.max(0, limits.websites - count),
+      websitesRemaining,
       scansRemaining: Math.max(0, limits.maxScansPerDay - usage.scans_used),
     });
   } catch {

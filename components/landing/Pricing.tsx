@@ -1,48 +1,73 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  PLAN_LIMITS,
+  formatScanFrequency,
+  formatWebsiteLimit,
+  type BilledPlan,
+} from '@/lib/billing/plans';
 
 const plans = [
   {
     id: 'free' as const,
-    name: 'Free',
-    price: '$0',
+    name: PLAN_LIMITS.free.name,
+    price: `$${PLAN_LIMITS.free.price}`,
     period: '/mo',
     description: 'Get started at no cost.',
-    features: ['1 website', '3 scans/day', 'Basic security scan'],
+    features: [
+      formatWebsiteLimit(PLAN_LIMITS.free.websites),
+      `${PLAN_LIMITS.free.maxScansPerDay} scans/day`,
+      formatScanFrequency(PLAN_LIMITS.free.scanFrequency),
+    ],
     cta: 'Get Started',
     highlighted: false,
     stripePlan: null,
   },
   {
     id: 'pro' as const,
-    name: 'Pro',
-    price: '$49',
+    name: PLAN_LIMITS.pro.name,
+    price: `$${PLAN_LIMITS.pro.price}`,
     period: '/mo',
     description: 'For individuals and small teams.',
-    features: ['5 websites', 'Daily scans', 'Email alerts', 'Security scoring'],
+    features: [
+      formatWebsiteLimit(PLAN_LIMITS.pro.websites),
+      `${PLAN_LIMITS.pro.maxScansPerDay} scans/day`,
+      formatScanFrequency(PLAN_LIMITS.pro.scanFrequency),
+      'Email alerts & security scoring',
+    ],
     cta: 'Get Started',
     highlighted: false,
     stripePlan: 'pro' as const,
   },
   {
     id: 'growth' as const,
-    name: 'Growth',
-    price: '$99',
+    name: PLAN_LIMITS.growth.name,
+    price: `$${PLAN_LIMITS.growth.price}`,
     period: '/mo',
     description: 'The most popular plan for growing teams.',
-    features: ['25 websites', 'Daily scans', 'Security scoring', 'Priority queue'],
+    features: [
+      formatWebsiteLimit(PLAN_LIMITS.growth.websites),
+      `${PLAN_LIMITS.growth.maxScansPerDay} scans/day`,
+      formatScanFrequency(PLAN_LIMITS.growth.scanFrequency),
+      'Priority queue',
+    ],
     cta: 'Get Started',
-    highlighted: true,
+    highlighted: Boolean(PLAN_LIMITS.growth.mostPopular),
     stripePlan: 'growth' as const,
   },
   {
     id: 'agency' as const,
-    name: 'Agency',
-    price: '$199',
+    name: PLAN_LIMITS.agency.name,
+    price: `$${PLAN_LIMITS.agency.price}`,
     period: '/mo',
     description: 'Enterprise-grade coverage for large organizations.',
-    features: ['100 websites', 'Advanced monitoring', 'Team access', 'Priority support'],
+    features: [
+      formatWebsiteLimit(PLAN_LIMITS.agency.websites),
+      `${PLAN_LIMITS.agency.maxScansPerDay} scans/day`,
+      formatScanFrequency(PLAN_LIMITS.agency.scanFrequency),
+      'Team access & priority support',
+    ],
     cta: 'Get Started',
     highlighted: false,
     stripePlan: 'agency' as const,
@@ -53,7 +78,7 @@ export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleCheckout(plan: 'pro' | 'growth' | 'agency') {
+  async function handleCheckout(plan: BilledPlan) {
     setLoading(plan);
     setError(null);
     try {
@@ -68,7 +93,10 @@ export default function Pricing() {
           window.location.href = '/signup';
           return;
         }
-        setError(data.error ?? 'Something went wrong. Please try again.');
+        const message = data.details
+          ? `${data.error ?? 'Checkout failed'}: ${data.details}`
+          : (data.error ?? 'Something went wrong. Please try again.');
+        setError(message);
         return;
       }
       if (data.url) {

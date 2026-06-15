@@ -41,13 +41,14 @@ function scoreBadgeClass(score: number): string {
 }
 
 export default function WebsiteList() {
-  const { plan, websiteCount, websitesRemaining, scansRemaining, scansToday, loading: planLoading } = usePlan();
+  const { plan, limits, websiteCount, websitesRemaining, scansRemaining, scansToday, loading: planLoading } = usePlan();
   const [websites, setWebsites] = useState<WebsiteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upgradeRequired, setUpgradeRequired] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
-  const websiteLimitReached = !planLoading && websitesRemaining === 0;
+  const websiteLimitReached =
+    !planLoading && limits.websites !== Infinity && websitesRemaining === 0;
   const scanLimitReached = !planLoading && scansRemaining === 0;
   const [showAddForm, setShowAddForm] = useState(false);
   const [addUrl, setAddUrl] = useState("");
