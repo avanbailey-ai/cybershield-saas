@@ -7,7 +7,7 @@ import { enqueueScan } from '@/lib/scanner/orchestrator';
 
 /**
  * Enqueues all active websites across all users for scanning via the orchestrator.
- * The actual scan execution happens when /api/scan/process-queue is called.
+ * The actual scan execution happens when /api/workers/process-scans is invoked (cron or external scheduler).
  *
  * Previously called by the Vercel Cron job at /api/cron/scan (now removed).
  * Now called manually via POST /api/scan/trigger-scheduled (authenticated).

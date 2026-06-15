@@ -1,6 +1,5 @@
 import { sendEmail } from '@/lib/email';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { processRetentionQueueItem } from '@/lib/brain/retention';
 
 const siteUrl = () =>
   process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://cybershield-saas.vercel.app';
@@ -119,7 +118,11 @@ export async function scheduleFollowUpEmail(
     user_id: userId,
     email,
     template: 'follow_up_24h',
+    type: 'follow_up_24h',
     scheduled_for: scheduledFor,
+    status: 'pending',
+    attempts: 0,
+    payload: { email, domain, score, scheduled_for: scheduledFor },
     metadata: { domain, score },
   });
 
@@ -219,45 +222,7 @@ export async function triggerPublicScanEmails(params: {
 }
 
 export async function processEmailQueue(): Promise<{ processed: number; sent: number }> {
-  const supabase = createAdminClient();
-  const now = new Date().toISOString();
-
-  const { data: dueItems } = await supabase
-    .from('email_queue')
-    .select('id, user_id, email, template, metadata')
-    .eq('sent', false)
-    .lte('scheduled_for', now)
-    .limit(50);
-
-  if (!dueItems || dueItems.length === 0) {
-    return { processed: 0, sent: 0 };
-  }
-
-  let sent = 0;
-
-  for (const item of dueItems) {
-    const meta = (item.metadata ?? {}) as { domain?: string; score?: number };
-    const domain = meta.domain ?? 'your site';
-    const score = meta.score ?? 0;
-
-    let success = false;
-
-    if (item.template === 'follow_up_24h') {
-      success = await sendQueuedFollowUp(item.email, domain, score, item.user_id);
-    } else if (item.template.startsWith('retention_')) {
-      success = await processRetentionQueueItem(
-        item.email,
-        item.template,
-        domain,
-        item.user_id,
-      );
-    }
-
-    if (success) {
-      await supabase.from('email_queue').update({ sent: true }).eq('id', item.id);
-      sent++;
-    }
-  }
-
-  return { processed: dueItems.length, sent };
+  const { runEmailWorker } = await import('@/lib/email/processEmailWorker');
+  const result = await runEmailWorker();
+  return { processed: result.processed, sent: result.sent };
 }

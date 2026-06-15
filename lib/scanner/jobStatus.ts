@@ -4,14 +4,21 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 
+export type ScanJobStatusValue = 'pending' | 'processing' | 'completed' | 'failed';
+
 export interface ScanJobStatus {
   jobId: string;
-  status: 'pending' | 'processing' | 'done' | 'failed';
+  status: ScanJobStatusValue;
   websiteId: string;
   error?: string | null;
   score?: number;
   riskLevel?: string;
   scanId?: string;
+}
+
+function normalizeStatus(status: string): ScanJobStatusValue {
+  if (status === 'done') return 'completed';
+  return status as ScanJobStatusValue;
 }
 
 export async function getScanJobStatus(
@@ -22,35 +29,44 @@ export async function getScanJobStatus(
 
   const { data: job } = await supabase
     .from('scan_queue')
-    .select('id, status, website_id, error')
+    .select('id, status, website_id, error, result')
     .eq('id', jobId)
     .eq('user_id', userId)
     .maybeSingle();
 
   if (!job) return null;
 
+  const status = normalizeStatus(job.status);
+  const storedResult = job.result as { score?: number; riskLevel?: string; scanId?: string } | null;
+
   const result: ScanJobStatus = {
     jobId: job.id,
-    status: job.status as ScanJobStatus['status'],
+    status,
     websiteId: job.website_id,
     error: job.error,
   };
 
-  if (job.status === 'done') {
-    const { data: scan } = await supabase
-      .from('scans')
-      .select('id, security_score, risk_level')
-      .eq('website_id', job.website_id)
-      .eq('user_id', userId)
-      .eq('status', 'completed')
-      .order('completed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  if (status === 'completed') {
+    if (storedResult?.score !== undefined) {
+      result.score = storedResult.score;
+      result.riskLevel = storedResult.riskLevel;
+      result.scanId = storedResult.scanId;
+    } else {
+      const { data: scan } = await supabase
+        .from('scans')
+        .select('id, security_score, risk_level')
+        .eq('website_id', job.website_id)
+        .eq('user_id', userId)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (scan) {
-      result.scanId = scan.id;
-      result.score = scan.security_score ?? undefined;
-      result.riskLevel = scan.risk_level ?? undefined;
+      if (scan) {
+        result.scanId = scan.id;
+        result.score = scan.security_score ?? undefined;
+        result.riskLevel = scan.risk_level ?? undefined;
+      }
     }
   }
 

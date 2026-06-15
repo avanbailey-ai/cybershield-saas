@@ -1,7 +1,7 @@
 /**
  * POST /api/scan/trigger-all
  * Enqueues all active websites for the authenticated user via the orchestrator.
- * Does NOT execute scans — the client should follow up with /api/scan/process-queue.
+ * Does NOT execute scans — workers at /api/workers/process-scans process the queue.
  *
  * Plan limits, dedup, and rate-limit checks are enforced inside orchestrator.enqueueScan().
  * Scan All bypasses the per-website cooldown so explicit user intent to scan now is honored.
@@ -12,7 +12,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
-import { triggerBackgroundQueueProcessing } from '@/lib/scanner/triggerWorker';
 import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
 
 export async function POST() {
@@ -96,10 +95,6 @@ export async function POST() {
       { error: 'Rate limit exceeded — too many scan triggers. Please wait before scanning again.' },
       { status: 429 },
     );
-  }
-
-  if (queued > 0) {
-    triggerBackgroundQueueProcessing(Math.min(queued, 5));
   }
 
   return Response.json({

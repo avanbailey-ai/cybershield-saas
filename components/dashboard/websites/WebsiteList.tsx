@@ -117,7 +117,7 @@ export default function WebsiteList() {
       const res = await fetch(`/api/scan?jobId=${encodeURIComponent(jobId)}`);
       if (!res.ok) continue;
       const data = await res.json();
-      if (data.done && data.status === "done" && typeof data.score === "number") {
+      if (data.done && typeof data.score === "number") {
         return { score: data.score };
       }
       if (data.done && data.status === "failed") {

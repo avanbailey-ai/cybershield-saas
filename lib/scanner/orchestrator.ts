@@ -27,6 +27,7 @@ import { getUsage, incrementScanUsage, decrementScanUsage, getUserWebsiteCount }
 import { getActiveOrgId, getOrganization } from '@/lib/org/context';
 import { getOrgHourlyScanLimit } from '@/lib/billing/orgPlans';
 import { auditLog } from '@/lib/audit/log';
+import { domainFromUrl } from '@/lib/queue/domain';
 
 export type ScanSource = 'api' | 'manual' | 'cron';
 
@@ -80,7 +81,7 @@ export async function enqueueScan(params: {
   // ── 1. Validate website ownership ─────────────────────────────────────────
   const { data: website, error: wErr } = await supabase
     .from('websites')
-    .select('id, last_scanned_at, org_id, user_id')
+    .select('id, last_scanned_at, org_id, user_id, url')
     .eq('id', websiteId)
     .single();
 
@@ -246,10 +247,12 @@ export async function enqueueScan(params: {
         website_id: websiteId,
         user_id: userId,
         org_id: orgId,
+        domain: domainFromUrl(website.url),
         status: 'pending',
         source,
         attempts: 0,
         max_attempts: 3,
+        priority: source === 'cron' ? 1 : 0,
       })
       .select('id')
       .single();

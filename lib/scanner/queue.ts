@@ -1,14 +1,8 @@
 /**
  * queue.ts — Low-level queue primitives.
  *
- * Public API:
- *   - fetchPendingJobs()  — used by the queue worker (processQueue.ts)
- *   - QueueJob            — shared type
- *
- * NOTE: enqueueScan / enqueueAllWebsites have been superseded by
- * orchestrator.enqueueScan(). They are kept here as legacy shims that
- * delegate to the orchestrator so any remaining call-sites keep working,
- * but they should not be used in new code.
+ * Job claiming is handled atomically in lib/queue/claimJobs.ts (Postgres SKIP LOCKED).
+ * Scan execution lives in processQueue.ts / runScanWorker().
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -18,20 +12,24 @@ export interface QueueJob {
   id: string;
   user_id: string;
   website_id: string;
+  domain?: string | null;
   org_id?: string | null;
-  status: 'pending' | 'processing' | 'done' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   source: string | null;
   attempts?: number;
   max_attempts?: number;
+  priority?: number;
+  result?: Record<string, unknown> | null;
   created_at: string;
+  locked_at?: string | null;
   started_at: string | null;
   completed_at: string | null;
   error: string | null;
 }
 
 /**
- * Fetch the next N pending jobs — used only by the queue worker.
- * Jobs are returned in FIFO order (oldest first).
+ * Fetch pending jobs — legacy helper; prefer claimScanJobs() for workers.
+ * @deprecated Use claimScanJobs from lib/queue/claimJobs.ts in worker context.
  */
 export async function fetchPendingJobs(limit = 5): Promise<QueueJob[]> {
   const supabase = createAdminClient();

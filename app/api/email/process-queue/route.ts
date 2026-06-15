@@ -1,35 +1,17 @@
 /**
- * POST /api/email/process-queue
- *
- * Processes due emails from email_queue and abandoned checkout recovery.
- * Auth: CRON_SECRET bearer token OR authenticated user.
- *
- * Manual trigger (Vercel free plan — no built-in cron):
- *   curl -X POST https://your-app.vercel.app/api/email/process-queue \
- *     -H "Authorization: Bearer YOUR_CRON_SECRET"
- *
- * Or use an external cron service (cron-job.org, GitHub Actions, etc.)
- * to hit this endpoint every 15–60 minutes.
+ * @deprecated Use /api/workers/process-emails instead.
+ * Thin delegation shim — kept for backward-compatible cron URLs.
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { processEmailQueue } from '@/lib/email/funnel';
+import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
+import { runEmailWorker } from '@/lib/email/processEmailWorker';
 import { processAbandonedCheckouts } from '@/lib/email/abandonedCheckout';
 import { processEnterpriseEmailSequences } from '@/lib/sales/sequences';
 
-function isAuthorizedByCron(req: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-
-  return authHeader.slice(7) === cronSecret;
-}
-
 export async function POST(req: Request) {
-  if (!isAuthorizedByCron(req)) {
+  if (!isWorkerAuthorized(req)) {
     const supabase = await createClient();
     const {
       data: { user },
@@ -41,7 +23,7 @@ export async function POST(req: Request) {
   }
 
   const [emailResult, checkoutResult, enterpriseSequences] = await Promise.all([
-    processEmailQueue(),
+    runEmailWorker(),
     processAbandonedCheckouts(),
     processEnterpriseEmailSequences(),
   ]);
@@ -51,17 +33,18 @@ export async function POST(req: Request) {
     emailQueue: emailResult,
     abandonedCheckouts: checkoutResult,
     enterpriseSequences,
+    deprecated: true,
+    migrateTo: '/api/workers/process-emails',
   });
 }
 
-/** Vercel Cron invokes GET — same worker, CRON_SECRET only */
 export async function GET(req: Request) {
-  if (!isAuthorizedByCron(req)) {
+  if (!isWorkerAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const [emailResult, checkoutResult, enterpriseSequences] = await Promise.all([
-    processEmailQueue(),
+    runEmailWorker(),
     processAbandonedCheckouts(),
     processEnterpriseEmailSequences(),
   ]);
@@ -72,5 +55,7 @@ export async function GET(req: Request) {
     abandonedCheckouts: checkoutResult,
     enterpriseSequences,
     source: 'cron',
+    deprecated: true,
+    migrateTo: '/api/workers/process-emails',
   });
 }

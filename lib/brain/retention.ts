@@ -98,7 +98,11 @@ export async function scheduleRetentionEmails(
     user_id: userId,
     email: profile.email,
     template,
+    type: template,
     scheduled_for: scheduledFor,
+    status: 'pending',
+    attempts: 0,
+    payload: { email: profile.email, template, metadata: { domain, churnRisk }, scheduled_for: scheduledFor },
     metadata: { domain, churnRisk },
   });
 }
