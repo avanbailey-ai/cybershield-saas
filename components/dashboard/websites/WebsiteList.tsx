@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
 import { usePlan } from "@/lib/billing/usePlan";
 import { useUser } from "@/lib/auth/useUser";
-import { useScanQueueRealtime } from "@/lib/scanner/useScanQueueRealtime";
+import { useScanQueueRealtime, type ScanQueueJob } from "@/lib/scanner/useScanQueueRealtime";
 import { getWebsiteUsageMessage } from "@/lib/billing/guards";
 import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
 import QueueDemandBanner from "@/components/dashboard/QueueDemandBanner";
@@ -123,7 +123,7 @@ export default function WebsiteList() {
   const router = useRouter();
   const { id: userId } = useUser();
 
-  const { getWebsiteJob, getActiveJob } = useScanQueueRealtime(userId || null);
+  const { getWebsiteJob, getActiveJob, jobsByWebsite } = useScanQueueRealtime(userId || null);
 
   const { plan, limits, websiteCount, websitesRemaining, loading: planLoading } = usePlan();
 
@@ -164,6 +164,8 @@ export default function WebsiteList() {
   const scanningRef = useRef<string | null>(null);
 
   const scanIdempotencyRef = useRef<Map<string, string>>(new Map());
+
+  const prevJobsByWebsiteRef = useRef<Map<string, ScanQueueJob>>(new Map());
 
 
 
@@ -250,6 +252,44 @@ export default function WebsiteList() {
     }
 
   }, [scanningId, getWebsiteJob, router]);
+
+
+
+  // Refresh list when scheduled (cron) or manual scans complete via realtime
+
+  useEffect(() => {
+
+    let shouldRefresh = false;
+
+    for (const [websiteId, job] of jobsByWebsite) {
+
+      const prev = prevJobsByWebsiteRef.current.get(websiteId);
+
+      if (
+
+        job.status === 'completed' &&
+
+        (prev?.status === 'pending' || prev?.status === 'processing')
+
+      ) {
+
+        shouldRefresh = true;
+
+      }
+
+    }
+
+    prevJobsByWebsiteRef.current = new Map(jobsByWebsite);
+
+    if (shouldRefresh) {
+
+      void fetchWebsites();
+
+      router.refresh();
+
+    }
+
+  }, [jobsByWebsite, fetchWebsites, router]);
 
 
 

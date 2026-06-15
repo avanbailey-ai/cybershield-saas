@@ -190,7 +190,7 @@ export async function getUserWithPlan(userId: string, orgId?: string | null): Pr
 
     getUserProfile(userId),
 
-    orgId !== undefined ? Promise.resolve(orgId) : getActiveOrgId(userId),
+    orgId != null ? Promise.resolve(orgId) : getActiveOrgId(userId),
 
   ]);
 

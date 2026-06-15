@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getEffectivePlan } from '@/lib/auth/permissions';
 import { getUserWithPlan } from '@/lib/billing/planService';
+import { isPaidPlan, isSubscriptionActive } from '@/lib/billing/subscriptionService';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
 import { isDueForScheduledScan } from './scanFrequency';
 
@@ -31,6 +32,7 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
   console.log(`[cron] ${new Date().toISOString()} — evaluating ${websites.length} websites`);
 
   const planCache = new Map<string, ReturnType<typeof getEffectivePlan>>();
+  const userWithPlanCache = new Map<string, Awaited<ReturnType<typeof getUserWithPlan>>>();
   let queued = 0;
   let skipped = 0;
   let errors = 0;
@@ -38,13 +40,20 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
   for (const website of websites) {
     const cacheKey = `${website.user_id}:${website.org_id ?? ''}`;
     let plan = planCache.get(cacheKey);
-    if (!plan) {
-      const userWithPlan = await getUserWithPlan(website.user_id, website.org_id);
+    let userWithPlan = userWithPlanCache.get(cacheKey);
+    if (!plan || !userWithPlan) {
+      userWithPlan = await getUserWithPlan(website.user_id, website.org_id);
       plan = getEffectivePlan(userWithPlan);
       planCache.set(cacheKey, plan);
+      userWithPlanCache.set(cacheKey, userWithPlan);
     }
 
     if (!isDueForScheduledScan(plan, website.last_scanned_at)) {
+      skipped++;
+      continue;
+    }
+
+    if (isPaidPlan(plan) && !isSubscriptionActive(userWithPlan.subscription_status)) {
       skipped++;
       continue;
     }
@@ -54,6 +63,7 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
       websiteId: website.id,
       source: 'cron',
       orgId: website.org_id,
+      usagePreChecked: true,
     });
 
     if (result.queued) {
