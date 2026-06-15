@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import EnterprisePortalSidebar from '@/components/enterprise/EnterprisePortalSidebar';
 import { canAccessEnterprise } from '@/lib/auth/permissions';
-import { resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
+import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 
 export default async function EnterprisePortalLayout({ children }: { children: ReactNode }) {
@@ -16,10 +17,14 @@ export default async function EnterprisePortalLayout({ children }: { children: R
     redirect('/enterprise/login?redirectTo=/enterprise/portal');
   }
 
+  const cookieStore = await cookies();
+  const cookieOrgId = cookieStore.get(ORG_CONTEXT_COOKIE)?.value ?? null;
+
   const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
+    cookieOrgId,
   );
 
   if (

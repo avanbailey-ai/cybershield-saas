@@ -70,7 +70,7 @@ export default async function DashboardLayout({
 
       subscription_status: access.status,
 
-    }));
+    }, orgCtx.role));
 
   }
 

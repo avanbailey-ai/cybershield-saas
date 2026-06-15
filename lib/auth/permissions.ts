@@ -110,20 +110,22 @@ export function canUseMonitoring(user: UserForFeatureGate): boolean {
   return canAccessFeature(user, 'monitoring');
 }
 
-/** Enterprise dashboard: active agency org subscription + valid org membership. */
+const ENTERPRISE_PLANS = new Set<Plan>(['agency', 'growth']);
+
+/** Enterprise portal: active agency/growth org subscription + org owner or admin. */
 export function canAccessEnterprise(
   user: UserForFeatureGate,
   orgRole?: OrgRole | null,
 ): boolean {
-  if (!orgRole) return false;
+  if (!orgRole || !isOrgAdminRole(orgRole)) return false;
 
   const plan = normalizePlan(user.plan);
   const status = user.subscription_status ?? 'inactive';
   const isActive = status === 'active' || status === 'trialing';
 
-  if (!isActive || plan !== 'agency') return false;
+  if (!isActive || !ENTERPRISE_PLANS.has(plan)) return false;
 
-  return orgRole === 'owner' || orgRole === 'admin' || orgRole === 'member';
+  return true;
 }
 
 export function getWebsiteUsageMessage(current: number, user: UserWithPlan): string {

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessEnterprise } from '@/lib/auth/permissions';
-import { resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
+import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 import { formatScanFrequency, PLAN_LIMITS } from '@/lib/billing/plans';
 import { formatWebsiteLimit } from '@/lib/billing/plans';
@@ -26,10 +27,14 @@ export default async function EnterpriseOnboardingPage({
     redirect('/enterprise/login?redirectTo=/enterprise/onboarding');
   }
 
+  const cookieStore = await cookies();
+  const cookieOrgId = cookieStore.get(ORG_CONTEXT_COOKIE)?.value ?? null;
+
   const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
+    cookieOrgId,
   );
 
   if (

@@ -194,7 +194,7 @@ export async function updateSession(request: NextRequest) {
 
         subscription_status: access.status,
 
-      });
+      }, access.orgRole);
 
       if (redirectPath !== "/onboarding") {
 
@@ -250,6 +250,25 @@ export async function updateSession(request: NextRequest) {
 
 
 
+      if (isEnterprisePortal) {
+        const enterpriseUser = {
+          email: user.email,
+          plan: orgCtx.access.plan,
+          subscription_status: orgCtx.access.status,
+        };
+
+        if (!canAccessEnterprise(enterpriseUser, orgCtx.role)) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/app';
+          return NextResponse.redirect(url);
+        }
+
+        console.log('[enterprise-access] enterprise_access_granted', {
+          orgId: orgCtx.orgId,
+          role: orgCtx.role,
+        });
+      }
+
       if (
         pathname.startsWith('/app') &&
         canAccessEnterprise(
@@ -297,7 +316,7 @@ export async function updateSession(request: NextRequest) {
 
           subscription_status: orgCtx.access.status,
 
-        });
+        }, orgCtx.role);
 
         return NextResponse.redirect(url);
 

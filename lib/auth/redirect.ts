@@ -1,4 +1,6 @@
 import { isOwner } from './owner';
+import { canAccessEnterprise } from './permissions';
+import type { OrgRole } from '@/lib/auth/rbac';
 
 import { getSubscriptionAccessFromSession } from '@/lib/billing/getSubscriptionAccess';
 
@@ -28,7 +30,10 @@ function isActiveSubscription(status: string | null | undefined): boolean {
 
 
 
-export function getRedirectPath(user: UserForRedirect | null): string {
+export function getRedirectPath(
+  user: UserForRedirect | null,
+  orgRole?: OrgRole | null,
+): string {
 
   if (!user) return '/login';
 
@@ -36,17 +41,15 @@ export function getRedirectPath(user: UserForRedirect | null): string {
 
 
 
+  if (canAccessEnterprise(user, orgRole)) {
+    return '/enterprise/portal';
+  }
+
+
+
   const plan = user.plan ?? 'free';
 
   const status = user.subscription_status ?? 'inactive';
-
-
-
-  if (isActiveSubscription(status) && plan === 'agency') {
-
-    return '/enterprise/portal';
-
-  }
 
 
 
@@ -122,15 +125,21 @@ export async function getRedirectPathForSession(
 
   const access = await getSubscriptionAccessFromSession(supabase, user.id, user.email);
 
-  return getRedirectPath({
+  return getRedirectPath(
 
-    email: user.email,
+    {
 
-    plan: access.plan,
+      email: user.email,
 
-    subscription_status: access.status,
+      plan: access.plan,
 
-  });
+      subscription_status: access.status,
+
+    },
+
+    access.orgRole,
+
+  );
 
 }
 

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import { canAccessEnterprise } from "@/lib/auth/permissions";
-import { getEffectivePlan } from "@/lib/auth/permissions";
+import { canAccessEnterprise, normalizePlan } from "@/lib/auth/permissions";
 import { getUserOrgRole } from "@/lib/auth/rbac";
 import { PLAN_LIMITS } from "@/lib/billing/plans";
-import { resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
+import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
 import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
@@ -32,10 +32,14 @@ export default async function EnterpriseDashboardPage() {
 
   if (!user) redirect("/enterprise/login?redirectTo=/enterprise/portal");
 
+  const cookieStore = await cookies();
+  const cookieOrgId = cookieStore.get(ORG_CONTEXT_COOKIE)?.value ?? null;
+
   const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
+    cookieOrgId,
   );
 
   if (
@@ -107,17 +111,13 @@ export default async function EnterpriseDashboardPage() {
     }
   }
 
-  const orgRole = orgId ? await getUserOrgRole(user.id, orgId) : null;
-  const effectivePlan = getEffectivePlan({
-    email: user.email,
-    plan: orgCtx.access.plan,
-    subscription_status: orgCtx.access.status,
-  });
-  const planLabel = PLAN_LIMITS[effectivePlan]?.name ?? effectivePlan;
+  const orgRole = orgCtx.role ?? (orgId ? await getUserOrgRole(user.id, orgId) : null);
+  const resolvedPlan = normalizePlan(orgCtx.access.plan);
+  const planLabel = PLAN_LIMITS[resolvedPlan]?.name ?? resolvedPlan;
   const roleLabel =
     orgRole === "owner" ? "Owner" : orgRole === "admin" ? "Admin" : orgRole === "member" ? "Member" : orgRole ?? null;
   const maxBucket = Math.max(...Object.values(scoreBuckets), 1);
-  const seatLimit = getSeatLimitForPlan(effectivePlan);
+  const seatLimit = getSeatLimitForPlan(resolvedPlan);
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">

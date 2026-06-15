@@ -50,7 +50,7 @@ export async function requireDashboardAccess(user: User) {
 
       subscription_status: access.status,
 
-    });
+    }, access.orgRole);
 
     return { allowed: false as const, response: dashboardAccessDeniedResponse(upgradeUrl), plan: access.plan };
 
