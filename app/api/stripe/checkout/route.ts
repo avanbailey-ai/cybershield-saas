@@ -2,19 +2,17 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStripe } from '@/lib/stripe/stripe';
+import { getMissingStripeEnv } from '@/lib/stripe/env';
 import { getActiveOrgId } from '@/lib/org/context';
 import { requirePermission } from '@/lib/auth/rbac';
 import { getPriceId } from '@/lib/billing/plans';
 import { rateLimitCheckout, rateLimitHeaders } from '@/lib/rateLimit/limiter';
 import { logCheckoutLatency } from '@/lib/observability/log';
 
+export const runtime = 'nodejs';
+
 const VALID_PLANS = ['pro', 'growth', 'agency'] as const;
 type ValidPlan = (typeof VALID_PLANS)[number];
-
-function validateStripeEnv(): string | null {
-  if (!process.env.STRIPE_SECRET_KEY) return 'STRIPE_SECRET_KEY';
-  return null;
-}
 
 /**
  * POST /api/stripe/checkout
@@ -26,7 +24,7 @@ export async function POST(req: Request) {
   try {
     console.log('[checkout] request received');
 
-    const missingEnv = validateStripeEnv();
+    const missingEnv = getMissingStripeEnv();
     if (missingEnv) {
       console.error(`[checkout] ${missingEnv} is not set`);
       return NextResponse.json(

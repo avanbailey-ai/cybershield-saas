@@ -43,11 +43,23 @@ export const PLAN_LIMITS = {
   },
 } as const;
 
-export const STRIPE_PRICE_IDS = {
-  pro: process.env.STRIPE_PRICE_PRO ?? '',
-  growth: process.env.STRIPE_PRICE_GROWTH ?? '',
-  agency: process.env.STRIPE_PRICE_AGENCY ?? '',
-} as const;
+function readStripePriceId(plan: BilledPlan): string {
+  const keys = {
+    pro: 'STRIPE_PRICE_PRO',
+    growth: 'STRIPE_PRICE_GROWTH',
+    agency: 'STRIPE_PRICE_AGENCY',
+  } as const;
+  return (process.env[keys[plan]] ?? '').trim();
+}
+
+/** Server/runtime — reads env at call time (not build bake). Safe on client (never called there). */
+export function getStripePriceIds(): Record<BilledPlan, string> {
+  return {
+    pro: readStripePriceId('pro'),
+    growth: readStripePriceId('growth'),
+    agency: readStripePriceId('agency'),
+  };
+}
 
 export type Plan = 'free' | 'pro' | 'growth' | 'agency' | 'owner';
 export type BilledPlan = 'pro' | 'growth' | 'agency';
@@ -59,7 +71,7 @@ export function isBilledPlan(plan: string): plan is BilledPlan {
 }
 
 export function getPriceId(plan: BilledPlan): string {
-  const priceId = STRIPE_PRICE_IDS[plan];
+  const priceId = readStripePriceId(plan);
   if (!priceId) {
     throw new Error(`Missing Stripe price for plan: ${plan}. Set STRIPE_PRICE_${plan.toUpperCase()} env var.`);
   }
@@ -69,7 +81,7 @@ export function getPriceId(plan: BilledPlan): string {
 /** Map a Stripe price ID back to a billed plan, if configured. */
 export function planFromPriceId(priceId: string): BilledPlan | null {
   for (const plan of BILLED_PLANS) {
-    const id = STRIPE_PRICE_IDS[plan];
+    const id = readStripePriceId(plan);
     if (id && id === priceId) return plan;
   }
   return null;

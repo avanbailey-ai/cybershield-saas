@@ -4,6 +4,8 @@ import Stripe from 'stripe';
 
 import { getStripe } from '@/lib/stripe/stripe';
 
+import { getMissingStripeEnv, getStripeWebhookSecret } from '@/lib/stripe/env';
+
 import { createAdminClient } from '@/lib/supabase/admin';
 
 import { planFromPriceId, type BilledPlan, type Plan } from '@/lib/billing/plans';
@@ -137,12 +139,10 @@ async function syncOrgSubscriptionFromWebhook(
 
 
 
+export const runtime = 'nodejs';
+
 function validateStripeEnv(): string | null {
-
-  if (!process.env.STRIPE_SECRET_KEY) return 'STRIPE_SECRET_KEY';
-
-  return null;
-
+  return getMissingStripeEnv();
 }
 
 
@@ -283,8 +283,8 @@ export async function POST(req: Request) {
 
 
 
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
-
+  const webhookSecret = getStripeWebhookSecret();
+  if (!webhookSecret) {
     console.error('[webhook] STRIPE_WEBHOOK_SECRET is not set');
 
     return NextResponse.json({ received: true });
@@ -297,7 +297,7 @@ export async function POST(req: Request) {
 
   try {
 
-    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret);
 
   } catch (err) {
 

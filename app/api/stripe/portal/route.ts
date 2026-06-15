@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 
 import { getStripe } from '@/lib/stripe/stripe';
 
+import { getMissingStripeEnv } from '@/lib/stripe/env';
+
 import { isBilledPlan } from '@/lib/billing/plans';
 
 import { getActiveOrgId } from '@/lib/org/context';
@@ -16,19 +18,26 @@ import { isSubscriptionActive } from '@/lib/billing/subscriptionService';
 
 
 
+export const runtime = 'nodejs';
+
 /**
-
  * POST /api/stripe/portal
-
  * Creates a Stripe Customer Portal session for the active org subscription.
-
  * Returns: { url: string }
-
  */
 
 export async function POST() {
 
   try {
+
+    const missingEnv = getMissingStripeEnv();
+    if (missingEnv) {
+      console.error(`[stripe/portal] ${missingEnv} is not set`);
+      return NextResponse.json(
+        { error: 'Stripe is not configured', details: `Missing ${missingEnv}` },
+        { status: 503 },
+      );
+    }
 
     const supabase = await createClient();
 

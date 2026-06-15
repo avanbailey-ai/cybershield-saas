@@ -1,6 +1,6 @@
 export {
   PLAN_LIMITS,
-  STRIPE_PRICE_IDS,
+  getStripePriceIds,
   BILLED_PLANS,
   getPriceId,
   planFromPriceId,

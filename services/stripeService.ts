@@ -1,9 +1,10 @@
 import { getStripe } from '@/lib/stripe/stripe';
+import { isStripeConfigured } from '@/lib/stripe/env';
 
 export const stripeService = {
-  isConfigured: () => !!process.env.STRIPE_SECRET_KEY,
+  isConfigured: () => isStripeConfigured(),
   getStripe: () => {
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!isStripeConfigured()) {
       throw new Error('STRIPE_SECRET_KEY is not set');
     }
     return getStripe();

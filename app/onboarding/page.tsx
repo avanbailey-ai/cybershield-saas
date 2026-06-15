@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: 'Get Started — CyberShield',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function OnboardingPage() {
   const supabase = await createClient();
   const {

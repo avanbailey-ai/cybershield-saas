@@ -1,5 +1,6 @@
 import { getStripe } from '@/lib/stripe/stripe';
-import { BILLED_PLANS, STRIPE_PRICE_IDS, type BilledPlan } from './plans';
+import { isStripeConfigured, getStripePriceIds } from '@/lib/stripe/env';
+import { BILLED_PLANS, type BilledPlan } from './plans';
 
 export { formatDisplayPrice, formatDisplayPriceMonthly } from './formatPrice';
 
@@ -19,14 +20,15 @@ export async function getPlanDisplayAmounts(): Promise<Partial<Record<BilledPlan
 
   const amounts: Partial<Record<BilledPlan, number>> = {};
 
-  if (!process.env.STRIPE_SECRET_KEY) {
+  if (!isStripeConfigured()) {
     return amounts;
   }
 
   try {
     const stripe = getStripe();
+    const priceIds = getStripePriceIds();
     for (const plan of BILLED_PLANS) {
-      const priceId = STRIPE_PRICE_IDS[plan];
+      const priceId = priceIds[plan];
       if (!priceId) continue;
       try {
         const price = await stripe.prices.retrieve(priceId);

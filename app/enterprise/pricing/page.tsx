@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export const revalidate = 3600;
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export default async function EnterprisePricingPage() {
   const displayAmounts = await getPlanDisplayAmounts();
