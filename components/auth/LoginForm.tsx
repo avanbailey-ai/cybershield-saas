@@ -7,12 +7,6 @@ import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/aut
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
-const supabaseConfigured =
-  typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith("https://") &&
-  typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0;
-
 interface LoginFormProps {
   defaultRedirectTo?: string;
 }
@@ -25,14 +19,6 @@ export default function LoginForm({ defaultRedirectTo }: LoginFormProps = {}) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!supabaseConfigured) {
-    return (
-      <div className="rounded-lg border border-yellow-800 bg-yellow-950/40 px-4 py-3 text-sm text-yellow-400">
-        Authentication is not configured. Please contact support.
-      </div>
-    );
-  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

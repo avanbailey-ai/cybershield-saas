@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import AuthCard from '@/components/auth/AuthCard';
 import LoginForm from '@/components/auth/LoginForm';
+import { isSupabaseAuthConfigured } from '@/lib/supabase/env';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Enterprise Sign In',
@@ -15,13 +18,7 @@ const bullets = [
 ];
 
 export default function EnterpriseLoginPage() {
-  const supabaseConfigured =
-    typeof process.env.NEXT_PUBLIC_SUPABASE_URL === 'string' &&
-    process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('https://') &&
-    typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === 'string' &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0;
-
-  if (!supabaseConfigured) {
+  if (!isSupabaseAuthConfigured()) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="rounded-lg border border-yellow-800 bg-yellow-950/40 px-6 py-4 text-sm text-yellow-400">
