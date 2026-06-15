@@ -49,7 +49,7 @@ export async function sendSecurityAlert(alertId: string): Promise<void> {
   if (!scan) return;
 
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas.vercel.app';
   const reportUrl = `${siteUrl}/report/${scan.id}`;
 
   const websiteUrl = websiteData?.url ?? '';

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     );
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas.vercel.app';
 
     await sendEmail({
       to: recipient.email as string,

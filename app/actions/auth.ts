@@ -10,7 +10,12 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  // IMPORTANT: Also update Site URL in Supabase Dashboard:
+  // Authentication → URL Configuration → Site URL → set to your Vercel URL
+  // Also add your Vercel URL to "Redirect URLs" allowlist
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "https://cybershield-saas.vercel.app");
 
   const { error } = await supabase.auth.signUp({
     email,
