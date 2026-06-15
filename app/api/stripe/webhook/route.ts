@@ -27,15 +27,9 @@ import {
 } from '@/lib/billing/subscriptionService';
 
 import {
-
   upsertOrgSubscription,
-
   updateOrgSubscriptionByCustomerId,
-
   resolveOrgIdFromStripeCustomer,
-
-  syncOrgMemberProfileMirrors,
-
 } from '@/lib/billing/orgSubscriptionService';
 
 import { getVariant, recordConversion } from '@/lib/analytics/experiments';
@@ -107,63 +101,38 @@ async function claimWebhookEvent(
 
 
 async function syncOrgSubscriptionFromWebhook(
-
   supabase: ReturnType<typeof createAdminClient>,
-
   orgId: string,
-
   plan: Plan,
-
   customerId: string | null,
-
   subscriptionId: string | null,
-
   status: string,
-
   priceId?: string | null,
-
   currentPeriodEnd?: string | null,
-
+  eventType?: string,
 ): Promise<void> {
+  await upsertOrgSubscription({
+    orgId,
+    plan,
+    status,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: subscriptionId,
+    stripePriceId: priceId ?? null,
+    currentPeriodEnd: currentPeriodEnd ?? null,
+  });
 
-  try {
+  console.log('[stripe-webhook]', {
+    eventType: eventType ?? 'org_subscription_sync',
+    orgId,
+    newPlan: plan,
+    status,
+  });
 
-    await upsertOrgSubscription({
-
-      orgId,
-
-      plan,
-
-      status,
-
-      stripeCustomerId: customerId,
-
-      stripeSubscriptionId: subscriptionId,
-
-      stripePriceId: priceId ?? null,
-
-      currentPeriodEnd: currentPeriodEnd ?? null,
-
-    });
-
-    console.log(`[webhook] org ${orgId} subscription → plan ${plan}, status ${status}`);
-
-    auditLog({
-
-      orgId,
-
-      action: 'billing_webhook',
-
-      metadata: { plan, status, customerId, subscriptionId },
-
-    });
-
-  } catch (error) {
-
-    console.error('[webhook] org subscription sync failed', { orgId, error });
-
-  }
-
+  auditLog({
+    orgId,
+    action: 'billing_webhook',
+    metadata: { plan, status, customerId, subscriptionId },
+  });
 }
 
 
@@ -451,28 +420,17 @@ export async function POST(req: Request) {
 
 
         if (orgId) {
-
           await syncOrgSubscriptionFromWebhook(
-
             supabase,
-
             orgId,
-
             plan,
-
             customerId,
-
             subscriptionId,
-
             'active',
-
             priceId,
-
             currentPeriodEnd,
-
+            event.type,
           );
-
-          await syncOrgMemberProfileMirrors([orgId], plan, 'active');
 
           void logEvent({
             type: 'subscription_updated',
@@ -663,9 +621,14 @@ export async function POST(req: Request) {
 
 
         try {
-
-          await updateOrgSubscriptionByCustomerId(customerId, { status: 'past_due' });
-
+          const orgIds = await updateOrgSubscriptionByCustomerId(customerId, { status: 'past_due' });
+          console.log('[stripe-webhook]', {
+            eventType: event.type,
+            orgId: orgIds[0] ?? null,
+            newPlan: null,
+            orgIds,
+            status: 'past_due',
+          });
           console.log(`[webhook] invoice.payment_failed: customer ${customerId} marked past_due`);
 
         } catch (error) {
@@ -701,20 +664,18 @@ export async function POST(req: Request) {
         try {
 
           const orgIds = await updateOrgSubscriptionByCustomerId(customerId, {
-
             status: 'active',
-
             ...(plan ? { plan } : {}),
-
             ...(priceId ? { stripePriceId: priceId } : {}),
-
           });
-
+          console.log('[stripe-webhook]', {
+            eventType: event.type,
+            orgId: orgIds[0] ?? null,
+            newPlan: plan,
+            orgIds,
+            status: 'active',
+          });
           console.log(`[webhook] invoice.paid: customer ${customerId} → orgs [${orgIds.join(',')}]`);
-
-          if (plan) {
-            await syncOrgMemberProfileMirrors(orgIds, plan, 'active');
-          }
 
           void logEvent({
             type: 'subscription_updated',
@@ -747,18 +708,18 @@ export async function POST(req: Request) {
         try {
 
           const orgIds = await updateOrgSubscriptionByCustomerId(customerId, {
-
             plan: 'free',
-
             status: 'canceled',
-
             stripeSubscriptionId: null,
-
           });
-
+          console.log('[stripe-webhook]', {
+            eventType: event.type,
+            orgId: orgIds[0] ?? null,
+            newPlan: 'free',
+            orgIds,
+            status: 'canceled',
+          });
           console.log(`[webhook] customer.subscription.deleted: customer ${customerId} → orgs [${orgIds.join(',')}]`);
-
-          await syncOrgMemberProfileMirrors(orgIds, 'free', 'canceled');
 
           void logEvent({
             type: 'subscription_updated',
@@ -837,11 +798,15 @@ export async function POST(req: Request) {
         try {
 
           const orgIds = await updateOrgSubscriptionByCustomerId(customerId, update);
-
-          console.log(`[webhook] customer.subscription.updated: customer ${customerId} → orgs [${orgIds.join(',')}] status ${status}`);
-
           const mirrorPlan = update.plan ?? plan ?? 'free';
-          await syncOrgMemberProfileMirrors(orgIds, mirrorPlan, status);
+          console.log('[stripe-webhook]', {
+            eventType: event.type,
+            orgId: orgIds[0] ?? null,
+            newPlan: mirrorPlan,
+            orgIds,
+            status,
+          });
+          console.log(`[webhook] customer.subscription.updated: customer ${customerId} → orgs [${orgIds.join(',')}] status ${status}`);
 
           void logEvent({
             type: 'subscription_updated',

@@ -10,6 +10,7 @@ export function usePlan(): PlanInfo {
   const user = useUser();
   return {
     plan: user.plan,
+    subscriptionStatus: user.subscriptionStatus,
     limits: user.limits,
     websiteCount: user.websiteCount,
     scansToday: user.scansToday,

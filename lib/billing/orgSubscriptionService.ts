@@ -94,7 +94,10 @@ export interface UpsertOrgSubscriptionParams {
 }
 
 /** Sync organization_subscriptions + organizations mirror (webhook only). */
-export async function upsertOrgSubscription(params: UpsertOrgSubscriptionParams): Promise<void> {
+export async function upsertOrgSubscription(
+  params: UpsertOrgSubscriptionParams,
+  options?: { mirrorProfiles?: boolean },
+): Promise<void> {
   const supabase = createAdminClient();
   const now = new Date().toISOString();
 
@@ -124,6 +127,10 @@ export async function upsertOrgSubscription(params: UpsertOrgSubscriptionParams)
 
   const { error: orgErr } = await supabase.from('organizations').update(orgUpdate).eq('id', params.orgId);
   if (orgErr) throw orgErr;
+
+  if (options?.mirrorProfiles !== false) {
+    await syncOrgMemberProfileMirrors([params.orgId], params.plan, params.status);
+  }
 }
 
 /** Update org subscription by Stripe customer id. */
@@ -136,25 +143,29 @@ export async function updateOrgSubscriptionByCustomerId(
     stripePriceId?: string | null;
     currentPeriodEnd?: string | null;
   },
+  options?: { mirrorProfiles?: boolean },
 ): Promise<string[]> {
   const supabase = createAdminClient();
   const now = new Date().toISOString();
 
   const { data: rows, error: fetchErr } = await supabase
     .from('organization_subscriptions')
-    .select('org_id')
+    .select('org_id, plan')
     .eq('stripe_customer_id', stripeCustomerId);
 
   if (fetchErr) throw fetchErr;
 
   const orgIds = (rows ?? []).map((r) => r.org_id as string);
+  const existingPlans = new Map((rows ?? []).map((r) => [r.org_id as string, normalizePlan(r.plan)]));
+
   if (orgIds.length === 0) {
     const { data: orgs } = await supabase
       .from('organizations')
-      .select('id')
+      .select('id, plan')
       .eq('stripe_customer_id', stripeCustomerId);
     for (const org of orgs ?? []) {
       orgIds.push(org.id);
+      existingPlans.set(org.id, normalizePlan(org.plan));
     }
   }
 
@@ -170,18 +181,33 @@ export async function updateOrgSubscriptionByCustomerId(
   if (update.currentPeriodEnd !== undefined) subRow.current_period_end = update.currentPeriodEnd;
 
   for (const orgId of orgIds) {
-    await supabase.from('organization_subscriptions').upsert(
-      {
-        org_id: orgId,
-        stripe_customer_id: stripeCustomerId,
-        plan: update.plan ?? 'free',
-        ...subRow,
-      },
-      { onConflict: 'org_id' },
-    );
+    const { data: existingSub } = await supabase
+      .from('organization_subscriptions')
+      .select('org_id')
+      .eq('org_id', orgId)
+      .maybeSingle();
+
+    if (existingSub) {
+      const { error: updateErr } = await supabase
+        .from('organization_subscriptions')
+        .update({ stripe_customer_id: stripeCustomerId, ...subRow })
+        .eq('org_id', orgId);
+      if (updateErr) throw updateErr;
+    } else {
+      const { error: upsertErr } = await supabase.from('organization_subscriptions').upsert(
+        {
+          org_id: orgId,
+          stripe_customer_id: stripeCustomerId,
+          plan: update.plan ?? existingPlans.get(orgId) ?? 'free',
+          ...subRow,
+        },
+        { onConflict: 'org_id' },
+      );
+      if (upsertErr) throw upsertErr;
+    }
 
     if (update.plan !== undefined) {
-      await supabase
+      const { error: orgErr } = await supabase
         .from('organizations')
         .update({
           plan: update.plan,
@@ -191,6 +217,14 @@ export async function updateOrgSubscriptionByCustomerId(
             : {}),
         })
         .eq('id', orgId);
+      if (orgErr) throw orgErr;
+    }
+  }
+
+  if (options?.mirrorProfiles !== false && orgIds.length > 0) {
+    for (const orgId of orgIds) {
+      const mirrorPlan = update.plan ?? existingPlans.get(orgId) ?? 'free';
+      await syncOrgMemberProfileMirrors([orgId], mirrorPlan, update.status);
     }
   }
 

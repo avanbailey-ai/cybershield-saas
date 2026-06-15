@@ -3,6 +3,7 @@ import { PLAN_LIMITS } from './plans';
 
 export interface PlanInfo {
   plan: Plan;
+  subscriptionStatus: string;
   limits: (typeof PLAN_LIMITS)[Plan];
   websiteCount: number;
   scansToday: number;

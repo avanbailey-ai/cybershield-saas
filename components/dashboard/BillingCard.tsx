@@ -24,15 +24,24 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
   const [loading, setLoading] = useState<BilledPlan | 'portal' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { prices } = useDisplayPrices();
-  const { scansToday, scansRemaining, effectiveScansLimit, loading: usageLoading } = usePlan();
+  const {
+    plan: clientPlan,
+    subscriptionStatus: clientStatus,
+    scansToday,
+    scansRemaining,
+    effectiveScansLimit,
+    loading: usageLoading,
+  } = usePlan();
+  const currentPlanResolved = usageLoading ? currentPlan : clientPlan;
+  const subscriptionStatusResolved = usageLoading ? subscriptionStatus : clientStatus;
 
   const displayLimit =
     effectiveScansLimit === Infinity ? 'Unlimited' : String(effectiveScansLimit);
   const atScanLimit = !usageLoading && scansRemaining === 0;
 
   const meta = {
-    name: PLAN_LIMITS[currentPlan]?.name ?? PLAN_LIMITS.free.name,
-    description: formatWebsiteDescription(currentPlan),
+    name: PLAN_LIMITS[currentPlanResolved]?.name ?? PLAN_LIMITS.free.name,
+    description: formatWebsiteDescription(currentPlanResolved),
   };
 
   async function handleUpgrade(plan: BilledPlan) {
@@ -91,16 +100,16 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
   }
 
   const isSubscribed =
-    (currentPlan !== 'free' && subscriptionStatus === 'active') ||
-    currentPlan === 'owner' ||
-    currentPlan === 'agency';
+    (currentPlanResolved !== 'free' && subscriptionStatusResolved === 'active') ||
+    currentPlanResolved === 'owner' ||
+    currentPlanResolved === 'agency';
 
   const upgradePlans: BilledPlan[] =
-    currentPlan === 'free'
+    currentPlanResolved === 'free'
       ? ['pro', 'growth', 'agency']
-      : currentPlan === 'pro'
+      : currentPlanResolved === 'pro'
         ? ['growth', 'agency']
-        : currentPlan === 'growth'
+        : currentPlanResolved === 'growth'
           ? ['agency']
           : [];
 
@@ -111,8 +120,8 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
           <p className="text-sm font-medium text-gray-200">Current Plan</p>
           <p className="mt-0.5 text-xs text-gray-500">
             {meta.name} Plan · {meta.description}
-            {subscriptionStatus && subscriptionStatus !== 'active' && (
-              <span className="ml-2 text-yellow-400">({subscriptionStatus})</span>
+            {subscriptionStatusResolved && subscriptionStatusResolved !== 'active' && (
+              <span className="ml-2 text-yellow-400">({subscriptionStatusResolved})</span>
             )}
           </p>
         </div>
@@ -165,7 +174,7 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       {upgradePlans.length > 0 && (
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-            {currentPlan === 'growth' ? 'Upgrade to Agency' : 'Upgrade Your Plan'}
+            {currentPlanResolved === 'growth' ? 'Upgrade to Agency' : 'Upgrade Your Plan'}
           </p>
           <div className="space-y-3">
             {upgradePlans.map((plan) => (

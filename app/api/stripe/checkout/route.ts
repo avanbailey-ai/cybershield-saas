@@ -120,6 +120,10 @@ export async function POST(req: Request) {
       orgId = await getActiveOrgId(user.id);
     }
 
+    if (!orgId) {
+      console.warn('[checkout] no org resolved for user', user.id);
+    }
+
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.NEXT_PUBLIC_APP_URL;
@@ -135,7 +139,8 @@ export async function POST(req: Request) {
 
     console.log('[checkout] priceId:', priceId);
     console.log('[checkout] baseUrl:', baseUrl);
-    console.log('[checkout] userId:', user.id);
+    console.log('[checkout] orgId:', orgId);
+    console.log('[checkout] existingCustomerId:', existingCustomerId ?? 'new');
 
     const session = await getStripe().checkout.sessions.create({
       mode: 'subscription',
@@ -143,7 +148,7 @@ export async function POST(req: Request) {
       success_url:
         plan === 'agency'
           ? `${baseUrl}/enterprise/onboarding?checkout=success`
-          : `${baseUrl}/onboarding?checkout=processing`,
+          : `${baseUrl}/dashboard/settings?checkout=processing`,
       cancel_url: `${baseUrl}/#pricing`,
       metadata: {
         userId: user.id,

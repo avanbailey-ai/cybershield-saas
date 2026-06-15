@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Plan } from '@/lib/billing/plans';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
@@ -39,6 +39,15 @@ const DEFAULT: UserInfo = {
 
 let cached: UserInfo | null = null;
 let inflight: Promise<UserInfo | null> | null = null;
+
+const CHECKOUT_REFRESH_ATTEMPTS = 5;
+const CHECKOUT_REFRESH_INTERVAL_MS = 2000;
+
+function isCheckoutReturn(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('checkout') === 'processing' || params.get('checkout') === 'success';
+}
 
 async function fetchUserInfo(): Promise<UserInfo | null> {
   const supabase = createClient();
@@ -106,6 +115,7 @@ function loadUserInfo(): Promise<UserInfo | null> {
 /** Single source of truth for client-side user + plan data. */
 export function useUser(): UserInfo & { refresh: () => Promise<void> } {
   const [info, setInfo] = useState<UserInfo>(cached ?? DEFAULT);
+  const checkoutRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     cached = null;
@@ -130,15 +140,46 @@ export function useUser(): UserInfo & { refresh: () => Promise<void> } {
 
     function onVisible() {
       if (document.visibilityState === 'visible') {
-        refresh();
+        void refresh();
+      }
+    }
+
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) {
+        void refresh();
       }
     }
 
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onPageShow);
 
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!isCheckoutReturn()) return;
+
+    let attempts = 0;
+    void refresh();
+
+    checkoutRefreshRef.current = setInterval(() => {
+      attempts += 1;
+      void refresh();
+      if (attempts >= CHECKOUT_REFRESH_ATTEMPTS && checkoutRefreshRef.current) {
+        clearInterval(checkoutRefreshRef.current);
+        checkoutRefreshRef.current = null;
+      }
+    }, CHECKOUT_REFRESH_INTERVAL_MS);
+
+    return () => {
+      if (checkoutRefreshRef.current) {
+        clearInterval(checkoutRefreshRef.current);
+        checkoutRefreshRef.current = null;
+      }
     };
   }, [refresh]);
 
