@@ -48,39 +48,47 @@ export default function SignupForm() {
       return;
     }
 
-    const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    try {
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message);
-      setLoading(false);
-      return;
-    }
-
-    // If email confirmation is enabled, show message; otherwise redirect
-    if (data.user && data.session) {
-      // Attach referral from cookie if present
-      try {
-        await fetch("/api/referrals/attach", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-      } catch {
-        // Non-blocking
+      if (authError) {
+        setError(authError.message);
+        return;
       }
 
-      router.push(
-        redirectTo && redirectTo.startsWith("/")
-          ? redirectTo
-          : await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient),
+      // If email confirmation is enabled, show message; otherwise redirect
+      if (data.user && data.session) {
+        // Attach referral from cookie if present
+        try {
+          await fetch("/api/referrals/attach", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+        } catch {
+          // Non-blocking
+        }
+
+        router.push(
+          redirectTo && redirectTo.startsWith("/")
+            ? redirectTo
+            : await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient),
+        );
+        router.refresh();
+      } else {
+        setMessage("Check your email to confirm your account before signing in.");
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred. Please try again."
       );
-      router.refresh();
-    } else {
-      setMessage("Check your email to confirm your account before signing in.");
+    } finally {
       setLoading(false);
     }
   }

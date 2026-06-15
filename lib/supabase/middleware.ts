@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getSupabasePublicEnv } from "@/lib/supabase/env";
+
 import { getRedirectPath, getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
 
 import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
@@ -49,7 +51,9 @@ function isPublicPath(pathname: string): boolean {
 
 export async function updateSession(request: NextRequest) {
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  const supabaseEnv = getSupabasePublicEnv();
+
+  if (!supabaseEnv) {
 
     console.log('[middleware] Supabase env vars missing — passing through');
 
@@ -67,9 +71,9 @@ export async function updateSession(request: NextRequest) {
 
     const supabase = createServerClient(
 
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseEnv.url,
 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseEnv.anonKey,
 
       {
 

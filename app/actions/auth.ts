@@ -1,12 +1,14 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { SupabaseEnvError } from "@/lib/supabase/env";
 import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 export async function signUp(formData: FormData) {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -32,10 +34,17 @@ export async function signUp(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect(await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient));
+  } catch (err) {
+    if (err instanceof SupabaseEnvError) {
+      return { error: err.message };
+    }
+    throw err;
+  }
 }
 
 export async function signIn(formData: FormData) {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -51,11 +60,24 @@ export async function signIn(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect(await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient));
+  } catch (err) {
+    if (err instanceof SupabaseEnvError) {
+      return { error: err.message };
+    }
+    throw err;
+  }
 }
 
 export async function signOut() {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/");
+  } catch (err) {
+    if (err instanceof SupabaseEnvError) {
+      return { error: err.message };
+    }
+    throw err;
+  }
 }

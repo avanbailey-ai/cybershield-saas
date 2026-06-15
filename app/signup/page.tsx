@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import AuthCard from "@/components/auth/AuthCard";
 import SignupForm from "@/components/auth/SignupForm";
+import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Create Account",
@@ -15,6 +18,16 @@ const bullets = [
 ];
 
 export default function SignupPage() {
+  if (!isSupabaseAuthConfigured()) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="rounded-lg border border-yellow-800 bg-yellow-950/40 px-6 py-4 text-sm text-yellow-400">
+          Authentication is not configured. Please contact support.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AuthCard
       title="Create your account"
