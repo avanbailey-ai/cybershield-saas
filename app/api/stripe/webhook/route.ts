@@ -44,6 +44,10 @@ import { auditLog } from '@/lib/audit/log';
 
 import { logWebhookFailure, logWebhookProcessing } from '@/lib/observability/log';
 
+import { logEvent } from '@/lib/observability';
+
+import { recordApiLatency, recordWebhookResult } from '@/lib/observability/metrics';
+
 import { rateLimitWebhook } from '@/lib/rateLimit/limiter';
 
 import { emitEvent } from '@/lib/brain/eventBus';
@@ -336,7 +340,11 @@ export async function POST(req: Request) {
 
   console.log('[webhook]', event.type, event.id);
 
-
+  void logEvent({
+    type: 'stripe_webhook_received',
+    layer: 'billing',
+    metadata: { eventId: event.id, eventType: event.type },
+  });
 
   const supabase = createAdminClient();
 
@@ -461,6 +469,14 @@ export async function POST(req: Request) {
             currentPeriodEnd,
 
           );
+
+          void logEvent({
+            type: 'subscription_updated',
+            layer: 'billing',
+            userId,
+            orgId,
+            metadata: { plan, status: 'active', event: 'checkout.session.completed' },
+          });
 
         } else {
 
@@ -692,6 +708,12 @@ export async function POST(req: Request) {
 
           console.log(`[webhook] invoice.paid: customer ${customerId} → orgs [${orgIds.join(',')}]`);
 
+          void logEvent({
+            type: 'subscription_updated',
+            layer: 'billing',
+            metadata: { customerId, orgIds, status: 'active', plan, event: 'invoice.paid' },
+          });
+
         } catch (error) {
 
           console.error('[webhook] invoice.paid: DB update failed', error);
@@ -727,6 +749,12 @@ export async function POST(req: Request) {
           });
 
           console.log(`[webhook] customer.subscription.deleted: customer ${customerId} → orgs [${orgIds.join(',')}]`);
+
+          void logEvent({
+            type: 'subscription_updated',
+            layer: 'billing',
+            metadata: { customerId, orgIds, plan: 'free', status: 'canceled', event: 'customer.subscription.deleted' },
+          });
 
           auditLog({ action: 'billing_webhook', metadata: { event: 'subscription.deleted', customerId, orgIds } });
 
@@ -802,6 +830,12 @@ export async function POST(req: Request) {
 
           console.log(`[webhook] customer.subscription.updated: customer ${customerId} → orgs [${orgIds.join(',')}] status ${status}`);
 
+          void logEvent({
+            type: 'subscription_updated',
+            layer: 'billing',
+            metadata: { customerId, orgIds, plan: update.plan, status, event: 'customer.subscription.updated' },
+          });
+
         } catch (error) {
 
           console.error('[webhook] customer.subscription.updated: DB update failed', error);
@@ -828,11 +862,17 @@ export async function POST(req: Request) {
 
     logWebhookFailure(event.type, err);
 
+    void recordWebhookResult(false);
+
   }
 
 
 
   logWebhookProcessing(event.type, Date.now() - webhookStart);
+
+  void recordApiLatency('/api/stripe/webhook', Date.now() - webhookStart, 200);
+
+  void recordWebhookResult(true);
 
   return NextResponse.json({ received: true });
 

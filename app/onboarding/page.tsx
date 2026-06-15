@@ -3,10 +3,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getRedirectPathForSession, type SessionSupabaseClient } from '@/lib/auth/redirect';
-import OnboardingPlans from '@/components/onboarding/OnboardingPlans';
+import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 
 export const metadata: Metadata = {
-  title: 'Choose a Plan — CyberShield',
+  title: 'Get Started — CyberShield',
 };
 
 export default async function OnboardingPage() {
@@ -50,14 +50,7 @@ export default async function OnboardingPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-16">
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-white">Choose your monitoring plan</h1>
-          <p className="mt-3 text-gray-400">
-            Start with continuous scanning, alerts, and full reports. Prices shown are from Stripe.
-          </p>
-        </div>
-
-        <OnboardingPlans />
+        <OnboardingWizard />
       </main>
     </div>
   );

@@ -11,7 +11,6 @@ import {
 } from '@/lib/conversion/limits';
 import { trackEvent } from '@/lib/conversion/track';
 import { getUrgencyMessage } from '@/lib/conversion/urgency';
-import ExitIntentModal from '@/components/conversion/ExitIntentModal';
 
 interface ScanInputProps {
   showUpgradeCta?: boolean;
@@ -53,13 +52,12 @@ function ScanInputInner(_props: ScanInputProps) {
     const { allowed, domainAlreadyScanned } = canRunPublicScan(normalizedUrl);
     if (!allowed) {
       if (domainAlreadyScanned) {
-        setError('You already scanned this website today. Upgrade for unlimited monitoring.');
+        setError('You already scanned this website today. See pricing for unlimited monitoring.');
       } else {
         setError(
-          `Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). Upgrade for unlimited monitoring.`,
+          `Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). See pricing to upgrade.`,
         );
       }
-      openUpgradeModal({ trigger: 'scan_limit', score: 50, domain: normalizedUrl });
       return;
     }
 
@@ -79,11 +77,10 @@ function ScanInputInner(_props: ScanInputProps) {
       });
 
       if (res.status === 429) {
-        openUpgradeModal({ trigger: 'scan_limit', domain: normalizedUrl });
         const data = await res.json().catch(() => ({}));
         throw new Error(
           (data as { error?: string }).error ??
-            'Daily scan limit reached. Upgrade for unlimited monitoring.',
+            'Daily scan limit reached. See pricing to upgrade.',
         );
       }
 
@@ -114,7 +111,6 @@ function ScanInputInner(_props: ScanInputProps) {
 
   return (
     <section className="relative px-4 py-16">
-      <ExitIntentModal enabled={!!result} />
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="mb-2 text-2xl font-bold text-white sm:text-3xl">
           Check Your Website Security — Free
@@ -165,6 +161,14 @@ function ScanInputInner(_props: ScanInputProps) {
         {error && (
           <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
+            {error.includes('pricing') && (
+              <>
+                {' '}
+                <a href="/pricing" className="font-semibold underline hover:text-red-300">
+                  View plans
+                </a>
+              </>
+            )}
           </div>
         )}
 

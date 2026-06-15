@@ -18,7 +18,7 @@ import { getUserWithPlan, getPlanLimits, getUserProfile } from '@/lib/billing/pl
 
 import { enforceScanLimit } from '@/lib/billing/enforceScan';
 
-import { canAddWebsite } from '@/lib/auth/permissions';
+import { canAddWebsite, getEffectivePlan } from '@/lib/auth/permissions';
 
 import { incrementScanUsage, getUserWebsiteCount } from '@/lib/billing/usageService';
 
@@ -66,9 +66,24 @@ export async function enqueueScan(params: {
 
   bypassCooldown?: boolean;
 
+  traceId?: string | null;
+
+  idempotencyKey?: string;
+
+  /** Set when API already ran checkAndIncrementScanUsage. */
+  usagePreChecked?: boolean;
+
 }): Promise<EnqueueResult> {
 
-  const { userId, websiteId, source, bypassCooldown = false } = params;
+  const {
+    userId,
+    websiteId,
+    source,
+    bypassCooldown = false,
+    traceId = null,
+    idempotencyKey,
+    usagePreChecked = false,
+  } = params;
 
   let orgId = params.orgId ?? null;
 
@@ -150,7 +165,14 @@ export async function enqueueScan(params: {
 
 
 
-  const billingGate = await enforceScanLimit(userId, orgId);
+  const billingGate = usagePreChecked
+    ? {
+        allowed: true as const,
+        plan: getEffectivePlan(await getUserWithPlan(userId, orgId)),
+        scansUsed: 0,
+        scansLimit: Infinity,
+      }
+    : await enforceScanLimit(userId, orgId);
 
   const plan = billingGate.plan;
 
@@ -496,6 +518,10 @@ export async function enqueueScan(params: {
 
         priority: getPlanQueuePriority(plan),
 
+        ...(traceId ? { trace_id: traceId } : {}),
+
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+
       })
 
       .select('id')
@@ -504,11 +530,49 @@ export async function enqueueScan(params: {
 
 
 
-    if (insertErr) throw insertErr;
+    if (insertErr) {
+
+      if (idempotencyKey && insertErr.code === '23505') {
+
+        const { data: existing } = await supabase
+
+          .from('scan_queue')
+
+          .select('id, status')
+
+          .eq('idempotency_key', idempotencyKey)
+
+          .maybeSingle();
+
+        if (existing) {
+
+          return {
+
+            queued: false,
+
+            reason: 'duplicate',
+
+            jobId: existing.id,
+
+            jobStatus: existing.status as 'pending' | 'processing' | 'completed' | 'failed',
+
+          };
+
+        }
+
+      }
+
+      throw insertErr;
+
+    }
 
 
 
-    await incrementScanUsage(userId);
+    if (!usagePreChecked) {
+
+      await incrementScanUsage(userId);
+
+    }
 
 
 

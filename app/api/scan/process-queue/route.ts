@@ -3,14 +3,14 @@
  * Thin delegation shim — kept for backward-compatible cron URLs.
  */
 
-import '@/services';
+import '@/services/bootstrap';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 import { logApiTiming } from '@/lib/observability/log';
 import { getUser } from '@/services/supabaseService';
-import { processScanBatch } from '@/services/scanService';
+import { processScanBatch } from '@/services/scanQueueService';
 
 export async function POST(req: Request) {
   if (!isWorkerAuthorized(req)) {

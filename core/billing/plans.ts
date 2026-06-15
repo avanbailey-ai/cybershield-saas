@@ -22,7 +22,7 @@ export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: 'free',
     name: 'Free',
-    websiteLimit: 0,
+    websiteLimit: 1,
     scanFrequency: 'manual',
   },
   starter: {

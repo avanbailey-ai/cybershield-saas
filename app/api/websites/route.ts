@@ -1,4 +1,4 @@
-import '@/services';
+import '@/services/bootstrap';
 
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,7 +21,10 @@ import {
   getWebsiteCountForUser,
   insertWebsite,
 } from '@/services/supabaseService';
-import { enqueueScan } from '@/services/scanService';
+import { enqueueScan } from '@/services/scanQueueService';
+import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
+import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
+import { decrementScanUsage } from '@/lib/billing/usageService';
 
 export async function GET() {
   const supabase = await createClient();
@@ -122,12 +125,32 @@ export async function POST(req: NextRequest) {
     ip: extractIp(req),
   });
 
-  const enqueueResult = await enqueueScan({
-    userId: user.id,
-    websiteId: website.id,
-    source: 'api',
-    orgId,
-  });
+  const enqueueResult = await (async () => {
+    const usageCheck = await checkAndIncrementScanUsage(user.id, plan, orgId);
+    if (!usageCheck.allowed) {
+      return {
+        queued: false as const,
+        reason: 'scan_limit_reached' as const,
+        error: 'USAGE_LIMIT_REACHED' as const,
+        message: usageCheck.reason,
+      };
+    }
+
+    const result = await enqueueScan({
+      userId: user.id,
+      websiteId: website.id,
+      source: 'api',
+      orgId,
+      idempotencyKey: buildScanIdempotencyKey(user.id, website.id),
+      usagePreChecked: true,
+    });
+
+    if (!result.queued && result.reason !== 'duplicate' && result.reason !== 'already_queued') {
+      await decrementScanUsage(user.id);
+    }
+
+    return result;
+  })();
 
   if (enqueueResult.queued && enqueueResult.jobId) {
     void emit({

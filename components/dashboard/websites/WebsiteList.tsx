@@ -3,19 +3,13 @@
 
 
 import { useState, useEffect, useCallback, useRef } from "react";
-
+import { useRouter } from "next/navigation";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
-
 import { usePlan } from "@/lib/billing/usePlan";
-
 import { useUser } from "@/lib/auth/useUser";
-
 import { useScanQueueRealtime } from "@/lib/scanner/useScanQueueRealtime";
-
 import { getWebsiteUsageMessage } from "@/lib/billing/guards";
-
-import { useConversion } from "@/components/conversion/ConversionProvider";
-
+import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
 import QueueDemandBanner from "@/components/dashboard/QueueDemandBanner";
 
 
@@ -124,33 +118,14 @@ function ScoreSparkline({ scores }: { scores: number[] }) {
   );
 }
 
-function queueStatusLabel(status: string): string {
-
-  switch (status) {
-
-    case "pending": return "Queued";
-
-    case "processing": return "Scanning…";
-
-    case "failed": return "Failed";
-
-    default: return status;
-
-  }
-
-}
-
-
-
 export default function WebsiteList() {
 
+  const router = useRouter();
   const { id: userId } = useUser();
 
   const { getWebsiteJob, getActiveJob } = useScanQueueRealtime(userId || null);
 
-  const { plan, limits, websiteCount, websitesRemaining, scansRemaining, scansToday, loading: planLoading } = usePlan();
-
-  const { openUpgradeModal } = useConversion();
+  const { plan, limits, websiteCount, websitesRemaining, loading: planLoading } = usePlan();
 
   const [websites, setWebsites] = useState<WebsiteRow[]>([]);
 
@@ -166,8 +141,6 @@ export default function WebsiteList() {
 
     !planLoading && limits.websites !== Infinity && websitesRemaining === 0;
 
-  const scanLimitReached = !planLoading && scansRemaining === 0;
-
   const [showAddForm, setShowAddForm] = useState(false);
 
   const [addUrl, setAddUrl] = useState("");
@@ -182,11 +155,11 @@ export default function WebsiteList() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [scanResult, setScanResult] = useState<{ id: string; score: number } | null>(null);
-
-  const [limitError, setLimitError] = useState<{ message: string; upgradeUrl: string } | null>(null);
+  const [limitError, setLimitError] = useState<string | null>(null);
 
   const [queueWarning, setQueueWarning] = useState(false);
+
+  const [completedScanIds, setCompletedScanIds] = useState<Map<string, string>>(new Map());
 
   const scanningRef = useRef<string | null>(null);
 
@@ -230,6 +203,12 @@ export default function WebsiteList() {
 
   }, [fetchWebsites]);
 
+  useEffect(() => {
+    if (!loading && websites.length === 0) {
+      setShowAddForm(true);
+    }
+  }, [loading, websites.length]);
+
 
 
   // Clear scanning spinner when realtime reports completion or failure
@@ -246,13 +225,17 @@ export default function WebsiteList() {
 
     if (job.status === "completed" && typeof job.result?.score === "number") {
 
-      setScanResult({ id: scanningId, score: job.result.score });
-
       scanningRef.current = null;
 
       setScanningId(null);
 
       scanIdempotencyRef.current.delete(scanningId);
+
+      if (job.result?.scanId) {
+        setCompletedScanIds((prev) => new Map(prev).set(scanningId, job.result!.scanId!));
+      }
+
+      router.refresh();
 
     } else if (job.status === "failed") {
 
@@ -266,7 +249,7 @@ export default function WebsiteList() {
 
     }
 
-  }, [scanningId, getWebsiteJob]);
+  }, [scanningId, getWebsiteJob, router]);
 
 
 
@@ -312,8 +295,6 @@ export default function WebsiteList() {
 
         setAddError(data.message ?? "Website limit reached.");
 
-        openUpgradeModal({ trigger: 'add_website', recommendedPlan: plan === 'pro' ? 'growth' : 'agency' });
-
         return;
 
       }
@@ -350,25 +331,19 @@ export default function WebsiteList() {
 
   async function handleScan(websiteId: string) {
 
-    if (scanningRef.current !== null || scanningId !== null) return;
+    if (scanningRef.current === websiteId) return;
 
     scanningRef.current = websiteId;
 
     setScanningId(websiteId);
 
-    setScanResult(null);
-
     setLimitError(null);
 
-    let idempotencyKey = scanIdempotencyRef.current.get(websiteId);
+    const idempotencyKey =
 
-    if (!idempotencyKey) {
+      scanIdempotencyRef.current.get(websiteId) ?? buildScanIdempotencyKey(userId ?? websiteId, websiteId);
 
-      idempotencyKey = crypto.randomUUID();
-
-      scanIdempotencyRef.current.set(websiteId, idempotencyKey);
-
-    }
+    scanIdempotencyRef.current.set(websiteId, idempotencyKey);
 
     try {
 
@@ -392,31 +367,11 @@ export default function WebsiteList() {
 
       if (res.status === 403) {
 
-        const isUsageLimit = data.error === "USAGE_LIMIT_REACHED";
+        setLimitError(
 
-        if (isUsageLimit) {
+          data.message ?? data.error ?? "You've reached your scan limit.",
 
-          openUpgradeModal({
-
-            trigger: "scan_limit",
-
-            recommendedPlan: plan === "pro" ? "growth" : "pro",
-
-          });
-
-        }
-
-        setLimitError({
-
-          message: data.message ?? (isUsageLimit
-
-            ? "You've reached your scan limit. Upgrade your plan to scan more."
-
-            : "Website limit reached for your plan."),
-
-          upgradeUrl: data.upgradeUrl ?? "/app/settings",
-
-        });
+        );
 
         clearScanState(websiteId);
 
@@ -427,14 +382,6 @@ export default function WebsiteList() {
 
 
       if (res.status === 503 || data.error === "QUEUE_BUSY") {
-
-        openUpgradeModal({
-
-          trigger: "queue_busy",
-
-          recommendedPlan: plan === "free" || plan === "pro" ? "growth" : "agency",
-
-        });
 
         setError(data.message ?? "Scan queue is at capacity — try again shortly.");
 
@@ -464,9 +411,7 @@ export default function WebsiteList() {
 
       }
 
-      if (res.status === 200 && data.already_queued) {
-
-        // Realtime will update status — keep scanningId set
+      if (res.status === 200 && (data.already_queued || data.duplicate)) {
 
         return;
 
@@ -484,9 +429,9 @@ export default function WebsiteList() {
 
       if (data.cached && typeof data.score === "number") {
 
-        setScanResult({ id: websiteId, score: data.score });
-
         clearScanState(websiteId);
+
+        router.refresh();
 
         return;
 
@@ -602,7 +547,7 @@ export default function WebsiteList() {
 
           <p className="mt-1 text-sm text-gray-500">
 
-            Manage and scan your monitored websites.
+            Add a site, then click Scan to check its security.
 
             {!planLoading && (
 
@@ -630,23 +575,11 @@ export default function WebsiteList() {
 
             onClick={() => {
 
-              if (websiteLimitReached) {
-
-                openUpgradeModal({ trigger: 'add_website', recommendedPlan: plan === 'pro' ? 'growth' : 'agency' });
-
-                return;
-
-              }
-
               setShowAddForm(!showAddForm);
 
               setAddError(null);
 
             }}
-
-            disabled={websiteLimitReached && websiteCount === 0}
-
-            title={websiteLimitReached ? (upgradeMessage ?? "Upgrade to add more websites") : undefined}
 
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 
@@ -674,7 +607,7 @@ export default function WebsiteList() {
 
           {upgradeMessage ?? "You've reached your website limit."}{" "}
 
-          <a href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
+          <a href="/app/settings" className="font-semibold underline hover:text-orange-300">
 
             Upgrade to add more websites.
 
@@ -698,7 +631,9 @@ export default function WebsiteList() {
 
         >
 
-          <h3 className="mb-4 text-sm font-semibold text-white">Add New Website</h3>
+          <h3 className="mb-4 text-sm font-semibold text-white">
+            {websites.length === 0 ? 'Add your website to run your first scan' : 'Add New Website'}
+          </h3>
 
           <div className="grid gap-4 sm:grid-cols-2">
 
@@ -766,7 +701,7 @@ export default function WebsiteList() {
 
               {upgradeMessage ?? "You've reached your plan limit."}{" "}
 
-              <a href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
+              <a href="/app/settings" className="font-semibold underline hover:text-orange-300">
 
                 Upgrade to add more websites.
 
@@ -788,7 +723,7 @@ export default function WebsiteList() {
 
             >
 
-              {adding ? "Adding…" : "Add Website"}
+              {adding ? "Adding…" : websites.length === 0 ? "Add & scan" : "Add Website"}
 
             </button>
 
@@ -830,55 +765,19 @@ export default function WebsiteList() {
 
 
 
-      {/* Scan result banner */}
-
-      {scanResult && (
-
-        <div className="mb-4 rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm text-green-400">
-
-          Scan complete! Security score: <strong>{scanResult.score}/100</strong>
-
-          <button onClick={() => setScanResult(null)} className="ml-3 text-green-300 underline">Dismiss</button>
-
-        </div>
-
-      )}
-
-
-
-      {/* Plan limit upgrade banner */}
+      {/* Scan limit banner (inline only — no modal) */}
 
       {limitError && (
 
         <div className="mb-4 flex items-center gap-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-400">
 
-          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <span className="flex-1">{limitError}</span>
 
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-
-          </svg>
-
-          <span className="flex-1">{limitError.message}</span>
-
-          <button
-
-            type="button"
-
-            onClick={() => {
-
-              openUpgradeModal({ trigger: "scan_limit", recommendedPlan: plan === "pro" ? "growth" : "pro" });
-
-              setLimitError(null);
-
-            }}
-
-            className="font-semibold underline hover:text-orange-300 whitespace-nowrap"
-
-          >
+          <a href="/dashboard/settings" className="font-semibold underline hover:text-orange-300 whitespace-nowrap">
 
             Upgrade plan →
 
-          </button>
+          </a>
 
           <button onClick={() => setLimitError(null)} className="text-orange-300 underline text-xs">Dismiss</button>
 
@@ -910,23 +809,13 @@ export default function WebsiteList() {
 
       {/* Empty state */}
 
-      {!loading && websites.length === 0 && (
+      {!loading && websites.length === 0 && !showAddForm && (
 
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-16 text-center">
 
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-gray-700 bg-gray-800 text-gray-500">
-
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-
-            </svg>
-
-          </div>
-
           <p className="text-sm font-medium text-gray-300">No websites yet</p>
 
-          <p className="mt-1 text-xs text-gray-500">Click &quot;Add Website&quot; to start monitoring.</p>
+          <p className="mt-1 text-xs text-gray-500">Add your site URL below to run your first scan.</p>
 
         </div>
 
@@ -979,12 +868,6 @@ export default function WebsiteList() {
                       </p>
 
                       <p className="mt-0.5 truncate text-xs text-gray-500">{site.url}</p>
-
-                      {liveJob && (liveJob.status === "pending" || liveJob.status === "processing") && (
-
-                        <p className="mt-1 text-xs text-blue-400">{queueStatusLabel(liveJob.status)}</p>
-
-                      )}
 
                       {liveJob?.status === "failed" && (
 
@@ -1040,11 +923,26 @@ export default function WebsiteList() {
 
                         )}
 
+                        {completedScanIds.get(site.id) && (
+                          <a
+                            href={`/report/${completedScanIds.get(site.id)}`}
+                            className="text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            View report →
+                          </a>
+                        )}
+
                       </div>
 
                     ) : isScanning ? (
 
-                      <span className="text-xs text-blue-400">Pending…</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs text-blue-400">
+
+                        <span className="h-3 w-3 animate-spin rounded-full border border-blue-400 border-t-transparent" />
+
+                        Scanning…
+
+                      </span>
 
                     ) : (
 
@@ -1068,9 +966,7 @@ export default function WebsiteList() {
 
                         onClick={() => handleScan(site.id)}
 
-                        disabled={isScanning || scanLimitReached}
-
-                        title={scanLimitReached ? "Daily scan limit reached — upgrade for more scans" : undefined}
+                        disabled={isScanning}
 
                         className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/20 disabled:opacity-60"
 

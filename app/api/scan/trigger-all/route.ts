@@ -1,19 +1,51 @@
 /**
  * POST /api/scan/trigger-all
- * Enqueues all active websites for the authenticated user via the orchestrator.
+ * Enqueues active websites up to the user's remaining daily scan budget.
  * Does NOT execute scans — /api/scan/enqueue-or-process-batch processes the queue.
  */
 
-import '@/services';
+import '@/services/bootstrap';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
 import { emit } from '@/core/events/emit';
 import { getUser } from '@/services/supabaseService';
-import { enqueueScan } from '@/services/scanService';
+import { enqueueScan } from '@/services/scanQueueService';
+import { checkAndIncrementScanUsage, getScanUsageStatus } from '@/lib/usage/checkScanLimit';
+import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
+import { decrementScanUsage } from '@/lib/billing/usageService';
+import { getUserPlan } from '@/lib/billing/planService';
+import { generateTraceId, logEvent, startTrace } from '@/lib/observability';
+import { recordApiLatency } from '@/lib/observability/metrics';
+
+function scanLimitMessage(scansUsed: number, scansLimit: number): string {
+  return `You've reached your daily scan limit (${scansLimit}). Used ${scansUsed} of ${scansLimit} today.`;
+}
+
+function buildResultMessage(
+  queued: number,
+  totalWebsites: number,
+  scansUsed: number,
+  scansLimit: number,
+  limitSkipped: number,
+): string {
+  if (queued === 0 && limitSkipped > 0) {
+    return scanLimitMessage(scansUsed, scansLimit);
+  }
+  if (limitSkipped > 0) {
+    return `Queued ${queued} of ${totalWebsites} websites (daily limit: ${scansLimit}, used: ${scansUsed})`;
+  }
+  if (queued === 0) {
+    return 'No websites queued';
+  }
+  return `Queued ${queued} of ${totalWebsites} websites`;
+}
 
 export async function POST() {
+  const start = Date.now();
+  const traceId = generateTraceId();
+
   const supabase = await createClient();
   const { user } = await getUser(supabase);
 
@@ -21,6 +53,13 @@ export async function POST() {
 
   const access = await requireDashboardAccess(user);
   if (!access.allowed) return access.response;
+
+  await startTrace({
+    traceId,
+    name: 'scan_batch',
+    userId: user.id,
+    metadata: { source: 'trigger-all' },
+  });
 
   const adminSupabase = createAdminClient();
   const { data: websites, error: fetchErr } = await adminSupabase
@@ -30,34 +69,102 @@ export async function POST() {
     .eq('is_active', true);
 
   if (fetchErr) {
+    void recordApiLatency('/api/scan/trigger-all', Date.now() - start, 500);
     return Response.json({ error: 'Failed to fetch websites' }, { status: 500 });
   }
 
-  if (!websites || websites.length === 0) {
-    return Response.json({ queued: 0, skipped: 0, blocked: 0, message: 'No active websites found' });
+  const totalWebsites = websites?.length ?? 0;
+
+  if (!websites || totalWebsites === 0) {
+    void recordApiLatency('/api/scan/trigger-all', Date.now() - start, 200);
+    return Response.json({
+      queued: 0,
+      skipped: 0,
+      remaining: 0,
+      limitExceeded: false,
+      message: 'No active websites found',
+      traceId,
+    });
+  }
+
+  const plan = await getUserPlan(user.id);
+  const usageStatus = await getScanUsageStatus(user.id);
+  const { scansUsed, scansLimit, remaining } = usageStatus;
+
+  if (remaining !== Infinity && remaining <= 0) {
+    void recordApiLatency('/api/scan/trigger-all', Date.now() - start, 403);
+    const message = scanLimitMessage(scansUsed, scansLimit);
+    return Response.json(
+      {
+        error: message,
+        code: 'SCAN_LIMIT_EXCEEDED',
+        message,
+        scansUsed,
+        scansLimit,
+        queued: 0,
+        skipped: totalWebsites,
+        remaining: 0,
+        limitExceeded: true,
+        traceId,
+      },
+      { status: 403 },
+    );
   }
 
   let queued = 0;
   let skipped = 0;
-  let blocked = 0;
-  let blockReason: string | undefined;
+  let limitSkipped = 0;
+  let websiteLimitBlocked = 0;
   let blockMessage: string | undefined;
   let upgradeUrl: string | undefined;
   let rateLimited = false;
   let queueWarning = false;
   let queueBusyBlocked = false;
 
+  let scansBudget = remaining === Infinity ? totalWebsites : remaining;
+
   for (const website of websites) {
+    if (scansBudget <= 0) {
+      limitSkipped++;
+      skipped++;
+      continue;
+    }
+
+    const usageCheck = await checkAndIncrementScanUsage(user.id, plan);
+    if (!usageCheck.allowed) {
+      limitSkipped++;
+      skipped++;
+      blockMessage = usageCheck.reason ?? blockMessage;
+      continue;
+    }
+
     const result = await enqueueScan({
       userId: user.id,
       websiteId: website.id,
       source: 'api',
       bypassCooldown: true,
+      traceId,
+      idempotencyKey: buildScanIdempotencyKey(user.id, website.id),
+      usagePreChecked: true,
     });
 
+    if (!result.queued) {
+      await decrementScanUsage(user.id);
+    }
+
     if (result.queued) {
+      scansBudget--;
       queued++;
       if (result.queueWarning) queueWarning = true;
+
+      await logEvent({
+        type: 'scan_enqueued',
+        layer: 'queue',
+        userId: user.id,
+        traceId,
+        metadata: { jobId: result.jobId, websiteId: website.id, batch: true },
+      });
+
       if (result.jobId) {
         void emit({
           type: 'scanCreated',
@@ -77,8 +184,12 @@ export async function POST() {
       result.reason === 'website_limit_reached' ||
       result.reason === 'website_scan_limit'
     ) {
-      blocked++;
-      blockReason = blockReason ?? result.reason;
+      if (result.reason === 'scan_limit_reached' || result.reason === 'website_scan_limit') {
+        limitSkipped++;
+      } else {
+        websiteLimitBlocked++;
+      }
+      skipped++;
       blockMessage = blockMessage ?? result.message;
       upgradeUrl = upgradeUrl ?? result.upgradeUrl;
     } else if (result.reason === 'rate_limited') {
@@ -89,6 +200,13 @@ export async function POST() {
     }
   }
 
+  const limitExceeded = limitSkipped > 0;
+  const remainingAfter =
+    remaining === Infinity ? Infinity : Math.max(0, remaining - queued);
+  const message = buildResultMessage(queued, totalWebsites, scansUsed, scansLimit, limitSkipped);
+
+  void recordApiLatency('/api/scan/trigger-all', Date.now() - start, 200);
+
   if (queueBusyBlocked && queued === 0) {
     return Response.json(
       {
@@ -98,26 +216,47 @@ export async function POST() {
           'Scan demand is very high right now. Please try again shortly or upgrade for priority processing.',
         queued: 0,
         skipped,
+        remaining: remainingAfter === Infinity ? scansLimit : remainingAfter,
+        limitExceeded,
+        scansUsed,
+        scansLimit,
+        traceId,
       },
       { status: 503 },
     );
   }
 
-  if (blocked > 0 && queued === 0) {
-    const isScanLimit = blockReason === 'scan_limit_reached';
+  if (queued === 0 && limitExceeded) {
     return Response.json(
       {
-        error: isScanLimit ? 'USAGE_LIMIT_REACHED' : 'WEBSITE_LIMIT_REACHED',
-        message:
-          blockMessage ??
-          (isScanLimit
-            ? 'Daily scan limit reached. Upgrade your plan to scan more websites.'
-            : 'Website limit reached for your plan.'),
+        error: blockMessage ?? scanLimitMessage(scansUsed, scansLimit),
+        code: 'SCAN_LIMIT_EXCEEDED',
+        message: blockMessage ?? scanLimitMessage(scansUsed, scansLimit),
+        scansUsed,
+        scansLimit,
         queued: 0,
         skipped,
-        blocked,
-        blockReason,
+        remaining: 0,
+        limitExceeded: true,
+        traceId,
+      },
+      { status: 403 },
+    );
+  }
+
+  if (websiteLimitBlocked > 0 && queued === 0) {
+    return Response.json(
+      {
+        error: 'WEBSITE_LIMIT_REACHED',
+        message: blockMessage ?? 'Website limit reached for your plan.',
+        queued: 0,
+        skipped,
+        remaining: remainingAfter === Infinity ? scansLimit : remainingAfter,
+        limitExceeded,
+        scansUsed,
+        scansLimit,
         upgradeUrl: upgradeUrl ?? '/dashboard/settings',
+        traceId,
       },
       { status: 403 },
     );
@@ -125,7 +264,14 @@ export async function POST() {
 
   if (rateLimited && queued === 0) {
     return Response.json(
-      { error: 'Rate limit exceeded — too many scan triggers. Please wait before scanning again.' },
+      {
+        error: 'Rate limit exceeded — too many scan triggers. Please wait before scanning again.',
+        queued: 0,
+        skipped,
+        remaining: remainingAfter === Infinity ? scansLimit : remainingAfter,
+        limitExceeded,
+        traceId,
+      },
       { status: 429 },
     );
   }
@@ -133,13 +279,13 @@ export async function POST() {
   return Response.json({
     queued,
     skipped,
-    blocked,
+    remaining: remainingAfter === Infinity ? scansLimit : remainingAfter,
+    limitExceeded,
+    scansUsed,
+    scansLimit,
     queueWarning,
-    blockReason: blocked > 0 ? blockReason : undefined,
-    upgradeUrl: blocked > 0 ? (upgradeUrl ?? '/dashboard/settings') : undefined,
-    message:
-      queued === 0
-        ? `No websites queued — ${skipped} skipped, ${blocked} blocked by plan limit`
-        : `${queued} website(s) queued for scanning${skipped > 0 ? `, ${skipped} skipped` : ''}${blocked > 0 ? `, ${blocked} blocked` : ''}`,
+    traceId,
+    upgradeUrl: limitExceeded ? (upgradeUrl ?? '/dashboard/settings') : undefined,
+    message,
   });
 }

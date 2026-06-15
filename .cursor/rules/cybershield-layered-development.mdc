@@ -1,0 +1,46 @@
+---
+description: CyberShield layered development enforcement — single layer per session, checkpoint branches
+alwaysApply: true
+---
+
+# CYBERSHIELD DEVELOPMENT RULES (ENFORCED)
+
+You MUST follow layered architecture:
+
+- Only one layer may be modified per session
+- No cross-layer changes allowed
+- Any multi-system change requires `checkpoint/<name>` branch
+
+## Layers
+
+| Layer | Scope |
+|-------|-------|
+| **0** | Core system (locked, bug fixes only) — auth, billing webhooks, scan queue, dashboard, cron |
+| **1** | Scan + billing correctness — RLS, duplicate prevention, Stripe source of truth |
+| **2** | Queue + reliability logic — priority, retries, idempotency |
+| **3** | UI + conversion flows |
+| **4** | Enterprise system |
+| **5** | Scaling + reliability |
+| **6** | AI ops |
+
+## Rules
+
+- Never perform global refactors
+- Never modify auth + billing + queue in same change
+- Never rewrite architecture across files
+- Always identify layer before editing
+- Dependency flow: UI → API → Core → Services → DB
+
+## Multi-Layer Changes
+
+**IF CHANGE SPANS MULTIPLE LAYERS:** STOP and request checkpoint branch first.
+
+All edits must be isolated, minimal, and testable.
+
+## Rollback
+
+Stable baseline branch: **`stable-checkpoint`**
+
+## Pre-Edit Checklist
+
+Before any edit: state which layer (0–6) and confirm no cross-layer impact.

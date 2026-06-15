@@ -146,9 +146,16 @@ export async function postProcessScan(params: {
         }).select('id').single();
 
         if (alert?.id) {
-          sendSecurityAlert(alert.id).catch((err) =>
-            console.error('[POST-PROCESS] Alert email failed (non-fatal):', err),
-          );
+          try {
+            const emailResult = await sendSecurityAlert(alert.id);
+            if (!emailResult.sent && !emailResult.skipped) {
+              console.error(
+                `[POST-PROCESS] Alert email not sent for alert=${alert.id} reason=${emailResult.reason ?? 'unknown'}`,
+              );
+            }
+          } catch (err) {
+            console.error('[POST-PROCESS] Alert email failed (non-fatal):', err);
+          }
         }
       }
     } catch (err) {

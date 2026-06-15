@@ -1,8 +1,0 @@
-﻿
-> cybershield-saas@0.1.0 build
-> cross-env NODE_OPTIONS=--max-old-space-size=4096 next build
-
-   Γû▓ Next.js 15.5.19
-   - Environments: .env.local
-
-   Creating an optimized production build ...

@@ -17,4 +17,5 @@ export interface QueueJob {
   started_at: string | null;
   completed_at: string | null;
   error: string | null;
+  trace_id?: string | null;
 }

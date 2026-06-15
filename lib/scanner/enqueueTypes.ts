@@ -5,7 +5,7 @@ export type ScanSource = 'api' | 'manual' | 'cron';
 export interface EnqueueResult {
   queued: boolean;
   jobId?: string;
-  jobStatus?: 'pending' | 'processing';
+  jobStatus?: 'pending' | 'processing' | 'completed' | 'failed';
   reason?:
     | 'too_recent'
     | 'already_queued'
@@ -16,6 +16,7 @@ export interface EnqueueResult {
     | 'website_scan_limit'
     | 'queue_busy'
     | 'queue_error'
+    | 'duplicate'
     | 'error';
   error?: 'USAGE_LIMIT_REACHED' | 'WEBSITE_LIMIT_REACHED' | 'RATE_LIMITED' | string;
   message?: string;

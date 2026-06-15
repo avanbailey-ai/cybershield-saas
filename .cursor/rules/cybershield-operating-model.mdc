@@ -1,0 +1,92 @@
+---
+description: CyberShield Safe Layered Development — checkpoints, layer isolation, frozen core
+alwaysApply: true
+---
+
+# CyberShield Operating Model
+
+Before any task: **identify the layer**, confirm **single-layer isolation**, and use a **checkpoint branch** when crossing system boundaries.
+
+## Checkpoint Rule
+
+Multi-system or cross-layer work **must** use a dedicated branch:
+
+```
+checkpoint/<short-descriptive-name>
+```
+
+Examples: `checkpoint/billing-ui-fix`, `checkpoint/queue-reliability`
+
+Merge only after each layer is stable and validated. Never mix unrelated layer changes in one session.
+
+## Layer Table
+
+| Layer | Name | Status | Paths (approx) |
+|-------|------|--------|----------------|
+| **0** | Core frozen systems | **LOCKED** | `middleware.ts`, `lib/supabase/`, `app/actions/auth.ts`, `app/auth/`, `app/api/stripe/`, `lib/scanner/processQueue.ts`, `lib/scanner/queue.ts`, `app/api/scan/trigger-all/`, `app/api/scan/process-queue/` |
+| **1** | API & domain services | ACTIVE | `app/api/scan/route.ts`, `services/`, `core/scans/`, `core/billing/` |
+| **2** | Workers & reliability | ACTIVE | `lib/reliability/`, `lib/workers/`, `app/api/cron/` |
+| **3** | UI & pages | ACTIVE | `components/`, `app/page.tsx`, `app/login/`, `app/signup/`, `app/dashboard/` |
+| **4** | Meta tooling | ACTIVE | `scripts/`, `.cursor/rules/`, `docs/OPERATING_MODEL.md` |
+| **5** | Analytics & growth | ACTIVE | `lib/analytics/`, `lib/conversion/`, `components/conversion/` |
+| **6** | Enterprise & admin | ACTIVE | `app/enterprise/`, `app/dashboard/admin/`, `components/enterprise/` |
+
+## Single-Layer Rule
+
+**One layer per session.** Do not edit files from two different layer groups (0–3) in the same changeset unless on a `checkpoint/*` branch with explicit intent.
+
+Layer 4 (meta tooling) is exempt from cross-layer checks — rules and scripts may be added without touching business logic.
+
+## Dependency Flow
+
+Changes must respect top-down dependency:
+
+```
+UI (3) → API (1) → Core (0) → Services → DB
+```
+
+Do not pull UI concerns into Layer 0. Do not bypass API layers to mutate core queue/auth directly from UI.
+
+## Layer 0 — Frozen Systems (DO NOT MODIFY)
+
+Unless explicitly authorized on a checkpoint branch for a targeted bug fix:
+
+- **Supabase auth** — `lib/supabase/`, `app/auth/`, `app/actions/auth.ts`, `middleware.ts`
+- **Stripe webhooks & billing API** — `app/api/stripe/`
+- **Scan queue** — `lib/scanner/processQueue.ts`, `lib/scanner/queue.ts`, `app/api/scan/trigger-all/`, `app/api/scan/process-queue/`
+- **Realtime dashboard data flows** — queue subscriptions wired through frozen scan paths
+
+## Prohibited Without Checkpoint
+
+- Global refactors spanning multiple layers
+- Cross-layer edits (e.g. UI + queue processor in one commit)
+- "While I'm here" changes to Layer 0
+- Renaming or restructuring frozen paths without rollback plan
+
+## Rollback
+
+Stable baseline branch: **`stable-checkpoint`**
+
+If a change destabilizes production paths:
+
+```bash
+git checkout stable-checkpoint -- <path/to/file>
+# or full reset to checkpoint:
+git checkout stable-checkpoint
+```
+
+## Pre-Task Checklist
+
+1. Which layer does this task belong to?
+2. Am I touching only that layer (or Layer 4 tooling)?
+3. If 2+ layers: am I on `checkpoint/<name>`?
+4. Run `npm run enforce:layers:staged` before commit.
+
+## Enforcement
+
+```bash
+npm run enforce:layers          # check explicit files (no args = none)
+npm run enforce:layers:staged   # check git staged files
+```
+
+See `docs/OPERATING_MODEL.md` for human workflow and hook setup.

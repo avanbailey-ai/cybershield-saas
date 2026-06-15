@@ -20,8 +20,6 @@ import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 
 import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 
-import PlanComparisonTable from '@/components/conversion/PlanComparisonTable';
-
 import { trackEvent } from '@/lib/conversion/track';
 
 
@@ -32,27 +30,25 @@ const plans = [
 
     id: 'free' as const,
 
-    name: 'Public Scan',
+    name: 'Free',
 
     price: 'Free',
 
     period: '',
 
-    description: 'One-off security check — no account needed.',
+    description: 'Try a one-time security check — no account needed.',
 
     features: [
 
       'Instant risk score',
 
-      'Top 2 vulnerabilities shown',
+      'Top vulnerabilities shown',
 
       'No login required',
 
-      formatScanFrequency(PLAN_LIMITS.free.scanFrequency),
-
     ],
 
-    cta: 'Scan Now',
+    cta: 'Start Free',
 
     highlighted: false,
 
@@ -72,7 +68,7 @@ const plans = [
 
     period: '/mo',
 
-    description: 'For individuals and small teams.',
+    description: 'Great for individuals getting started.',
 
     features: [
 
@@ -82,11 +78,11 @@ const plans = [
 
       formatScanFrequency(PLAN_LIMITS.pro.scanFrequency),
 
-      'Email alerts & security scoring',
+      'Email alerts & full reports',
 
     ],
 
-    cta: 'Get Started',
+    cta: 'Upgrade',
 
     highlighted: false,
 
@@ -104,7 +100,7 @@ const plans = [
 
     period: '/mo',
 
-    description: 'The most popular plan for growing teams.',
+    description: 'Daily monitoring — recommended for most teams.',
 
     features: [
 
@@ -114,11 +110,11 @@ const plans = [
 
       formatScanFrequency(PLAN_LIMITS.growth.scanFrequency),
 
-      'Priority queue & daily monitoring',
+      'Priority scans & daily monitoring',
 
     ],
 
-    cta: 'Get Started',
+    cta: 'Upgrade',
 
     highlighted: Boolean(PLAN_LIMITS.growth.mostPopular),
 
@@ -136,7 +132,7 @@ const plans = [
 
     period: '/mo',
 
-    description: 'Enterprise-grade coverage for large organizations.',
+    description: 'Hourly scans for agencies and large teams.',
 
     features: [
 
@@ -146,11 +142,11 @@ const plans = [
 
       formatScanFrequency(PLAN_LIMITS.agency.scanFrequency),
 
-      'Team access & priority support',
+      'Unlimited sites & priority support',
 
     ],
 
-    cta: 'Get Started',
+    cta: 'Upgrade',
 
     highlighted: false,
 
@@ -294,12 +290,12 @@ export default function Pricing() {
 
           <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
 
-            Simple, transparent pricing
+            Protect your sites — start free, upgrade when ready
 
           </h2>
 
           <p className="mx-auto max-w-xl text-gray-400">
-            Start with a free scan, then upgrade for continuous monitoring. All prices from Stripe.
+            Run a free scan in seconds. Upgrade for continuous monitoring, alerts, and full reports.
           </p>
 
           {trustSignals && (
@@ -350,7 +346,7 @@ export default function Pricing() {
 
                   <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
 
-                    Most Popular
+                    Recommended
 
                   </span>
 
@@ -457,10 +453,6 @@ export default function Pricing() {
           ))}
 
         </div>
-
-
-
-        <PlanComparisonTable />
 
       </div>
 

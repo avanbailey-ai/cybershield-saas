@@ -22,6 +22,15 @@ import { postProcessScan } from './postProcessScan';
 import { runScanWithTimeout } from './runScanWithTimeout';
 import { logScanTiming } from '@/lib/observability/log';
 import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
+import {
+  addTraceStep,
+  completeTrace,
+  enrichError,
+  logEvent,
+  startTrace,
+} from '@/lib/observability';
+import { recordQueueDepth, recordScanDuration } from '@/lib/observability/metrics';
+import { getScanQueueDepth } from '@/lib/observability/scanMetrics';
 
 const RETRY_BASE_DELAY_MS = 30_000;
 
@@ -73,6 +82,21 @@ async function markScanJobFailed(
         scheduled_for: scheduledFor,
       })
       .eq('id', jobId);
+
+    void logEvent({
+      type: 'queue_retry_triggered',
+      layer: 'queue',
+      userId: context?.userId,
+      metadata: {
+        jobId,
+        websiteId: context?.websiteId,
+        attempts,
+        maxAttempts,
+        error: errorMessage,
+        source: context?.source,
+      },
+    });
+
     return 'retry';
   } else {
     await supabase
@@ -128,15 +152,55 @@ async function releaseStuckProcessingLock(jobId: string, errorMessage: string): 
 async function processScanJob(job: QueueJob): Promise<ProcessResult> {
   const supabase = createAdminClient();
   const base = { jobId: job.id, websiteId: job.website_id, url: '' };
+  const traceId = job.trace_id ?? undefined;
   let terminalUpdated = false;
   let result: ProcessResult = { ...base, success: false, error: 'unknown' };
+  const workerStart = Date.now();
 
   const log = (msg: string, data?: unknown) =>
     console.log(`[scanWorker] job=${job.id} website=${job.website_id}`, msg, data ?? '');
-  const logError = (msg: string, err: unknown) =>
-    console.error('[scanWorker] ERROR', { jobId: job.id, websiteId: job.website_id, msg, error: err });
+  const logError = (msg: string, err: unknown) => {
+    const enriched = enrichError(err, {
+      layer: 'worker',
+      traceId,
+      jobId: job.id,
+      metadata: { websiteId: job.website_id, msg },
+    });
+    console.error('[scanWorker] ERROR', {
+      jobId: job.id,
+      websiteId: job.website_id,
+      msg,
+      error: enriched.message,
+      traceId,
+    });
+  };
 
   try {
+    await addTraceStep(traceId ?? 'unknown', 'queue_pick', 'queue', {
+      jobId: job.id,
+      websiteId: job.website_id,
+      priority: job.priority,
+    });
+
+    if (traceId) {
+      await startTrace({
+        traceId,
+        name: 'scan_worker',
+        userId: job.user_id,
+        websiteId: job.website_id,
+        jobId: job.id,
+        metadata: { source: job.source },
+      });
+    }
+
+    await logEvent({
+      type: 'scan_started',
+      layer: 'worker',
+      userId: job.user_id,
+      orgId: job.org_id,
+      traceId,
+      metadata: { jobId: job.id, websiteId: job.website_id, source: job.source },
+    });
     const { data: fresh } = await supabase
       .from('scan_queue')
       .select('id, status, result, attempts, max_attempts')
@@ -184,6 +248,14 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
 
     if (!job.source || job.source === 'unknown') {
       const errMsg = 'missing_source: bypassed orchestrator';
+      await logEvent({
+        type: 'scan_failed',
+        layer: 'worker',
+        userId: job.user_id,
+        traceId,
+        metadata: { jobId: job.id, error: errMsg },
+      });
+      if (traceId) await completeTrace(traceId, 'failed', { error: errMsg });
       await supabase
         .from('scan_queue')
         .update({
@@ -207,6 +279,14 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
 
     if (wErr || !website) {
       logError('website not found', wErr);
+      await logEvent({
+        type: 'scan_failed',
+        layer: 'worker',
+        userId: job.user_id,
+        traceId,
+        metadata: { jobId: job.id, error: 'Website not found' },
+      });
+      if (traceId) await completeTrace(traceId, 'failed', { error: 'Website not found' });
       await supabase
         .from('scan_queue')
         .update({
@@ -227,6 +307,30 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
     const maxAttempts = fresh.max_attempts ?? DEFAULT_MAX_ATTEMPTS;
     const currentAttempts = fresh.attempts ?? 0;
 
+    const storedResult = fresh.result as { scanId?: string; score?: number; riskLevel?: string } | null;
+    if (storedResult?.scanId) {
+      log('reusing existing scan record from job result', { scanId: storedResult.scanId });
+      terminalUpdated = true;
+      result = {
+        ...base,
+        success: true,
+        skipped: true,
+        score: storedResult.score,
+        riskLevel: storedResult.riskLevel,
+      };
+      if (fresh.status !== 'completed') {
+        await supabase
+          .from('scan_queue')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            locked_at: null,
+          })
+          .eq('id', job.id);
+      }
+      return result;
+    }
+
     let scanRecordId!: string;
 
     try {
@@ -246,6 +350,14 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       log('scan record created', { scanId: scanRecordId });
     } catch (err) {
       logError('failed to create scan record', err);
+      await logEvent({
+        type: 'scan_failed',
+        layer: 'worker',
+        userId: website.user_id,
+        traceId,
+        metadata: { jobId: job.id, error: String(err) },
+      });
+      if (traceId) await completeTrace(traceId, 'failed', { error: String(err) });
       await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
         userId: website.user_id,
         websiteId: job.website_id,
@@ -260,8 +372,13 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
     const scanStart = Date.now();
 
     try {
+      const workerRunStart = Date.now();
       log('running scan');
       scanResult = await runScanWithTimeout(website.url);
+      await addTraceStep(traceId ?? 'unknown', 'worker_run', 'worker', {
+        url: website.url,
+        score: scanResult.score,
+      }, Date.now() - workerRunStart);
 
       if (typeof scanResult.score !== 'number') throw new Error('Invalid scan result: score missing');
       if (!Array.isArray(scanResult.issues)) throw new Error('Invalid scan result: issues not array');
@@ -270,6 +387,14 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       log('scan complete', { score: scanResult.score, riskLevel: scanResult.riskLevel });
     } catch (err) {
       logError('scan failed', err);
+      await logEvent({
+        type: 'scan_failed',
+        layer: 'worker',
+        userId: website.user_id,
+        traceId,
+        metadata: { jobId: job.id, scanId: scanRecordId, error: String(err) },
+      });
+      if (traceId) await completeTrace(traceId, 'failed', { scanId: scanRecordId, error: String(err) });
       await supabase
         .from('scans')
         .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
@@ -293,8 +418,17 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
         url: website.url,
         scanResult,
       });
+      await addTraceStep(traceId ?? 'unknown', 'db_save', 'worker', { scanId: scanRecordId });
     } catch (err) {
       logError('postProcessScan failed', err);
+      await logEvent({
+        type: 'scan_failed',
+        layer: 'worker',
+        userId: website.user_id,
+        traceId,
+        metadata: { jobId: job.id, scanId: scanRecordId, error: String(err) },
+      });
+      if (traceId) await completeTrace(traceId, 'failed', { scanId: scanRecordId, error: String(err) });
       await supabase
         .from('scans')
         .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
@@ -340,6 +474,32 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       website.user_id,
     );
 
+    await logEvent({
+      type: 'scan_completed',
+      layer: 'worker',
+      userId: website.user_id,
+      orgId: orgId,
+      traceId,
+      metadata: {
+        jobId: job.id,
+        scanId: scanRecordId,
+        score: scanResult.score,
+        riskLevel: scanResult.riskLevel,
+      },
+    });
+    if (traceId) {
+      await completeTrace(traceId, 'completed', {
+        scanId: scanRecordId,
+        score: scanResult.score,
+        riskLevel: scanResult.riskLevel,
+      });
+    }
+
+    void recordScanDuration(Date.now() - workerStart, {
+      priority: job.priority,
+      success: true,
+    });
+
     terminalUpdated = true;
     result = {
       jobId: job.id,
@@ -352,6 +512,18 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
     return result;
   } catch (err) {
     logError('unexpected worker error', err);
+    await logEvent({
+      type: 'scan_failed',
+      layer: 'worker',
+      userId: job.user_id,
+      traceId,
+      metadata: { jobId: job.id, error: String(err) },
+    });
+    if (traceId) await completeTrace(traceId, 'failed', { error: String(err) });
+    void recordScanDuration(Date.now() - workerStart, {
+      priority: job.priority,
+      success: false,
+    });
     if (!terminalUpdated) {
       await releaseStuckProcessingLock(job.id, String(err));
       terminalUpdated = true;
@@ -392,6 +564,9 @@ export async function runScanWorker(
   const succeeded = results.filter((r) => r.success && !r.skipped).length;
   const skipped = results.filter((r) => r.skipped).length;
   const failed = results.filter((r) => !r.success).length;
+
+  const queueDepth = await getScanQueueDepth();
+  void recordQueueDepth(queueDepth);
 
   return {
     reclaimed,

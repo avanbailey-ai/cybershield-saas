@@ -8,8 +8,8 @@
 export const PLAN_LIMITS = {
   free: {
     name: 'Free',
-    websites: 0,
-    maxScansPerDay: 1,
+    websites: 1,
+    maxScansPerDay: 3,
     maxScansPerWebsite: 1,
     scanFrequency: 'manual' as const,
   },

@@ -1,126 +1,99 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { usePlan } from '@/lib/billing/usePlan';
-import { useConversion } from '@/components/conversion/ConversionProvider';
-import QueueDemandBanner from '@/components/dashboard/QueueDemandBanner';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-function createIdempotencyKey(): string {
-  return crypto.randomUUID();
-}
+type ScanPhase = 'idle' | 'loading' | 'success' | 'error';
 
 export default function ScanAllButton() {
-  const { scansToday, scansRemaining, effectiveScansLimit, loading: planLoading } = usePlan();
-  const { openUpgradeModal } = useConversion();
+  const router = useRouter();
   const isScanningRef = useRef(false);
-  const idempotencyKeyRef = useRef<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [queueWarning, setQueueWarning] = useState(false);
+  const [phase, setPhase] = useState<ScanPhase>('idle');
+  const [message, setMessage] = useState<string | null>(null);
 
-  const scanLimitReached = !planLoading && scansRemaining === 0;
+  useEffect(() => {
+    if (phase !== 'success' && phase !== 'error') return;
+    const timer = setTimeout(() => {
+      setPhase('idle');
+      setMessage(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   async function handleScanAll() {
-    if (isScanningRef.current) return;
-
-    if (scanLimitReached) {
-      openUpgradeModal({
-        trigger: 'scan_limit',
-        recommendedPlan: 'growth',
-      });
-      return;
-    }
+    if (isScanningRef.current || phase === 'loading') return;
 
     isScanningRef.current = true;
-    setLoading(true);
-    setStatus('Queuing websites...');
-    setQueueWarning(false);
+    setPhase('loading');
+    setMessage(null);
 
     try {
-      if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current = createIdempotencyKey();
-      }
-      const enqueueRes = await fetch('/api/scan/trigger-all', {
-        method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKeyRef.current },
-      });
+      const enqueueRes = await fetch('/api/scan/trigger-all', { method: 'POST' });
       const enqueueData = await enqueueRes.json();
 
       if (enqueueRes.status === 403) {
-        const isUsageLimit = enqueueData.error === 'USAGE_LIMIT_REACHED';
-        if (isUsageLimit) {
-          openUpgradeModal({
-            trigger: 'scan_limit',
-            recommendedPlan: 'growth',
-          });
-        }
-        setStatus(
+        setPhase('error');
+        setMessage(
           enqueueData.message ??
-            (isUsageLimit
-              ? "You've reached your scan limit."
-              : 'Website limit reached for your plan.'),
+            (enqueueData.code === 'SCAN_LIMIT_EXCEEDED'
+              ? 'Daily scan limit reached.'
+              : 'Plan limit reached.'),
         );
         return;
       }
 
       if (enqueueRes.status === 503 || enqueueData.error === 'QUEUE_BUSY') {
-        openUpgradeModal({
-          trigger: 'queue_busy',
-          recommendedPlan: 'pro',
-        });
-        setStatus(enqueueData.message ?? 'Scan queue is at capacity — try again shortly.');
+        setPhase('error');
+        setMessage('Queue is busy — try again in a moment.');
         return;
       }
 
       if (enqueueRes.status === 429) {
-        setStatus(enqueueData.error ?? 'Rate limit — please wait before scanning again');
-        return;
-      }
-
-      if (enqueueRes.status === 409) {
-        setStatus(enqueueData.error ?? 'Already queued — scans are already in progress');
+        setPhase('error');
+        setMessage('Please wait before scanning again.');
         return;
       }
 
       if (!enqueueData.queued) {
-        setStatus(enqueueData.message ?? 'No websites to scan');
+        setPhase('error');
+        setMessage(enqueueData.message ?? 'No websites to scan.');
         return;
       }
 
-      if (enqueueData.queueWarning) {
-        setQueueWarning(true);
-      }
-
-      setStatus(`Queued ${enqueueData.queued} website(s) — updates appear live`);
-    } catch (err) {
-      setStatus('Error — check console for details');
-      console.error('[ScanAll]', err);
+      setPhase('success');
+      setMessage(enqueueData.message ?? `Scanning ${enqueueData.queued} site(s)…`);
+      router.refresh();
+    } catch {
+      setPhase('error');
+      setMessage('Scan failed — try again.');
     } finally {
       isScanningRef.current = false;
-      idempotencyKeyRef.current = null;
-      setLoading(false);
     }
   }
 
+  const isLoading = phase === 'loading';
+
   return (
-    <div className="flex flex-col gap-2">
-      <QueueDemandBanner show={queueWarning} onDismiss={() => setQueueWarning(false)} />
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleScanAll}
-          disabled={loading}
-          title={scanLimitReached ? "You've reached your scan limit — upgrade for more scans" : undefined}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {loading ? 'Scanning...' : 'Scan All Websites'}
-        </button>
-        {!planLoading && (
-          <span className={`text-xs ${scansRemaining <= 1 ? 'text-orange-400' : 'text-gray-500'}`}>
-            {scansToday} / {effectiveScansLimit === Infinity ? '∞' : effectiveScansLimit} scans today
-          </span>
+    <div className="flex flex-col items-end gap-1.5">
+      <button
+        onClick={handleScanAll}
+        disabled={isLoading}
+        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+      >
+        {isLoading && (
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         )}
-        {status && <span className="text-sm text-gray-400">{status}</span>}
-      </div>
+        {isLoading ? 'Scanning…' : 'Scan all websites'}
+      </button>
+      {message && (
+        <span
+          className={`text-xs ${
+            phase === 'error' ? 'text-red-400' : phase === 'success' ? 'text-green-400' : 'text-gray-400'
+          }`}
+        >
+          {message}
+        </span>
+      )}
     </div>
   );
 }

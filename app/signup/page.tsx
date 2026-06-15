@@ -18,12 +18,12 @@ export default function SignupPage() {
   return (
     <AuthCard
       title="Create your account"
-      subtitle="Start protecting your web assets today."
+      subtitle="Start with a free scan or set up continuous monitoring."
       footerText="Already have an account?"
       footerLinkText="Sign in"
       footerLinkHref="/login"
       panelHeadline="Start Protecting Your Websites"
-      panelDescription="Create your account, then choose a plan to unlock the monitoring dashboard."
+      panelDescription="Create your account, then scan your first site in under 30 seconds."
       panelBullets={bullets}
     >
       <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>
