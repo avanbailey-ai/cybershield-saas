@@ -1,4 +1,4 @@
-# Reset local dev environment: sync main, clean Next.js cache, reinstall if needed.
+﻿# Reset local dev environment: sync main, clean Next.js cache, reinstall if needed.
 #
 # Usage:
 #   .\scripts\dev-reset.ps1              # pull + clean + npm run dev
@@ -57,21 +57,26 @@ $LockHashFile = Join-Path $Root "node_modules\.package-lock.hash"
 Set-Location $Root
 
 function Invoke-Git {
-  param([string[]]$Args)
-  & $Git @Args
-  if ($LASTEXITCODE -ne 0) { throw "git $($Args -join ' ') failed with exit code $LASTEXITCODE" }
+  param(
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$GitCommand
+  )
+  $output = & $Git @GitCommand
+  if ($LASTEXITCODE -ne 0) {
+    throw "git $($GitCommand -join ' ') failed with exit code $LASTEXITCODE"
+  }
+  return $output
 }
-
 if (-not $SkipPull) {
   Write-Host "[dev-reset] Fetching origin..."
-  Invoke-Git @("fetch", "origin")
+  Invoke-Git fetch origin
 
-  $dirty = Invoke-Git @("status", "--porcelain")
+  $dirty = Invoke-Git status --porcelain
   if ($dirty) {
     Write-Warning "[dev-reset] Uncommitted changes detected  -  skipping git pull. Commit or stash first."
   } else {
     Write-Host "[dev-reset] Pulling origin/main..."
-    Invoke-Git @("pull", "origin", "main")
+    Invoke-Git pull origin main
   }
 }
 
@@ -104,11 +109,11 @@ if ($needsInstall) {
   Write-Host "[dev-reset] package-lock.json unchanged  -  skipping npm install"
 }
 
-$sha = Invoke-Git @("rev-parse", "--short", "HEAD")
+$sha = Invoke-Git rev-parse --short HEAD
 Write-Host "[dev-reset] Latest commit: $sha"
 
 if ($SkipDev) {
-  Write-Host "[dev-reset] Run: npm run dev"
+  Write-Host '[dev-reset] Run: npm run dev'
 } else {
   npm run dev
 }
