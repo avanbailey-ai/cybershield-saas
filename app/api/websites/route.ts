@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { getPlanById } from '@/lib/plans'
+import { canAddWebsite } from '@/lib/billing/guards'
 
 export async function GET() {
   const supabase = await createClient()
@@ -46,25 +46,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
   }
 
-  // Enforce plan-based website limits
   const { data: profile } = await supabase
     .from('profiles')
     .select('plan')
     .eq('id', user.id)
     .single()
 
-  const planObj = getPlanById(profile?.plan ?? 'free')
-
   const { count: websiteCount } = await supabase
     .from('websites')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
 
-  const limit = planObj.websiteLimit
-  if (limit !== null && (websiteCount ?? 0) >= limit) {
+  const userWithPlan = { id: user.id, plan: profile?.plan ?? null }
+  const check = canAddWebsite(userWithPlan, websiteCount ?? 0)
+
+  if (!check.allowed) {
     return NextResponse.json(
-      { error: 'Website limit reached. Upgrade your plan to add more websites.', upgradeRequired: true },
-      { status: 403 }
+      {
+        error: 'WEBSITE_LIMIT_REACHED',
+        message: check.message,
+        upgradeUrl: '/dashboard/settings',
+      },
+      { status: 403 },
     )
   }
 

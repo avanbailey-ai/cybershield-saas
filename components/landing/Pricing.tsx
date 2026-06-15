@@ -1,36 +1,86 @@
-import Link from "next/link";
+'use client';
+
+import { useState } from 'react';
 
 const plans = [
   {
-    name: "Starter",
-    price: "$19",
-    period: "/mo",
-    description: "For individuals and small projects.",
-    features: ["3 websites", "Basic monitoring", "Weekly reports", "Email alerts"],
-    cta: "Get Started",
+    id: 'free' as const,
+    name: 'Free',
+    price: '$0',
+    period: '/mo',
+    description: 'Get started at no cost.',
+    features: ['1 website', '3 scans/day', 'Basic security scan'],
+    cta: 'Get Started',
     highlighted: false,
+    stripePlan: null,
   },
   {
-    name: "Professional",
-    price: "$79",
-    period: "/mo",
-    description: "The most popular plan for growing teams.",
-    features: ["25 websites", "Daily monitoring", "Security scoring", "Email alerts", "Priority support"],
-    cta: "Start Free Trial",
+    id: 'pro' as const,
+    name: 'Pro',
+    price: '$49',
+    period: '/mo',
+    description: 'For individuals and small teams.',
+    features: ['5 websites', 'Daily scans', 'Email alerts', 'Security scoring'],
+    cta: 'Get Started',
+    highlighted: false,
+    stripePlan: 'pro' as const,
+  },
+  {
+    id: 'growth' as const,
+    name: 'Growth',
+    price: '$99',
+    period: '/mo',
+    description: 'The most popular plan for growing teams.',
+    features: ['25 websites', 'Daily scans', 'Security scoring', 'Priority queue'],
+    cta: 'Get Started',
     highlighted: true,
+    stripePlan: 'growth' as const,
   },
   {
-    name: "Business",
-    price: "$249",
-    period: "/mo",
-    description: "Enterprise-grade coverage for large organizations.",
-    features: ["Unlimited websites", "Priority monitoring", "Advanced reporting", "Team access", "Dedicated support"],
-    cta: "Contact Sales",
+    id: 'agency' as const,
+    name: 'Agency',
+    price: '$199',
+    period: '/mo',
+    description: 'Enterprise-grade coverage for large organizations.',
+    features: ['100 websites', 'Advanced monitoring', 'Team access', 'Priority support'],
+    cta: 'Get Started',
     highlighted: false,
+    stripePlan: 'agency' as const,
   },
 ];
 
 export default function Pricing() {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCheckout(plan: 'pro' | 'growth' | 'agency') {
+    setLoading(plan);
+    setError(null);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = '/signup';
+          return;
+        }
+        setError(data.error ?? 'Something went wrong. Please try again.');
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(null);
+    }
+  }
+
   return (
     <section className="relative py-24 px-4">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
@@ -47,14 +97,20 @@ export default function Pricing() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-3">
+        {error && (
+          <div className="mb-6 mx-auto max-w-md rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan) => (
             <div
               key={plan.name}
               className={`relative flex flex-col rounded-xl border p-7 ${
                 plan.highlighted
-                  ? "border-blue-600 bg-blue-950/20 shadow-lg shadow-blue-900/20"
-                  : "border-gray-800 bg-gray-900/50"
+                  ? 'border-blue-600 bg-blue-950/20 shadow-lg shadow-blue-900/20'
+                  : 'border-gray-800 bg-gray-900/50'
               }`}
             >
               {plan.highlighted && (
@@ -91,16 +147,26 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              <Link
-                href="/signup"
-                className={`w-full rounded-lg py-2.5 text-center text-sm font-semibold transition-colors ${
-                  plan.highlighted
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "border border-gray-700 text-gray-300 hover:border-gray-600 hover:text-white"
-                }`}
-              >
-                {plan.cta}
-              </Link>
+              {plan.stripePlan ? (
+                <button
+                  onClick={() => handleCheckout(plan.stripePlan!)}
+                  disabled={loading === plan.stripePlan}
+                  className={`w-full rounded-lg py-2.5 text-center text-sm font-semibold transition-colors disabled:opacity-60 ${
+                    plan.highlighted
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'border border-gray-700 text-gray-300 hover:border-gray-600 hover:text-white'
+                  }`}
+                >
+                  {loading === plan.stripePlan ? 'Redirecting…' : plan.cta}
+                </button>
+              ) : (
+                <a
+                  href="/signup"
+                  className="w-full rounded-lg border border-gray-700 py-2.5 text-center text-sm font-semibold text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+                >
+                  {plan.cta}
+                </a>
+              )}
             </div>
           ))}
         </div>

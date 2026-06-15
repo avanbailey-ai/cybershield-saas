@@ -1,3 +1,6 @@
+import Link from 'next/link';
+import PlanUsageWidget from '@/components/dashboard/PlanUsageWidget';
+
 interface DashboardHeaderProps {
   email: string;
   title?: string;
@@ -14,6 +17,8 @@ export default function DashboardHeader({
       <h1 className="text-base font-semibold text-white">{title}</h1>
 
       <div className="flex items-center gap-3">
+        <PlanUsageWidget />
+
         {/* Notifications bell */}
         <button
           className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"

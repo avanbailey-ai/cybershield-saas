@@ -40,6 +40,7 @@ export async function POST() {
   let skipped = 0;
   let blocked = 0;
   let blockReason: string | undefined;
+  let blockMessage: string | undefined;
   let upgradeUrl: string | undefined;
   let rateLimited = false;
 
@@ -51,6 +52,7 @@ export async function POST() {
     } else if (result.reason === 'scan_limit_reached' || result.reason === 'website_limit_reached') {
       blocked++;
       blockReason = blockReason ?? result.reason;
+      blockMessage = blockMessage ?? result.message;
       upgradeUrl = upgradeUrl ?? result.upgradeUrl;
     } else if (result.reason === 'rate_limited') {
       rateLimited = true;
@@ -62,12 +64,13 @@ export async function POST() {
 
   // If scan limit was hit and nothing queued, surface it as a 403
   if (blocked > 0 && queued === 0) {
+    const isScanLimit = blockReason === 'scan_limit_reached';
     return Response.json(
       {
-        error: blockReason === 'scan_limit_reached' ? 'USAGE_LIMIT_REACHED' : 'WEBSITE_LIMIT_REACHED',
-        message: blockReason === 'scan_limit_reached'
+        error: isScanLimit ? 'USAGE_LIMIT_REACHED' : 'WEBSITE_LIMIT_REACHED',
+        message: blockMessage ?? (isScanLimit
           ? 'Daily scan limit reached. Upgrade your plan to scan more websites.'
-          : 'Website limit reached for your plan.',
+          : 'Website limit reached for your plan.'),
         queued: 0,
         skipped,
         blocked,

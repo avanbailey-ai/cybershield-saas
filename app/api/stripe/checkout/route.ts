@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
 import { getStripe } from '@/lib/stripe/stripe';
-import { STRIPE_PRICE_IDS, isBilledPlan } from '@/lib/billing/plans';
+import { getPriceId, isBilledPlan } from '@/lib/billing/plans';
 
 /**
  * POST /api/stripe/checkout
@@ -23,15 +23,17 @@ export async function POST(req: Request) {
 
     if (!plan || !isBilledPlan(plan)) {
       return NextResponse.json(
-        { error: 'Invalid plan. Must be "pro" or "agency".' },
+        { error: 'Invalid plan. Must be "pro", "growth", or "agency".' },
         { status: 400 }
       );
     }
 
-    const priceId = STRIPE_PRICE_IDS[plan];
-    if (!priceId) {
+    let priceId: string;
+    try {
+      priceId = getPriceId(plan);
+    } catch {
       return NextResponse.json(
-        { error: `Stripe price not configured for plan "${plan}". Contact support.` },
+        { error: 'Stripe pricing not configured for this plan' },
         { status: 503 }
       );
     }

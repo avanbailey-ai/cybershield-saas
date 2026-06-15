@@ -1,17 +1,22 @@
 'use client';
+
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { usePlan } from '@/lib/billing/usePlan';
 
 export default function ScanAllButton() {
   const router = useRouter();
-  const isScanningRef = useRef(false); // Ref guard prevents re-entrant calls even before state settles
+  const { limits, scansToday, scansRemaining, loading: planLoading } = usePlan();
+  const isScanningRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [limitHit, setLimitHit] = useState<{ message: string; upgradeUrl: string } | null>(null);
 
+  const scanLimitReached = !planLoading && scansRemaining === 0;
+
   async function handleScanAll() {
-    if (isScanningRef.current) return;
+    if (isScanningRef.current || scanLimitReached) return;
     isScanningRef.current = true;
     setLoading(true);
     setStatus('Queuing websites...');
@@ -21,14 +26,13 @@ export default function ScanAllButton() {
       const enqueueRes = await fetch('/api/scan/trigger-all', { method: 'POST' });
       const enqueueData = await enqueueRes.json();
 
-      // Plan limit hit → show upgrade banner
       if (enqueueRes.status === 403) {
         const isUsageLimit = enqueueData.error === 'USAGE_LIMIT_REACHED';
         setLimitHit({
           message: enqueueData.message ?? (isUsageLimit
             ? 'Daily scan limit reached. Upgrade your plan to scan more.'
             : 'Website limit reached for your plan.'),
-          upgradeUrl: enqueueData.upgradeUrl ?? '/upgrade',
+          upgradeUrl: enqueueData.upgradeUrl ?? '/dashboard/settings',
         });
         setStatus(null);
         return;
@@ -75,15 +79,20 @@ export default function ScanAllButton() {
       <div className="flex items-center gap-3">
         <button
           onClick={handleScanAll}
-          disabled={loading}
+          disabled={loading || scanLimitReached}
+          title={scanLimitReached ? 'Daily scan limit reached — upgrade for more scans' : undefined}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {loading ? 'Scanning...' : 'Scan All Websites'}
         </button>
+        {!planLoading && (
+          <span className={`text-xs ${scansRemaining <= 1 ? 'text-orange-400' : 'text-gray-500'}`}>
+            {scansToday} / {limits.maxScansPerDay} scans today
+          </span>
+        )}
         {status && <span className="text-sm text-gray-400">{status}</span>}
       </div>
 
-      {/* Upgrade prompt banner */}
       {limitHit && (
         <div className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-400">
           <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

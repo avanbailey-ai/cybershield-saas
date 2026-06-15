@@ -1,5 +1,5 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
-export type UserPlan = 'free' | 'pro' | 'business' | 'agency';
+export type UserPlan = 'free' | 'pro' | 'growth' | 'agency';
 
 export interface HeaderChecks {
   csp: boolean;

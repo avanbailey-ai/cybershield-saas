@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { BilledPlan } from '@/lib/billing/plans';
+import { planFromPriceId, type BilledPlan } from '@/lib/billing/plans';
 
 /**
  * POST /api/stripe/webhook
@@ -35,21 +35,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
+  console.log('[webhook] event', event.type, event.id);
+
   const supabase = createAdminClient();
 
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.userId;
+        const userId = session.metadata?.userId ?? session.client_reference_id;
         const plan = session.metadata?.plan as BilledPlan | undefined;
         const customerId = session.customer as string | null;
         const subscriptionId = session.subscription as string | null;
 
-        if (!userId || !plan || !customerId || !subscriptionId) {
-          console.error('[stripe/webhook] checkout.session.completed: missing metadata', {
-            userId, plan, customerId, subscriptionId,
-          });
+        if (!userId || !plan) {
+          console.error('[webhook] Missing userId or plan in session metadata', session.id);
           break;
         }
 
@@ -90,9 +90,11 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        const { error } = await supabase.from('profiles')
-          .update({ plan: 'free', subscription_status: 'inactive' })
-          .eq('stripe_customer_id', customerId);
+        const { error } = await supabase.from('profiles').update({
+          plan: 'free',
+          subscription_status: 'inactive',
+          stripe_subscription_id: null,
+        }).eq('stripe_customer_id', customerId);
 
         if (error) {
           console.error('[stripe/webhook] customer.subscription.deleted: DB update failed', error);
@@ -106,17 +108,22 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         const status = subscription.status;
+        const priceId = subscription.items.data[0]?.price?.id;
+        const plan = priceId ? planFromPriceId(priceId) : null;
 
-        if (status === 'active') {
-          const { error } = await supabase.from('profiles')
-            .update({ subscription_status: 'active' })
-            .eq('stripe_customer_id', customerId);
+        const update: Record<string, string | null> = { subscription_status: status };
+        if (plan && (status === 'active' || status === 'trialing')) {
+          update.plan = plan;
+        }
 
-          if (error) {
-            console.error('[stripe/webhook] customer.subscription.updated: DB update failed', error);
-          } else {
-            console.log(`[stripe/webhook] customer.subscription.updated: customer ${customerId} restored to active`);
-          }
+        const { error } = await supabase.from('profiles')
+          .update(update)
+          .eq('stripe_customer_id', customerId);
+
+        if (error) {
+          console.error('[stripe/webhook] customer.subscription.updated: DB update failed', error);
+        } else {
+          console.log(`[stripe/webhook] customer.subscription.updated: customer ${customerId} status → ${status}${plan ? `, plan → ${plan}` : ''}`);
         }
         break;
       }

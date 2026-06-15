@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
-import type { Plan } from "@/lib/billing/planService";
+import type { Plan } from "@/lib/billing/plans";
 
 export const metadata: Metadata = {
   title: "Settings — CyberShield",

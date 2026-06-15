@@ -1,19 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import type { Plan } from '@/lib/billing/planService';
+import type { Plan } from '@/lib/billing/plans';
 import type { BilledPlan } from '@/lib/billing/plans';
+import { PLAN_LIMITS } from '@/lib/billing/plans';
 
 interface BillingCardProps {
   currentPlan: Plan;
   subscriptionStatus: string | null;
 }
 
-const PLAN_META: Record<string, { name: string; price: number | null; description: string }> = {
-  free:     { name: 'Free',     price: 0,    description: '1 website · 3 scans/day' },
-  pro:      { name: 'Pro',      price: 29,   description: '25 websites · 50 scans/day' },
-  business: { name: 'Business', price: 49,   description: '10 websites · 30 scans/day' },
-  agency:   { name: 'Agency',   price: 99,   description: 'Unlimited websites · 200 scans/day' },
+const PLAN_META: Record<Plan, { name: string; price: number | null; description: string }> = {
+  free: {
+    name: 'Free',
+    price: 0,
+    description: `${PLAN_LIMITS.free.websites} website · ${PLAN_LIMITS.free.maxScansPerDay} scans/day`,
+  },
+  pro: {
+    name: 'Pro',
+    price: 49,
+    description: `${PLAN_LIMITS.pro.websites} websites · ${PLAN_LIMITS.pro.maxScansPerDay} scan/day`,
+  },
+  growth: {
+    name: 'Growth',
+    price: 99,
+    description: `${PLAN_LIMITS.growth.websites} websites · ${PLAN_LIMITS.growth.maxScansPerDay} scans/day`,
+  },
+  agency: {
+    name: 'Agency',
+    price: 199,
+    description: `${PLAN_LIMITS.agency.websites} websites · ${PLAN_LIMITS.agency.maxScansPerDay} scans/day`,
+  },
 };
 
 export default function BillingCard({ currentPlan, subscriptionStatus }: BillingCardProps) {
@@ -33,7 +50,11 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? 'Something went wrong. Please try again.');
+        if (res.status === 503) {
+          setError('Stripe payments not yet configured. Please contact support.');
+        } else {
+          setError(data.error ?? 'Something went wrong. Please try again.');
+        }
         return;
       }
       if (data.url) {
@@ -106,6 +127,12 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
               onUpgrade={handleUpgrade}
             />
             <UpgradeOption
+              plan="growth"
+              meta={PLAN_META.growth}
+              loading={loading === 'growth'}
+              onUpgrade={handleUpgrade}
+            />
+            <UpgradeOption
               plan="agency"
               meta={PLAN_META.agency}
               loading={loading === 'agency'}
@@ -116,6 +143,28 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       )}
 
       {currentPlan === 'pro' && (
+        <div>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Upgrade Your Plan
+          </p>
+          <div className="space-y-3">
+            <UpgradeOption
+              plan="growth"
+              meta={PLAN_META.growth}
+              loading={loading === 'growth'}
+              onUpgrade={handleUpgrade}
+            />
+            <UpgradeOption
+              plan="agency"
+              meta={PLAN_META.agency}
+              loading={loading === 'agency'}
+              onUpgrade={handleUpgrade}
+            />
+          </div>
+        </div>
+      )}
+
+      {currentPlan === 'growth' && (
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
             Upgrade to Agency

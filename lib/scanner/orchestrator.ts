@@ -17,6 +17,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getUserPlan, getPlanLimits, type Plan } from '@/lib/billing/planService';
+import { canAddWebsite, canRunScan } from '@/lib/billing/guards';
 import { getUsage, incrementScanUsage, decrementScanUsage, getUserWebsiteCount } from '@/lib/billing/usageService';
 
 export type ScanSource = 'api' | 'manual' | 'cron';
@@ -82,7 +83,8 @@ export async function enqueueScan(params: {
   const today = new Date().toISOString().split('T')[0];
   const usage = await getUsage(userId, today);
 
-  if (usage.scans_used >= limits.maxScansPerDay) {
+  const scanCheck = canRunScan({ id: userId, plan }, usage.scans_used);
+  if (!scanCheck.allowed) {
     console.warn(
       `[ORCHESTRATOR] BLOCK reason=scan_limit_reached user=${userId} plan=${plan} scansToday=${usage.scans_used} limit=${limits.maxScansPerDay}`,
     );
@@ -90,7 +92,7 @@ export async function enqueueScan(params: {
       queued: false,
       reason: 'scan_limit_reached',
       error: 'USAGE_LIMIT_REACHED',
-      message: `Daily scan limit reached (${usage.scans_used}/${limits.maxScansPerDay} scans used). Upgrade your plan to scan more.`,
+      message: scanCheck.message,
       upgradeUrl: '/dashboard/settings',
       plan,
       scansUsed: usage.scans_used,
@@ -99,9 +101,10 @@ export async function enqueueScan(params: {
   }
 
   // ── 3. Billing: website limit (skip for cron — cron scans existing sites) ─
-  if (source !== 'cron' && limits.maxWebsites !== Infinity) {
+  if (source !== 'cron') {
     const websiteCount = await getUserWebsiteCount(userId);
     if (websiteCount > limits.maxWebsites) {
+      const websiteCheck = canAddWebsite({ id: userId, plan }, websiteCount);
       console.warn(
         `[ORCHESTRATOR] BLOCK reason=website_limit_reached user=${userId} plan=${plan} websites=${websiteCount} limit=${limits.maxWebsites}`,
       );
@@ -109,7 +112,7 @@ export async function enqueueScan(params: {
         queued: false,
         reason: 'website_limit_reached',
         error: 'WEBSITE_LIMIT_REACHED',
-        message: `Website limit reached for your ${plan} plan (${websiteCount}/${limits.maxWebsites}). Upgrade to monitor more sites.`,
+        message: websiteCheck.message,
         upgradeUrl: '/dashboard/settings',
         plan,
       };

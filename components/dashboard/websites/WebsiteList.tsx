@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
+import { usePlan } from "@/lib/billing/usePlan";
+import { getWebsiteUsageMessage } from "@/lib/billing/guards";
 
 interface LatestScan {
   id: string;
@@ -39,10 +41,14 @@ function scoreBadgeClass(score: number): string {
 }
 
 export default function WebsiteList() {
+  const { plan, websiteCount, websitesRemaining, scansRemaining, scansToday, loading: planLoading } = usePlan();
   const [websites, setWebsites] = useState<WebsiteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upgradeRequired, setUpgradeRequired] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
+  const websiteLimitReached = !planLoading && websitesRemaining === 0;
+  const scanLimitReached = !planLoading && scansRemaining === 0;
   const [showAddForm, setShowAddForm] = useState(false);
   const [addUrl, setAddUrl] = useState("");
   const [addLabel, setAddLabel] = useState("");
@@ -83,9 +89,10 @@ export default function WebsiteList() {
         body: JSON.stringify({ url: addUrl.trim(), label: addLabel.trim() || undefined }),
       });
       const data = await res.json();
-      if (res.status === 403 && data.upgradeRequired) {
+      if (res.status === 403 && (data.error === 'WEBSITE_LIMIT_REACHED' || data.upgradeRequired)) {
         setUpgradeRequired(true);
-        setAddError(data.error ?? "Website limit reached.");
+        setUpgradeMessage(data.message ?? "Website limit reached.");
+        setAddError(data.message ?? "Website limit reached.");
         return;
       }
       if (!res.ok) throw new Error(data.error ?? "Failed to add website");
@@ -118,7 +125,7 @@ export default function WebsiteList() {
           message: data.message ?? (isUsageLimit
             ? "Daily scan limit reached. Upgrade your plan to scan more."
             : "Website limit reached for your plan."),
-          upgradeUrl: data.upgradeUrl ?? "/upgrade",
+          upgradeUrl: data.upgradeUrl ?? "/dashboard/settings",
         });
         return;
       }
@@ -165,6 +172,11 @@ export default function WebsiteList() {
           <h2 className="text-xl font-bold text-white">Websites</h2>
           <p className="mt-1 text-sm text-gray-500">
             Manage and scan your monitored websites.
+            {!planLoading && (
+              <span className="ml-2 text-gray-400">
+                {getWebsiteUsageMessage(websiteCount, { id: "", plan })}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -173,7 +185,9 @@ export default function WebsiteList() {
           )}
           <button
             onClick={() => { setShowAddForm(!showAddForm); setAddError(null); }}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+            disabled={websiteLimitReached}
+            title={websiteLimitReached ? (upgradeMessage ?? "Upgrade to add more websites") : undefined}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -182,6 +196,15 @@ export default function WebsiteList() {
           </button>
         </div>
       </div>
+
+      {websiteLimitReached && !showAddForm && (
+        <div className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-400">
+          {upgradeMessage ?? "You've reached your website limit."}{" "}
+          <a href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
+            Upgrade to add more websites.
+          </a>
+        </div>
+      )}
 
       {/* Add website form */}
       {showAddForm && (
@@ -222,7 +245,7 @@ export default function WebsiteList() {
           )}
           {upgradeRequired && (
             <div className="mt-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-400">
-              You&apos;ve reached your plan limit.{" "}
+              {upgradeMessage ?? "You've reached your plan limit."}{" "}
               <a href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
                 Upgrade to add more websites.
               </a>
@@ -337,7 +360,8 @@ export default function WebsiteList() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleScan(site.id)}
-                        disabled={scanningId === site.id}
+                        disabled={scanningId === site.id || scanLimitReached}
+                        title={scanLimitReached ? "Daily scan limit reached — upgrade for more scans" : undefined}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/20 disabled:opacity-60"
                       >
                         {scanningId === site.id ? (

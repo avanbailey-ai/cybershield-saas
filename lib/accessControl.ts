@@ -1,4 +1,4 @@
-export type UserPlan = 'free' | 'pro' | 'business' | 'agency';
+export type UserPlan = 'free' | 'pro' | 'growth' | 'agency';
 
 export interface GatedReport {
   canViewFull: boolean;

@@ -1,60 +1,67 @@
-export type PlanId = 'free' | 'starter' | 'pro' | 'agency';
+import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
 
-export interface Plan {
+export type PlanId = Plan;
+
+export interface PlanInfo {
   id: PlanId;
   name: string;
-  price: number | null; // null = contact sales
-  websiteLimit: number | null; // null = unlimited
+  price: number | null;
+  websiteLimit: number;
   scanFrequency: string;
+  maxScansPerDay: number;
   features: string[];
 }
 
-export const PLANS: Record<PlanId, Plan> = {
+export const PLANS: Record<PlanId, PlanInfo> = {
   free: {
     id: 'free',
     name: 'Free',
     price: 0,
-    websiteLimit: 1,
-    scanFrequency: 'Manual only',
+    websiteLimit: PLAN_LIMITS.free.websites,
+    scanFrequency: PLAN_LIMITS.free.scanFrequency,
+    maxScansPerDay: PLAN_LIMITS.free.maxScansPerDay,
     features: ['1 website', 'Manual scans', 'Basic risk score', 'Email alerts'],
-  },
-  starter: {
-    id: 'starter',
-    name: 'Starter',
-    price: 19,
-    websiteLimit: 5,
-    scanFrequency: 'Daily',
-    features: ['5 websites', 'Daily automated scans', 'Full breakdown', 'Email alerts', 'Scan history'],
   },
   pro: {
     id: 'pro',
     name: 'Pro',
-    price: 79,
-    websiteLimit: 25,
-    scanFrequency: 'Every 6 hours',
-    features: ['25 websites', '6-hour scans', 'Priority support', 'API access', 'Team reports'],
+    price: 49,
+    websiteLimit: PLAN_LIMITS.pro.websites,
+    scanFrequency: PLAN_LIMITS.pro.scanFrequency,
+    maxScansPerDay: PLAN_LIMITS.pro.maxScansPerDay,
+    features: ['5 websites', 'Weekly scans', 'Email alerts', 'Security scoring'],
+  },
+  growth: {
+    id: 'growth',
+    name: 'Growth',
+    price: 99,
+    websiteLimit: PLAN_LIMITS.growth.websites,
+    scanFrequency: PLAN_LIMITS.growth.scanFrequency,
+    maxScansPerDay: PLAN_LIMITS.growth.maxScansPerDay,
+    features: ['25 websites', 'Daily scans', 'Security scoring', 'Priority queue'],
   },
   agency: {
     id: 'agency',
     name: 'Agency',
-    price: 249,
-    websiteLimit: null,
-    scanFrequency: 'Hourly',
-    features: ['Unlimited websites', 'Hourly scans', 'White-label reports', 'Dedicated support', 'Custom integrations'],
+    price: 199,
+    websiteLimit: PLAN_LIMITS.agency.websites,
+    scanFrequency: PLAN_LIMITS.agency.scanFrequency,
+    maxScansPerDay: PLAN_LIMITS.agency.maxScansPerDay,
+    features: ['100 websites', 'Hourly monitoring', 'Team access', 'Priority support'],
   },
 };
 
-export function getPlanById(id: string): Plan {
-  if (id === 'business') return PLANS.pro; // backward compat alias
+export function getPlanById(id: string): PlanInfo {
+  if (id === 'business' || id === 'starter') return PLANS.pro;
   return PLANS[id as PlanId] ?? PLANS.free;
 }
 
-export function getWebsiteLimit(plan: PlanId): number | null {
+export function getWebsiteLimit(plan: PlanId): number {
   return PLANS[plan].websiteLimit;
 }
 
 export function canAddWebsite(currentCount: number, plan: PlanId): boolean {
-  const limit = PLANS[plan].websiteLimit;
-  if (limit === null) return true; // unlimited
-  return currentCount < limit;
+  return currentCount < PLANS[plan].websiteLimit;
 }
+
+export type { Plan };
