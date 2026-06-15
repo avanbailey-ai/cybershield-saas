@@ -16,7 +16,7 @@ const faqs = [
   {
     question: "How often are websites checked?",
     answer:
-      "Pro plan websites are scanned weekly. Growth includes daily scans, and Agency customers receive hourly monitoring with priority scan queues. You can also trigger manual scans at any time from the dashboard.",
+      "Pro plan websites receive daily automated scans (with optional weekly deep scans). Growth runs daily scans on a faster 12-hour cadence. Agency customers receive hourly monitoring with priority scan queues. You can also trigger manual scans at any time from the dashboard.",
   },
   {
     question: "Can I monitor multiple websites?",

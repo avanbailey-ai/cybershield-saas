@@ -60,7 +60,7 @@ export function getUrgencyMessage(score: number, domain?: string): UrgencyMessag
   return {
     level: 'low',
     headline: 'Good foundation — stay protected with continuous monitoring.',
-    subtext: `${site} looks solid, but one-time scans miss new threats. Pro keeps you covered with weekly monitoring.`,
+    subtext: `${site} looks solid, but one-time scans miss new threats. Pro keeps you covered with daily monitoring.`,
     highlightPlan: 'pro',
   };
 }

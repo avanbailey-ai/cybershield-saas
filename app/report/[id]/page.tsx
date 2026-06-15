@@ -7,6 +7,7 @@ import { getActiveOrgId } from '@/lib/org/context';
 import { getEffectivePlan } from '@/lib/auth/permissions';
 import { getUserWithPlan } from '@/lib/billing/planService';
 import type { RiskLevel, UserPlan, HeaderChecks } from '@/types';
+import SecurityTrendPanel from '@/components/dashboard/SecurityTrendPanel';
 
 interface ScanRow {
   id: string;
@@ -441,6 +442,10 @@ export default async function ReportPage({ params }: PageProps) {
               </div>
             )}
 
+            {scanRow.website_id && (
+              <SecurityTrendPanel websiteId={scanRow.website_id} period={30} />
+            )}
+
           </>
         ) : (
           /* Locked upgrade card for free users */
@@ -455,7 +460,7 @@ export default async function ReportPage({ params }: PageProps) {
               {gate.genericMessage}
             </p>
             <p className="mb-6 text-xs text-gray-500">
-              Upgrade to see: header-by-header analysis, full risk breakdown, prioritized recommendations, and historical trend data.
+              Upgrade to see: header-by-header analysis, full risk breakdown, prioritized recommendations, and security trend charts.
             </p>
             <Link
               href="/pricing"

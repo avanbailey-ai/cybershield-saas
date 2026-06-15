@@ -74,51 +74,38 @@ export default async function SettingsPage() {
           {/* Notification Preferences */}
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Notification Preferences</CardTitle>
+                <span className="inline-flex items-center rounded-full border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
+                  Coming soon
+                </span>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <p className="mb-4 text-xs text-gray-500">
+                Email notification controls are not available yet. Alerts use your account defaults until preferences can be saved here.
+              </p>
+              <ul className="space-y-3">
                 {[
                   {
-                    id: "notif-vuln",
                     label: "Email alerts for new vulnerabilities",
-                    description: "Configurable notification delivery coming in a future update.",
-                    defaultOn: true,
+                    description: "Will be configurable in a future update.",
                   },
                   {
-                    id: "notif-digest",
                     label: "Weekly security digest",
                     description: "Scheduled digest emails will be configurable in a future update.",
-                    defaultOn: true,
                   },
                   {
-                    id: "notif-critical",
                     label: "Critical threat notifications",
                     description: "Real-time critical alerts will be configurable in a future update.",
-                    defaultOn: true,
                   },
                 ].map((pref) => (
-                  <div key={pref.id} className="flex items-start gap-4 rounded-lg border border-gray-800 bg-gray-800/30 px-4 py-3">
-                    {/* Toggle visual — static, no JS */}
-                    <div
-                      aria-label={pref.label}
-                      className={`relative mt-0.5 flex h-5 w-9 flex-shrink-0 cursor-not-allowed items-center rounded-full transition-colors ${
-                        pref.defaultOn ? "bg-blue-600" : "bg-gray-700"
-                      }`}
-                    >
-                      <span
-                        className={`absolute h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
-                          pref.defaultOn ? "translate-x-4" : "translate-x-0.5"
-                        }`}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-200">{pref.label}</p>
-                      <p className="mt-0.5 text-xs text-gray-500">{pref.description}</p>
-                    </div>
-                  </div>
+                  <li key={pref.label} className="rounded-lg border border-gray-800 bg-gray-800/30 px-4 py-3">
+                    <p className="text-sm font-medium text-gray-400">{pref.label}</p>
+                    <p className="mt-0.5 text-xs text-gray-600">{pref.description}</p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </CardContent>
           </Card>
 

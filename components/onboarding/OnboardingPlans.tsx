@@ -16,7 +16,7 @@ const PAID_PLANS: BilledPlan[] = ['pro', 'growth', 'agency'];
 const RECOMMENDED: BilledPlan = 'growth';
 
 const OUTCOMES: Record<BilledPlan, string> = {
-  pro: 'Weekly scans and alerts — ideal for getting started.',
+  pro: 'Daily scans and alerts — ideal for getting started.',
   growth: 'Daily monitoring with priority scans — best for most teams.',
   agency: 'Hourly scans and unlimited sites for agencies.',
 };

@@ -38,7 +38,7 @@ const ROWS: { feature: string; values: Record<PlanId, string | boolean> }[] = [
   },
   {
     feature: 'Daily monitoring',
-    values: { free: false, pro: false, growth: true, agency: true },
+    values: { free: false, pro: true, growth: true, agency: true },
   },
   {
     feature: 'Priority support',
