@@ -2,13 +2,16 @@ import { canAccessDashboard } from '@/lib/auth/permissions';
 import { normalizePlan } from '@/lib/auth/permissions';
 import { isOwner } from '@/lib/auth/owner';
 import type { Plan } from './plans';
-import { getUserSubscription, isSubscriptionActive } from './subscriptionService';
+import { getActiveOrgId } from '@/lib/org/context';
+import { getOrgSubscription } from './orgSubscriptionService';
+import { isSubscriptionActive } from './subscriptionService';
 
 export type SubscriptionAccess = {
   plan: Plan;
   status: string;
   isActive: boolean;
   canAccessDashboard: boolean;
+  orgId?: string | null;
 };
 
 export type SubscriptionRow = {
@@ -23,7 +26,7 @@ const DEFAULT_ACCESS: SubscriptionAccess = {
   canAccessDashboard: false,
 };
 
-/** Resolve access from subscription row (subscriptions table is source of truth). */
+/** Resolve access from org subscription row (organization_subscriptions is source of truth). */
 export function resolveSubscriptionAccess(
   email: string | null | undefined,
   subscription: SubscriptionRow | null,
@@ -54,16 +57,25 @@ export function resolveSubscriptionAccess(
   };
 }
 
-/** Server-side access resolution via admin client (subscriptions table only). */
+/** Server-side org subscription access (primary gating path). */
 export async function getSubscriptionAccess(
   userId: string,
   email?: string | null,
+  orgId?: string | null,
 ): Promise<SubscriptionAccess> {
-  const subscription = await getUserSubscription(userId);
-  return resolveSubscriptionAccess(email, {
-    plan: subscription.plan,
-    status: subscription.status,
-  });
+  const resolvedOrgId = orgId ?? (await getActiveOrgId(userId));
+  if (!resolvedOrgId) {
+    return resolveSubscriptionAccess(email, null);
+  }
+
+  const subscription = await getOrgSubscription(resolvedOrgId);
+  return {
+    ...resolveSubscriptionAccess(email, {
+      plan: subscription.plan,
+      status: subscription.status,
+    }),
+    orgId: resolvedOrgId,
+  };
 }
 
 export type SessionSubscriptionClient = {
@@ -76,17 +88,17 @@ export type SessionSubscriptionClient = {
   };
 };
 
-/** Session-scoped subscription read (middleware, layouts, auth redirects). */
+/**
+ * Session-scoped org subscription read (middleware, layouts).
+ * Falls back to organization_subscriptions via admin when session client lacks table access.
+ */
 export async function getSubscriptionAccessFromSession(
   supabase: SessionSubscriptionClient,
   userId: string,
   email?: string | null,
+  orgId?: string | null,
 ): Promise<SubscriptionAccess> {
-  const { data: sub } = await supabase
-    .from('subscriptions')
-    .select('plan, status')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  return resolveSubscriptionAccess(email, sub);
+  const { resolveOrgSessionContextFromSession } = await import('@/lib/org/sessionContext');
+  const ctx = await resolveOrgSessionContextFromSession(supabase, userId, email, orgId);
+  return { ...ctx.access, orgId: ctx.orgId };
 }

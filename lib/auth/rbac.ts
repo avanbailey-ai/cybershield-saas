@@ -22,8 +22,8 @@ const ROLE_PERMISSIONS: Record<OrgRole, Permission[]> = {
     'view_scans',
     'view_reports',
   ],
-  admin: ['manage_users', 'manage_websites', 'run_scans', 'view_scans', 'view_reports'],
-  member: ['manage_websites', 'run_scans', 'view_scans', 'view_reports'],
+  admin: ['billing', 'manage_websites', 'run_scans', 'view_scans', 'view_reports'],
+  member: ['run_scans', 'view_scans', 'view_reports'],
   viewer: ['view_scans', 'view_reports'],
 };
 

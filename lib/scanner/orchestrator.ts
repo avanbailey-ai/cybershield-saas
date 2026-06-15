@@ -150,7 +150,7 @@ export async function enqueueScan(params: {
 
 
 
-  const billingGate = await enforceScanLimit(userId);
+  const billingGate = await enforceScanLimit(userId, orgId);
 
   const plan = billingGate.plan;
 

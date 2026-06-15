@@ -5,6 +5,7 @@ import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
 import { getActiveOrgId } from '@/lib/org/context';
 import { requirePermission } from '@/lib/auth/rbac';
 import { getSeatLimitForPlan } from '@/lib/billing/orgPlans';
+import { getOrgSubscription } from '@/lib/billing/orgSubscriptionService';
 import { auditLog, extractIp } from '@/lib/audit/log';
 
 /** GET /api/org/members — list org members */
@@ -73,8 +74,9 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  const { data: org } = await admin.from('organizations').select('plan, seat_limit').eq('id', orgId).single();
-  const seatLimit = org?.seat_limit ?? getSeatLimitForPlan(org?.plan ?? 'free');
+  const { data: org } = await admin.from('organizations').select('seat_limit').eq('id', orgId).single();
+  const orgSub = await getOrgSubscription(orgId);
+  const seatLimit = org?.seat_limit ?? getSeatLimitForPlan(orgSub.plan);
 
   const { count: memberCount } = await admin
     .from('organization_members')

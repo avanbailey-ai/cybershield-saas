@@ -5,6 +5,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getRedirectPath, getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
 
 import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
+import {
+  ORG_CONTEXT_COOKIE,
+  resolveOrgSessionContextFromSession,
+  hasOrgMembership,
+} from "@/lib/org/sessionContext";
+import { isOwner } from "@/lib/auth/owner";
 
 
 
@@ -132,6 +138,10 @@ export async function updateSession(request: NextRequest) {
 
 
 
+    const cookieOrgId = request.cookies.get(ORG_CONTEXT_COOKIE)?.value ?? null;
+
+
+
     if (isOnboarding) {
 
       if (!user) {
@@ -152,6 +162,7 @@ export async function updateSession(request: NextRequest) {
         supabase as unknown as SessionSubscriptionClient,
         user.id,
         user.email,
+        cookieOrgId,
       );
 
       const redirectPath = getRedirectPath({
@@ -194,13 +205,28 @@ export async function updateSession(request: NextRequest) {
 
 
 
-      const access = await getSubscriptionAccessFromSession(
+      const orgCtx = await resolveOrgSessionContextFromSession(
         supabase as unknown as SessionSubscriptionClient,
         user.id,
         user.email,
+        cookieOrgId,
       );
 
-      if (!access.canAccessDashboard) {
+      if (!isOwner(user.email) && !hasOrgMembership(orgCtx)) {
+
+        const url = request.nextUrl.clone();
+
+        url.pathname = "/onboarding";
+
+        url.searchParams.set("reason", "no_org");
+
+        return NextResponse.redirect(url);
+
+      }
+
+
+
+      if (!orgCtx.access.canAccessDashboard) {
 
         const url = request.nextUrl.clone();
 
@@ -208,13 +234,31 @@ export async function updateSession(request: NextRequest) {
 
           email: user.email,
 
-          plan: access.plan,
+          plan: orgCtx.access.plan,
 
-          subscription_status: access.status,
+          subscription_status: orgCtx.access.status,
 
         });
 
         return NextResponse.redirect(url);
+
+      }
+
+
+
+      if (orgCtx.orgId) {
+
+        supabaseResponse.cookies.set(ORG_CONTEXT_COOKIE, orgCtx.orgId, {
+
+          maxAge: 60 * 60 * 24 * 30,
+
+          path: "/",
+
+          sameSite: "lax",
+
+          httpOnly: true,
+
+        });
 
       }
 
@@ -259,5 +303,4 @@ export async function updateSession(request: NextRequest) {
   }
 
 }
-
 

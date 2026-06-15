@@ -116,7 +116,23 @@ export async function POST(req: NextRequest) {
 
 
 
-  const plan = (await getUserPlan(user.id)) as Plan;
+  const orgId = await getActiveOrgId(user.id);
+
+
+
+  try {
+
+    await requirePermission(user.id, orgId, 'run_scans');
+
+  } catch {
+
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  }
+
+
+
+  const plan = (await getUserPlan(user.id, orgId)) as Plan;
 
   const rateCheck = rateLimitScan(user.id, plan);
 
@@ -131,22 +147,6 @@ export async function POST(req: NextRequest) {
       { status: 429, headers: rateLimitHeaders(rateCheck) },
 
     );
-
-  }
-
-
-
-  const orgId = await getActiveOrgId(user.id);
-
-
-
-  try {
-
-    await requirePermission(user.id, orgId, 'run_scans');
-
-  } catch {
-
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   }
 
