@@ -62,12 +62,16 @@ export default function DashboardOverview({
 
   if (websiteCount === 0) {
     nextAction = { label: 'Add your first website', href: '/app/websites' };
-  } else if (!lastScan || lastScan.status === 'failed') {
-    nextAction = { label: 'Run a security scan', showScanAll: true };
   } else if (criticalAlertCount > 0) {
     nextAction = { label: 'Review critical alerts', href: '/app/alerts' };
-  } else if (lastScan.status === 'completed') {
+  } else if (lastScan?.status === 'completed') {
     nextAction = { label: 'View latest report', href: lastScan.scanId ? `/report/${lastScan.scanId}` : '/app/scans' };
+  } else if (!lastScan || lastScan.status === 'failed') {
+    if (limits.scanFrequency === 'manual') {
+      nextAction = { label: 'Run a security scan', showScanAll: true };
+    } else {
+      nextAction = { label: 'View scan status', href: '/app/scans' };
+    }
   }
 
   return (

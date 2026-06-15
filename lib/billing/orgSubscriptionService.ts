@@ -187,4 +187,35 @@ export async function resolveOrgIdFromStripeCustomer(
   return org?.id ?? null;
 }
 
+/** Mirror org subscription state to member profiles (display-only; gating uses org_subscriptions). */
+export async function syncOrgMemberProfileMirrors(
+  orgIds: string[],
+  plan: Plan,
+  status: string,
+): Promise<void> {
+  if (orgIds.length === 0) return;
+
+  const supabase = createAdminClient();
+  const { upsertUserSubscription } = await import('./subscriptionService');
+
+  for (const orgId of orgIds) {
+    const { data: members } = await supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('org_id', orgId);
+
+    for (const member of members ?? []) {
+      try {
+        await upsertUserSubscription({
+          userId: member.user_id,
+          plan,
+          status,
+        });
+      } catch (error) {
+        console.error('[orgSubscription] profile mirror failed', { orgId, userId: member.user_id, error });
+      }
+    }
+  }
+}
+
 export { isSubscriptionActive };

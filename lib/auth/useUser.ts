@@ -44,7 +44,7 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
 
   if (!user) return null;
 
-  const res = await fetch('/api/user/plan');
+  const res = await fetch('/api/user/plan', { cache: 'no-store' });
   if (!res.ok) {
     return {
       ...DEFAULT,
@@ -121,10 +121,19 @@ export function useUser(): UserInfo & { refresh: () => Promise<void> } {
       else setInfo({ ...DEFAULT, loading: false });
     });
 
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        refresh();
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [refresh]);
 
   return { ...info, refresh };
 }

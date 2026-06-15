@@ -1,41 +1,59 @@
-// @deprecated The Vercel Cron that called this has been removed.
-// This file is retained for manual triggers via POST /api/scan/trigger-scheduled.
-// Do not delete — it remains useful as an on-demand admin tool.
-
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getEffectivePlan } from '@/lib/auth/permissions';
+import { getUserWithPlan } from '@/lib/billing/planService';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
+import { isDueForScheduledScan } from './scanFrequency';
+
+export interface ScheduledScanResult {
+  examined: number;
+  queued: number;
+  skipped: number;
+  errors: number;
+}
 
 /**
- * Enqueues all active websites across all users for scanning via the orchestrator.
- * The actual scan execution happens when /api/scan/enqueue-or-process-batch is invoked (cron-job.org).
- *
- * Previously called by the Vercel Cron job at /api/cron/scan (now removed).
- * Now called manually via POST /api/scan/trigger-scheduled (authenticated).
+ * Enqueues active websites whose plan scan frequency is due.
+ * Called by /api/scan/enqueue-or-process-batch before the worker batch runs.
  */
-export async function runScheduledScans(): Promise<void> {
+export async function runScheduledScans(): Promise<ScheduledScanResult> {
   const supabase = createAdminClient();
 
   const { data: websites, error } = await supabase
     .from('websites')
-    .select('id, url, user_id')
+    .select('id, url, user_id, org_id, last_scanned_at')
     .eq('is_active', true);
 
   if (error || !websites) {
     console.error('[cron] Failed to fetch websites:', error);
-    return;
+    return { examined: 0, queued: 0, skipped: 0, errors: 0 };
   }
 
-  console.log(`[cron] ${new Date().toISOString()} — enqueueing ${websites.length} websites`);
+  console.log(`[cron] ${new Date().toISOString()} — evaluating ${websites.length} websites`);
 
+  const planCache = new Map<string, ReturnType<typeof getEffectivePlan>>();
   let queued = 0;
   let skipped = 0;
   let errors = 0;
 
   for (const website of websites) {
+    const cacheKey = `${website.user_id}:${website.org_id ?? ''}`;
+    let plan = planCache.get(cacheKey);
+    if (!plan) {
+      const userWithPlan = await getUserWithPlan(website.user_id, website.org_id);
+      plan = getEffectivePlan(userWithPlan);
+      planCache.set(cacheKey, plan);
+    }
+
+    if (!isDueForScheduledScan(plan, website.last_scanned_at)) {
+      skipped++;
+      continue;
+    }
+
     const result = await enqueueScan({
       userId: website.user_id,
       websiteId: website.id,
       source: 'cron',
+      orgId: website.org_id,
     });
 
     if (result.queued) {
@@ -46,11 +64,12 @@ export async function runScheduledScans(): Promise<void> {
       console.error(`[cron] Failed to enqueue ${website.url}:`, result.error);
     } else {
       skipped++;
-      console.log(`[cron] Skipped ${website.url} — reason=${result.reason}`);
     }
   }
 
   console.log(
-    `[cron] Done — queued=${queued} skipped=${skipped} errors=${errors} (total=${websites.length})`,
+    `[cron] Done — queued=${queued} skipped=${skipped} errors=${errors} (examined=${websites.length})`,
   );
+
+  return { examined: websites.length, queued, skipped, errors };
 }

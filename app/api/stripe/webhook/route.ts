@@ -34,6 +34,8 @@ import {
 
   resolveOrgIdFromStripeCustomer,
 
+  syncOrgMemberProfileMirrors,
+
 } from '@/lib/billing/orgSubscriptionService';
 
 import { getVariant, recordConversion } from '@/lib/analytics/experiments';
@@ -470,6 +472,8 @@ export async function POST(req: Request) {
 
           );
 
+          await syncOrgMemberProfileMirrors([orgId], plan, 'active');
+
           void logEvent({
             type: 'subscription_updated',
             layer: 'billing',
@@ -708,6 +712,10 @@ export async function POST(req: Request) {
 
           console.log(`[webhook] invoice.paid: customer ${customerId} → orgs [${orgIds.join(',')}]`);
 
+          if (plan) {
+            await syncOrgMemberProfileMirrors(orgIds, plan, 'active');
+          }
+
           void logEvent({
             type: 'subscription_updated',
             layer: 'billing',
@@ -749,6 +757,8 @@ export async function POST(req: Request) {
           });
 
           console.log(`[webhook] customer.subscription.deleted: customer ${customerId} → orgs [${orgIds.join(',')}]`);
+
+          await syncOrgMemberProfileMirrors(orgIds, 'free', 'canceled');
 
           void logEvent({
             type: 'subscription_updated',
@@ -829,6 +839,9 @@ export async function POST(req: Request) {
           const orgIds = await updateOrgSubscriptionByCustomerId(customerId, update);
 
           console.log(`[webhook] customer.subscription.updated: customer ${customerId} → orgs [${orgIds.join(',')}] status ${status}`);
+
+          const mirrorPlan = update.plan ?? plan ?? 'free';
+          await syncOrgMemberProfileMirrors(orgIds, mirrorPlan, status);
 
           void logEvent({
             type: 'subscription_updated',

@@ -140,7 +140,10 @@ export async function POST(req: Request) {
     const session = await getStripe().checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/onboarding?checkout=processing`,
+      success_url:
+        plan === 'agency'
+          ? `${baseUrl}/enterprise/onboarding?checkout=success`
+          : `${baseUrl}/onboarding?checkout=processing`,
       cancel_url: `${baseUrl}/#pricing`,
       metadata: {
         userId: user.id,

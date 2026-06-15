@@ -42,6 +42,14 @@ export function getRedirectPath(user: UserForRedirect | null): string {
 
 
 
+  if (isActiveSubscription(status) && plan === 'agency') {
+
+    return '/enterprise/portal';
+
+  }
+
+
+
   if (isActiveSubscription(status) && PAID_PLANS.includes(plan as (typeof PAID_PLANS)[number])) {
 
     return '/app';

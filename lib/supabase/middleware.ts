@@ -35,6 +35,8 @@ function isPublicPath(pathname: string): boolean {
 
   if (pathname.startsWith('/enterprise/portal')) return false;
 
+  if (pathname.startsWith('/enterprise/onboarding')) return false;
+
   return PUBLIC_PATHS.some(
 
     (p) => pathname === p || pathname.startsWith(`${p}/`),
@@ -129,7 +131,9 @@ export async function updateSession(request: NextRequest) {
     }
 
     const isProtected =
-      pathname.startsWith('/app') || pathname.startsWith('/enterprise/portal');
+      pathname.startsWith('/app') ||
+      pathname.startsWith('/enterprise/portal') ||
+      pathname.startsWith('/enterprise/onboarding');
 
     const isAuthPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
 
@@ -209,12 +213,13 @@ export async function updateSession(request: NextRequest) {
     if (isProtected) {
 
       const isEnterprisePortal = pathname.startsWith('/enterprise/portal');
+      const isEnterpriseOnboarding = pathname.startsWith('/enterprise/onboarding');
 
       if (!user) {
 
         const url = request.nextUrl.clone();
 
-        url.pathname = isEnterprisePortal ? "/enterprise/login" : "/login";
+        url.pathname = isEnterprisePortal || isEnterpriseOnboarding ? "/enterprise/login" : "/login";
 
         url.searchParams.set("redirectTo", pathname);
 
@@ -245,7 +250,36 @@ export async function updateSession(request: NextRequest) {
 
 
 
-      if (!isEnterprisePortal && !orgCtx.access.canAccessDashboard) {
+      if (
+        pathname.startsWith('/app') &&
+        canAccessEnterprise({
+          email: user.email,
+          plan: orgCtx.access.plan,
+          subscription_status: orgCtx.access.status,
+        })
+      ) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/enterprise/portal';
+        return NextResponse.redirect(url);
+      }
+
+
+
+      if (isEnterpriseOnboarding) {
+        if (
+          !canAccessEnterprise({
+            email: user.email,
+            plan: orgCtx.access.plan,
+            subscription_status: orgCtx.access.status,
+          })
+        ) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/app';
+          return NextResponse.redirect(url);
+        }
+      }
+
+      if (!isEnterprisePortal && !isEnterpriseOnboarding && !orgCtx.access.canAccessDashboard) {
 
         const url = request.nextUrl.clone();
 

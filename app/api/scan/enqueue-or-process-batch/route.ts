@@ -13,6 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
+import { runScheduledScans } from '@/lib/jobs/scanWebsites';
 import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { logApiTiming } from '@/lib/observability/log';
 
@@ -21,9 +22,11 @@ async function handleRequest(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const enqueueResult = await runScheduledScans();
   const result = await handleScanBatch();
 
   logApiTiming('/api/scan/enqueue-or-process-batch', result.durationMs, 200, {
+    enqueued: enqueueResult.queued,
     processed: result.processed,
     failed: result.failed,
     skipped: result.skipped,
@@ -31,6 +34,8 @@ async function handleRequest(req: Request) {
   });
 
   return NextResponse.json({
+    enqueued: enqueueResult.queued,
+    enqueueSkipped: enqueueResult.skipped,
     processed: result.processed,
     failed: result.failed,
     skipped: result.skipped,

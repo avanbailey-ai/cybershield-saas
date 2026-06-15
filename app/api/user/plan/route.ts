@@ -46,17 +46,24 @@ export async function GET() {
     const scansRemaining =
       scansLimit === Infinity ? Infinity : Math.max(0, scansLimit - usage.scans_used);
 
-    return NextResponse.json({
-      plan,
-      subscription_status: orgSubscription?.status ?? userWithPlan.subscription_status,
-      current_period_end: orgSubscription?.currentPeriodEnd ?? null,
-      websiteCount: count,
-      scansToday: usage.scans_used,
-      limits: PLAN_LIMITS[plan],
-      effectiveScansLimit: scansLimit,
-      websitesRemaining,
-      scansRemaining,
-    });
+    return NextResponse.json(
+      {
+        plan,
+        subscription_status: orgSubscription?.status ?? userWithPlan.subscription_status,
+        current_period_end: orgSubscription?.currentPeriodEnd ?? null,
+        websiteCount: count,
+        scansToday: usage.scans_used,
+        limits: PLAN_LIMITS[plan],
+        effectiveScansLimit: scansLimit,
+        websitesRemaining,
+        scansRemaining,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      },
+    );
   } catch {
     return NextResponse.json({ error: 'Failed to load plan info' }, { status: 500 });
   }

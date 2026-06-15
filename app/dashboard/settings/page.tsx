@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
-import { normalizePlan } from "@/lib/billing/guards";
+import { getEffectivePlan } from "@/lib/auth/permissions";
+import { getUserWithPlan } from "@/lib/billing/planService";
+import { getActiveOrgId } from "@/lib/org/context";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Settings — CyberShield",
@@ -24,14 +28,10 @@ export default async function SettingsPage() {
     day: "numeric",
   });
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, subscription_status")
-    .eq("id", user.id)
-    .single();
-
-  const currentPlan = normalizePlan(profile?.plan ?? null);
-  const subscriptionStatus = profile?.subscription_status ?? null;
+  const orgId = await getActiveOrgId(user.id);
+  const userWithPlan = await getUserWithPlan(user.id, orgId);
+  const currentPlan = getEffectivePlan(userWithPlan);
+  const subscriptionStatus = userWithPlan.subscription_status ?? null;
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
