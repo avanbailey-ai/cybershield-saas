@@ -5,7 +5,8 @@ import { PLAN_LIMITS } from '@/lib/billing/plans';
 import { getEffectivePlan, getPlanLimits } from '@/lib/auth/permissions';
 import { getEffectiveMaxScansPerDay, getUserWithPlan } from '@/lib/billing/planService';
 import { getTodayUtc, getUsage } from '@/lib/billing/usageService';
-import { getUserSubscription } from '@/lib/billing/subscriptionService';
+import { getActiveOrgId } from '@/lib/org/context';
+import { getOrgSubscription } from '@/lib/billing/orgSubscriptionService';
 
 export async function GET() {
   try {
@@ -18,10 +19,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [userWithPlan, subscription, scansLimit] = await Promise.all([
-      getUserWithPlan(user.id),
-      getUserSubscription(user.id),
-      getEffectiveMaxScansPerDay(user.id),
+    const orgId = await getActiveOrgId(user.id);
+
+    const [userWithPlan, orgSubscription, scansLimit] = await Promise.all([
+      getUserWithPlan(user.id, orgId),
+      orgId ? getOrgSubscription(orgId) : Promise.resolve(null),
+      getEffectiveMaxScansPerDay(user.id, orgId),
     ]);
 
     const plan = getEffectivePlan(userWithPlan);
@@ -45,8 +48,8 @@ export async function GET() {
 
     return NextResponse.json({
       plan,
-      subscription_status: subscription.status,
-      current_period_end: subscription.currentPeriodEnd,
+      subscription_status: orgSubscription?.status ?? userWithPlan.subscription_status,
+      current_period_end: orgSubscription?.currentPeriodEnd ?? null,
       websiteCount: count,
       scansToday: usage.scans_used,
       limits: PLAN_LIMITS[plan],

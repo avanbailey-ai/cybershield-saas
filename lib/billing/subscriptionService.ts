@@ -25,7 +25,7 @@ export function isPaidPlan(plan: Plan): boolean {
   return plan === 'pro' || plan === 'growth' || plan === 'agency';
 }
 
-/** Load subscription row from subscriptions table (source of truth for access control). */
+/** Load subscription row from subscriptions table (display mirror; gating uses org subscriptions). */
 export async function getUserSubscription(userId: string): Promise<UserSubscription> {
   const supabase = createAdminClient();
 

@@ -102,12 +102,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Forbidden: billing permission required' }, { status: 403 });
       }
       const admin = createAdminClient();
-      const { data: org } = await admin
-        .from('organizations')
+      const { data: orgSub } = await admin
+        .from('organization_subscriptions')
         .select('stripe_customer_id')
-        .eq('id', orgId)
-        .single();
-      orgCustomerId = org?.stripe_customer_id ?? null;
+        .eq('org_id', orgId)
+        .maybeSingle();
+      orgCustomerId = orgSub?.stripe_customer_id ?? null;
+      if (!orgCustomerId) {
+        const { data: org } = await admin
+          .from('organizations')
+          .select('stripe_customer_id')
+          .eq('id', orgId)
+          .single();
+        orgCustomerId = org?.stripe_customer_id ?? null;
+      }
     } else {
       orgId = await getActiveOrgId(user.id);
     }

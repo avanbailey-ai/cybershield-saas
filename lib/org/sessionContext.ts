@@ -74,9 +74,7 @@ export type SessionOrgClient = {
   from: (relation: string) => {
     select: (columns: string) => {
       eq: (column: string, value: string) => {
-        maybeSingle: () => PromiseLike<{
-          data: { default_org_id?: string | null } | null;
-        }>;
+        maybeSingle: () => PromiseLike<{ data: Record<string, unknown> | null }>;
       };
     };
   };
@@ -119,7 +117,7 @@ export async function resolveOrgSessionContextFromSession(
       .select('default_org_id')
       .eq('id', userId)
       .maybeSingle();
-    orgId = profile?.default_org_id ?? null;
+    orgId = (profile?.default_org_id as string | null | undefined) ?? null;
   }
 
   if (!orgId) {

@@ -42,7 +42,7 @@ function effectiveRank(user: UserForFeatureGate): number {
   return PLAN_RANK[plan] ?? 0;
 }
 
-/** Central feature gate — plan + status from subscriptions table only. */
+/** Central feature gate — plan + status from organization_subscriptions. */
 export function canAccessFeature(user: UserForFeatureGate, feature: Feature): boolean {
   if (isOwner(user.email)) return true;
 
