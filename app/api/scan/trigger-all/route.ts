@@ -9,6 +9,8 @@ import '@/services/bootstrap';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
+import { getActiveOrgId } from '@/lib/org/context';
+import { requirePermission } from '@/lib/auth/rbac';
 import { emit } from '@/core/events/emit';
 import { getUser } from '@/services/supabaseService';
 import { enqueueScan } from '@/services/scanQueueService';
@@ -53,6 +55,15 @@ export async function POST() {
 
   const access = await requireDashboardAccess(user);
   if (!access.allowed) return access.response;
+
+  const orgId = await getActiveOrgId(user.id);
+
+  try {
+    await requirePermission(user.id, orgId, 'run_scans');
+  } catch {
+    void recordApiLatency('/api/scan/trigger-all', Date.now() - start, 403);
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   await startTrace({
     traceId,

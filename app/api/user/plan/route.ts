@@ -34,10 +34,13 @@ export async function GET() {
     const limits = getPlanLimits(userWithPlan);
 
     const admin = createAdminClient();
-    const { count: websiteCount } = await admin
+    let websiteCountQuery = admin
       .from('websites')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      .select('id', { count: 'exact', head: true });
+    websiteCountQuery = orgId
+      ? websiteCountQuery.eq('org_id', orgId)
+      : websiteCountQuery.eq('user_id', user.id);
+    const { count: websiteCount } = await websiteCountQuery;
 
     const today = getTodayUtc();
     const usage = await getUsage(user.id, today);

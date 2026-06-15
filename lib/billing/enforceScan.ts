@@ -110,7 +110,11 @@ function deny(
 
 /** Central scan billing gate — call before any scan_queue insert. */
 
-export async function enforceScanLimit(userId: string, orgId?: string | null): Promise<EnforceScanResult> {
+export async function enforceScanLimit(
+  userId: string,
+  orgId?: string | null,
+  options?: { skipDailyLimit?: boolean },
+): Promise<EnforceScanResult> {
 
   const [profile, userWithPlan] = await Promise.all([
 
@@ -160,37 +164,24 @@ export async function enforceScanLimit(userId: string, orgId?: string | null): P
 
 
 
-  const scanCheck = canRunScan(userWithPlan, usage.scans_used, scansLimit);
+  if (!options?.skipDailyLimit) {
+    const scanCheck = canRunScan(userWithPlan, usage.scans_used, scansLimit);
 
-  if (!scanCheck.allowed) {
+    if (!scanCheck.allowed) {
+      const reason: EnforceScanReason =
+        plan === 'free' || !isSubscriptionActive(userWithPlan.subscription_status)
+          ? 'upgrade_required'
+          : 'scan_limit_reached';
 
-    const reason: EnforceScanReason =
-
-      plan === 'free' || !isSubscriptionActive(userWithPlan.subscription_status)
-
-        ? 'upgrade_required'
-
-        : 'scan_limit_reached';
-
-
-
-    return deny(
-
-      reason,
-
-      scanCheck.message ?? `Daily scan limit reached (${scansLimit}/day).`,
-
-      plan,
-
-      usage.scans_used,
-
-      scansLimit,
-
-    );
-
+      return deny(
+        reason,
+        scanCheck.message ?? `Daily scan limit reached (${scansLimit}/day).`,
+        plan,
+        usage.scans_used,
+        scansLimit,
+      );
+    }
   }
-
-
 
   return { allowed: true, plan, scansUsed: usage.scans_used, scansLimit };
 

@@ -1,8 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getEffectivePlan } from '@/lib/auth/permissions';
 import { getUserWithPlan } from '@/lib/billing/planService';
-import { isPaidPlan, isSubscriptionActive } from '@/lib/billing/subscriptionService';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
+import { enforceScanLimit } from '@/lib/billing/enforceScan';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { isDueForScheduledScan } from './scanFrequency';
 
@@ -70,16 +70,19 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
       continue;
     }
 
-    if (isPaidPlan(plan) && !isSubscriptionActive(userWithPlan.subscription_status)) {
+    const enforceResult = await enforceScanLimit(website.user_id, website.org_id);
+    if (!enforceResult.allowed) {
+      blocked++;
       console.log('[scan-limit] scan_blocked', {
         userId: website.user_id,
         orgId: website.org_id,
         websiteId: website.id,
         plan,
-        reason: 'subscription_inactive',
+        reason: enforceResult.reason,
+        scansUsed: enforceResult.scansUsed,
+        scansLimit: enforceResult.scansLimit,
         source: 'cron',
       });
-      skipped++;
       continue;
     }
 

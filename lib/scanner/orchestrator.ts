@@ -36,8 +36,6 @@ import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
 
 import { checkQueueBackpressure } from './backpressure';
 
-import { getScanUsageStatus } from '@/lib/usage/checkScanLimit';
-
 import {
 
   RATE_LIMIT_MAX_SCANS,
@@ -167,19 +165,11 @@ export async function enqueueScan(params: {
 
 
 
-  const billingGate = usagePreChecked
-    ? await (async () => {
-        const userWithPlan = await getUserWithPlan(userId, orgId);
-        const resolvedPlan = getEffectivePlan(userWithPlan);
-        const status = await getScanUsageStatus(userId, orgId);
-        return {
-          allowed: true as const,
-          plan: resolvedPlan,
-          scansUsed: status.scansUsed,
-          scansLimit: status.scansLimit,
-        };
-      })()
-    : await enforceScanLimit(userId, orgId);
+  const billingGate = await enforceScanLimit(
+    userId,
+    orgId,
+    usagePreChecked ? { skipDailyLimit: true } : undefined,
+  );
 
   const plan = billingGate.plan;
 
@@ -221,7 +211,7 @@ export async function enqueueScan(params: {
 
 
 
-  if (source !== 'cron' && limits.maxWebsites !== Infinity) {
+  if (limits.maxWebsites !== Infinity) {
 
     const websiteCount = await getUserWebsiteCount(userId);
 
@@ -321,7 +311,7 @@ export async function enqueueScan(params: {
 
   // Free tier: one completed scan per website (lifetime) unless pro unlock is active
 
-  if (plan === 'free' && source !== 'cron') {
+  if (plan === 'free') {
 
     const profile = await getUserProfile(userId);
 
