@@ -14,6 +14,7 @@ export interface UserInfo {
   scansToday: number;
   websitesRemaining: number | null;
   scansRemaining: number;
+  effectiveScansLimit: number;
   limits: (typeof PLAN_LIMITS)[Plan];
   loading: boolean;
 }
@@ -27,6 +28,7 @@ const DEFAULT: UserInfo = {
   scansToday: 0,
   websitesRemaining: 0,
   scansRemaining: 0,
+  effectiveScansLimit: PLAN_LIMITS.free.maxScansPerDay,
   limits: PLAN_LIMITS.free,
   loading: true,
 };
@@ -56,6 +58,13 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
   const plan = (data.plan as Plan) ?? 'free';
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
+  const effectiveLimit = data.effectiveScansLimit ?? limits.maxScansPerDay;
+  const scansRemaining =
+    data.scansRemaining ??
+    (effectiveLimit === Infinity
+      ? Infinity
+      : Math.max(0, effectiveLimit - (data.scansToday ?? 0)));
+
   return {
     id: user.id,
     email: user.email ?? '',
@@ -64,7 +73,8 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
     websiteCount: data.websiteCount ?? 0,
     scansToday: data.scansToday ?? 0,
     websitesRemaining: data.websitesRemaining ?? null,
-    scansRemaining: data.scansRemaining ?? Math.max(0, limits.maxScansPerDay - (data.scansToday ?? 0)),
+    scansRemaining,
+    effectiveScansLimit: effectiveLimit,
     limits,
     loading: false,
   };

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePlan } from '@/lib/billing/usePlan';
 
 export default function ScanAllButton() {
-  const { limits, scansToday, scansRemaining, loading: planLoading } = usePlan();
+  const { scansToday, scansRemaining, effectiveScansLimit, loading: planLoading } = usePlan();
   const isScanningRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export default function ScanAllButton() {
         </button>
         {!planLoading && (
           <span className={`text-xs ${scansRemaining <= 1 ? 'text-orange-400' : 'text-gray-500'}`}>
-            {scansToday} / {limits.maxScansPerDay} scans today
+            {scansToday} / {effectiveScansLimit === Infinity ? '∞' : effectiveScansLimit} scans today
           </span>
         )}
         {status && <span className="text-sm text-gray-400">{status}</span>}

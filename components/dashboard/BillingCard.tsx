@@ -5,6 +5,8 @@ import type { Plan, BilledPlan } from '@/lib/billing/plans';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPriceMonthly } from '@/lib/billing/formatPrice';
+import { usePlan } from '@/lib/billing/usePlan';
+import Link from 'next/link';
 
 interface BillingCardProps {
   currentPlan: Plan;
@@ -22,6 +24,11 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
   const [loading, setLoading] = useState<BilledPlan | 'portal' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { prices } = useDisplayPrices();
+  const { scansToday, scansRemaining, effectiveScansLimit, loading: usageLoading } = usePlan();
+
+  const displayLimit =
+    effectiveScansLimit === Infinity ? 'Unlimited' : String(effectiveScansLimit);
+  const atScanLimit = !usageLoading && scansRemaining === 0;
 
   const meta = {
     name: PLAN_LIMITS[currentPlan]?.name ?? PLAN_LIMITS.free.name,
@@ -111,6 +118,41 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
           {meta.name}
         </span>
       </div>
+
+      {!usageLoading && (
+        <div
+          className={`rounded-lg border px-4 py-3 ${
+            atScanLimit
+              ? 'border-orange-500/30 bg-orange-500/10'
+              : 'border-gray-800 bg-gray-800/30'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-gray-200">Daily scan usage</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Resets at UTC midnight · {scansToday} / {displayLimit} used today
+              </p>
+            </div>
+            <span
+              className={`text-sm font-semibold ${
+                atScanLimit ? 'text-orange-400' : 'text-gray-300'
+              }`}
+            >
+              {scansRemaining === Infinity ? 'Unlimited' : `${scansRemaining} remaining`}
+            </span>
+          </div>
+          {atScanLimit && upgradePlans.length > 0 && (
+            <p className="mt-2 text-xs text-orange-400">
+              Daily limit reached.{' '}
+              <Link href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
+                Upgrade your plan
+              </Link>{' '}
+              for more scans.
+            </p>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
