@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePlan } from '@/lib/billing/usePlan';
+import { PLAN_LIMITS } from '@/lib/billing/plans';
 import { useConversionOptional } from '@/components/conversion/ConversionProvider';
 import { getWebsiteUsageMessage } from '@/lib/billing/guards';
 
@@ -18,7 +19,7 @@ export default function PlanUsageWidget() {
     );
   }
 
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const planLabel = PLAN_LIMITS[plan]?.name ?? 'Free';
   const websiteUsage = getWebsiteUsageMessage(websiteCount, { id: '', plan });
   const scanUsage = `${scansToday} / ${limits.maxScansPerDay} scans today`;
   const nearLimit = websitesRemaining === 0 || scansRemaining === 0;

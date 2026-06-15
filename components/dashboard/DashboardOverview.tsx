@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePlan } from '@/lib/billing/usePlan';
+import { PLAN_LIMITS } from '@/lib/billing/plans';
 import ScanAllButton from './ScanAllButton';
 
 export interface LastScanSummary {
@@ -49,7 +50,7 @@ export default function DashboardOverview({
     );
   }
 
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+  const planLabel = PLAN_LIMITS[plan]?.name ?? 'Free';
   const scansLabel =
     limits.maxScansPerDay === Infinity
       ? `${scansToday} scans today`

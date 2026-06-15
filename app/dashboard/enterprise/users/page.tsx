@@ -70,7 +70,7 @@ export default function EnterpriseUsersPage() {
 
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-6 flex items-center gap-3">
-          <Link href="/dashboard/enterprise" className="text-sm text-gray-500 hover:text-gray-300">
+          <Link href="/enterprise/portal" className="text-sm text-gray-500 hover:text-gray-300">
             ← Enterprise
           </Link>
         </div>

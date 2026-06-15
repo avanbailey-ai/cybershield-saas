@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
-import { getEffectivePlan, getPlanLimits } from '@/lib/auth/permissions';
+import { getPlanLimits, normalizePlan } from '@/lib/auth/permissions';
 import { getEffectiveMaxScansPerDay, getUserWithPlan } from '@/lib/billing/planService';
 import { getTodayUtc, getUsage } from '@/lib/billing/usageService';
 import { getActiveOrgId } from '@/lib/org/context';
 import { getOrgSubscription } from '@/lib/billing/orgSubscriptionService';
+import { getUserOrgRole } from '@/lib/auth/rbac';
+import { isOrgAdminRole } from '@/lib/auth/rbac';
 
 export async function GET() {
   try {
@@ -21,13 +23,14 @@ export async function GET() {
 
     const orgId = await getActiveOrgId(user.id);
 
-    const [userWithPlan, orgSubscription, scansLimit] = await Promise.all([
-      getUserWithPlan(user.id, orgId),
+    const [userWithPlan, orgSubscription, scansLimit, orgRole] = await Promise.all([
+      getUserWithPlan(user.id, orgId, user.email),
       orgId ? getOrgSubscription(orgId) : Promise.resolve(null),
       getEffectiveMaxScansPerDay(user.id, orgId),
+      orgId ? getUserOrgRole(user.id, orgId) : Promise.resolve(null),
     ]);
 
-    const plan = getEffectivePlan(userWithPlan);
+    const plan = normalizePlan(userWithPlan.plan);
     const limits = getPlanLimits(userWithPlan);
 
     const admin = createAdminClient();
@@ -49,8 +52,11 @@ export async function GET() {
     return NextResponse.json(
       {
         plan,
-        subscription_status: orgSubscription?.status ?? userWithPlan.subscription_status,
+        subscription_status: userWithPlan.subscription_status ?? orgSubscription?.status ?? 'inactive',
         current_period_end: orgSubscription?.currentPeriodEnd ?? null,
+        orgId,
+        orgRole,
+        canManageOrg: orgRole ? isOrgAdminRole(orgRole) : false,
         websiteCount: count,
         scansToday: usage.scans_used,
         limits: PLAN_LIMITS[plan],

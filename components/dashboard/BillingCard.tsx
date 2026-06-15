@@ -91,7 +91,9 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
   }
 
   const isSubscribed =
-    (currentPlan !== 'free' && subscriptionStatus === 'active') || currentPlan === 'owner';
+    (currentPlan !== 'free' && subscriptionStatus === 'active') ||
+    currentPlan === 'owner' ||
+    currentPlan === 'agency';
 
   const upgradePlans: BilledPlan[] =
     currentPlan === 'free'

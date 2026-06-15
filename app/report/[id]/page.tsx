@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { gateReport } from '@/lib/accessControl';
 import { auditLog } from '@/lib/audit/log';
 import { getActiveOrgId } from '@/lib/org/context';
+import { getEffectivePlan } from '@/lib/auth/permissions';
+import { getUserWithPlan } from '@/lib/billing/planService';
 import type { RiskLevel, UserPlan, HeaderChecks } from '@/types';
 
 interface ScanRow {
@@ -115,18 +117,13 @@ export default async function ReportPage({ params }: PageProps) {
     metadata: { scanId: id },
   });
 
-  // Get user plan from profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('plan')
-    .eq('id', user.id)
-    .single();
-
-  const plan = (profile?.plan ?? 'free') as UserPlan;
+  const orgId = await getActiveOrgId(user.id);
+  const userWithPlan = await getUserWithPlan(user.id, orgId);
+  const plan = getEffectivePlan(userWithPlan) as UserPlan;
   const riskScore = scanRow.risk_score ?? 0;
   const riskLevel = scanRow.risk_level ?? null;
 
-  const gate = gateReport(riskScore, plan, user.email);
+  const gate = gateReport(riskScore, plan, user.email, userWithPlan.subscription_status);
 
   // Fetch last 5 scans for same website (scan history)
   interface PastScan {

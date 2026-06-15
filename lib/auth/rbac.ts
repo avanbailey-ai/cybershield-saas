@@ -31,6 +31,11 @@ export function hasPermission(role: OrgRole, permission: Permission): boolean {
   return ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
 }
 
+/** Org owner or admin — may access enterprise controls and billing. */
+export function isOrgAdminRole(role: OrgRole | string | null | undefined): boolean {
+  return role === 'owner' || role === 'admin';
+}
+
 export async function getUserOrgRole(userId: string, orgId: string): Promise<OrgRole | null> {
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -48,7 +53,10 @@ export async function requirePermission(
   userId: string,
   orgId: string | null | undefined,
   permission: Permission,
+  authEmail?: string | null,
 ): Promise<void> {
+  if (authEmail && isOwner(authEmail)) return;
+
   const profile = await getUserProfile(userId);
   if (isOwner(profile.email)) return;
 

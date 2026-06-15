@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import EnterprisePortalSidebar from '@/components/enterprise/EnterprisePortalSidebar';
 import { canAccessEnterprise } from '@/lib/auth/permissions';
-import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
+import { resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
+import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 
 export default async function EnterprisePortalLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -15,13 +16,22 @@ export default async function EnterprisePortalLayout({ children }: { children: R
     redirect('/enterprise/login?redirectTo=/enterprise/portal');
   }
 
-  const access = await getSubscriptionAccessFromSession(
+  const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
   );
 
-  if (!canAccessEnterprise({ email: user.email, plan: access.plan, subscription_status: access.status })) {
+  if (
+    !canAccessEnterprise(
+      {
+        email: user.email,
+        plan: orgCtx.access.plan,
+        subscription_status: orgCtx.access.status,
+      },
+      orgCtx.role,
+    )
+  ) {
     redirect('/app');
   }
 

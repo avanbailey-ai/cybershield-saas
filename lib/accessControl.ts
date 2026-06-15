@@ -8,8 +8,15 @@ export interface GatedReport {
   plan: UserPlan;
 }
 
-export function gateReport(riskScore: number, plan: UserPlan, email?: string | null): GatedReport {
-  const canViewFull = plan !== 'free' || isOwner(email);
+export function gateReport(
+  riskScore: number,
+  plan: UserPlan,
+  email?: string | null,
+  subscriptionStatus?: string | null,
+): GatedReport {
+  const hasActivePaid =
+    plan !== 'free' && (subscriptionStatus === 'active' || subscriptionStatus === 'trialing');
+  const canViewFull = isOwner(email) || hasActivePaid;
   const genericMessage = riskScore > 40
     ? 'Risk Detected — upgrade to see full details'
     : 'No major issues found — upgrade for continuous monitoring';

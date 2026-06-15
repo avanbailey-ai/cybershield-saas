@@ -2,6 +2,9 @@ import { sendEmail } from './email';
 import { securityAlertEmail } from './emailTemplates';
 import { createAdminClient } from './supabase/admin';
 import { logEvent } from '@/lib/observability';
+import { canAccessFeature } from '@/lib/auth/featureGate';
+import { getUserWithPlan } from '@/lib/billing/planService';
+import { getActiveOrgId } from '@/lib/org/context';
 
 const ALERT_EMAIL_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -54,6 +57,24 @@ export async function sendSecurityAlert(alertId: string): Promise<SecurityAlertS
       profileErr?.message,
     );
     return { sent: false, reason: 'profile_email_missing' };
+  }
+
+  const orgId = await getActiveOrgId(alert.user_id);
+  const userWithPlan = await getUserWithPlan(alert.user_id, orgId);
+  if (
+    !canAccessFeature(
+      {
+        email: profile.email,
+        plan: userWithPlan.plan,
+        subscription_status: userWithPlan.subscription_status,
+      },
+      'alerts',
+    )
+  ) {
+    console.log(
+      `[sendSecurityAlert] Skipping email for alert=${alertId} — plan ${userWithPlan.plan} does not include email alerts`,
+    );
+    return { sent: false, skipped: true, reason: 'plan_gated' };
   }
 
   const { data: scan, error: scanErr } = await supabase

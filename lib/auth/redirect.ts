@@ -66,7 +66,7 @@ export function getRedirectPath(user: UserForRedirect | null): string {
 
 
 
-  return '/onboarding';
+  return '/app';
 
 }
 

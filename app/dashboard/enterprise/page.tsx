@@ -5,8 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { canAccessEnterprise } from "@/lib/auth/permissions";
-import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
+import { getEffectivePlan } from "@/lib/auth/permissions";
+import { getUserOrgRole } from "@/lib/auth/rbac";
+import { PLAN_LIMITS } from "@/lib/billing/plans";
+import { resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
+import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
+import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
 
 export const metadata: Metadata = {
   title: "Enterprise Dashboard",
@@ -27,17 +32,26 @@ export default async function EnterpriseDashboardPage() {
 
   if (!user) redirect("/enterprise/login?redirectTo=/enterprise/portal");
 
-  const access = await getSubscriptionAccessFromSession(
+  const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
   );
 
-  if (!canAccessEnterprise({ email: user.email, plan: access.plan, subscription_status: access.status })) {
+  if (
+    !canAccessEnterprise(
+      {
+        email: user.email,
+        plan: orgCtx.access.plan,
+        subscription_status: orgCtx.access.status,
+      },
+      orgCtx.role,
+    )
+  ) {
     redirect("/app");
   }
 
-  const orgId = await getActiveOrgId(user.id);
+  const orgId = orgCtx.orgId ?? (await getActiveOrgId(user.id));
   const org = orgId ? await getOrganization(orgId) : null;
   const admin = createAdminClient();
 
@@ -93,8 +107,17 @@ export default async function EnterpriseDashboardPage() {
     }
   }
 
+  const orgRole = orgId ? await getUserOrgRole(user.id, orgId) : null;
+  const effectivePlan = getEffectivePlan({
+    email: user.email,
+    plan: orgCtx.access.plan,
+    subscription_status: orgCtx.access.status,
+  });
+  const planLabel = PLAN_LIMITS[effectivePlan]?.name ?? effectivePlan;
+  const roleLabel =
+    orgRole === "owner" ? "Owner" : orgRole === "admin" ? "Admin" : orgRole === "member" ? "Member" : orgRole ?? null;
   const maxBucket = Math.max(...Object.values(scoreBuckets), 1);
-  const effectivePlan = org?.plan ?? access.plan;
+  const seatLimit = getSeatLimitForPlan(effectivePlan);
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
@@ -105,16 +128,29 @@ export default async function EnterpriseDashboardPage() {
           <div>
             <h2 className="text-xl font-bold text-white">Enterprise Overview</h2>
             <p className="mt-1 text-sm text-gray-500">
-              {org?.name ?? "Your Organization"} · Plan:{" "}
-              <span className="capitalize text-blue-400">{effectivePlan}</span>
+              {org?.name ?? "Your Organization"}
+              {roleLabel && (
+                <>
+                  {" "}
+                  · <span className="text-indigo-400">{roleLabel}</span>
+                </>
+              )}
+              {" "}
+              · Plan:{" "}
+              <span className="capitalize text-blue-400">{planLabel}</span>
             </p>
           </div>
-          <Link
-            href="/enterprise/portal/users"
-            className="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white"
-          >
+          <Link href="/enterprise/portal/users" className="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white">
             Manage Team
           </Link>
+          {(orgRole === "owner" || orgRole === "admin") && (
+            <Link
+              href="/app/settings"
+              className="rounded-lg border border-indigo-700/50 bg-indigo-600/10 px-4 py-2 text-sm font-medium text-indigo-300 hover:text-white"
+            >
+              Billing & Settings
+            </Link>
+          )}
         </div>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -135,11 +171,7 @@ export default async function EnterpriseDashboardPage() {
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Seat Limit</p>
             <p className="mt-2 text-3xl font-bold text-white">
-              {org?.seat_limit === null || org?.seat_limit === undefined
-                ? "—"
-                : org.seat_limit >= 999999
-                  ? "∞"
-                  : org.seat_limit}
+              {seatLimit >= 999999 ? "∞" : seatLimit}
             </p>
           </div>
         </div>

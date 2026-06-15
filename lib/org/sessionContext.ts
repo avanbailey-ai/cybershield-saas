@@ -3,7 +3,6 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isOwner } from '@/lib/auth/owner';
 import { getActiveOrgId } from '@/lib/org/context';
 import { getUserOrgRole, type OrgRole } from '@/lib/auth/rbac';
 import {
@@ -28,15 +27,6 @@ export async function resolveOrgSessionContext(
   email?: string | null,
   preferredOrgId?: string | null,
 ): Promise<OrgSessionContext> {
-  if (isOwner(email)) {
-    return {
-      orgId: null,
-      role: null,
-      subscription: null,
-      access: resolveSubscriptionAccess(email, { plan: 'agency', status: 'active' }),
-    };
-  }
-
   const orgId = preferredOrgId ?? (await getActiveOrgId(userId));
   if (!orgId) {
     return {
@@ -101,15 +91,6 @@ export async function resolveOrgSessionContextFromSession(
   email?: string | null,
   cookieOrgId?: string | null,
 ): Promise<OrgSessionContext> {
-  if (isOwner(email)) {
-    return {
-      orgId: null,
-      role: null,
-      subscription: null,
-      access: resolveSubscriptionAccess(email, { plan: 'agency', status: 'active' }),
-    };
-  }
-
   let orgId = cookieOrgId ?? null;
   if (!orgId) {
     const { data: profile } = await supabase

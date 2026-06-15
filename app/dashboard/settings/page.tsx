@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
-import { getEffectivePlan } from "@/lib/auth/permissions";
+import { normalizePlan } from "@/lib/auth/permissions";
 import { getUserWithPlan } from "@/lib/billing/planService";
 import { getActiveOrgId } from "@/lib/org/context";
 
@@ -29,8 +29,8 @@ export default async function SettingsPage() {
   });
 
   const orgId = await getActiveOrgId(user.id);
-  const userWithPlan = await getUserWithPlan(user.id, orgId);
-  const currentPlan = getEffectivePlan(userWithPlan);
+  const userWithPlan = await getUserWithPlan(user.id, orgId, user.email);
+  const currentPlan = normalizePlan(userWithPlan.plan);
   const subscriptionStatus = userWithPlan.subscription_status ?? null;
 
   return (

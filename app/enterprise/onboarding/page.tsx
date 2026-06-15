@@ -3,10 +3,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessEnterprise } from '@/lib/auth/permissions';
-import {
-  getSubscriptionAccessFromSession,
-  type SessionSubscriptionClient,
-} from '@/lib/billing/getSubscriptionAccess';
+import { resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
+import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 import { formatScanFrequency, PLAN_LIMITS } from '@/lib/billing/plans';
 import { formatWebsiteLimit } from '@/lib/billing/plans';
 
@@ -28,18 +26,21 @@ export default async function EnterpriseOnboardingPage({
     redirect('/enterprise/login?redirectTo=/enterprise/onboarding');
   }
 
-  const access = await getSubscriptionAccessFromSession(
+  const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
   );
 
   if (
-    !canAccessEnterprise({
-      email: user.email,
-      plan: access.plan,
-      subscription_status: access.status,
-    })
+    !canAccessEnterprise(
+      {
+        email: user.email,
+        plan: orgCtx.access.plan,
+        subscription_status: orgCtx.access.status,
+      },
+      orgCtx.role,
+    )
   ) {
     redirect('/app');
   }

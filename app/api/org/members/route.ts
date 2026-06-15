@@ -6,6 +6,9 @@ import { getActiveOrgId } from '@/lib/org/context';
 import { requirePermission } from '@/lib/auth/rbac';
 import { getSeatLimitForPlan } from '@/lib/billing/orgPlans';
 import { getOrgSubscription } from '@/lib/billing/orgSubscriptionService';
+import { getUserWithPlan } from '@/lib/billing/planService';
+import { getEffectivePlan } from '@/lib/auth/permissions';
+import { isOwner } from '@/lib/auth/owner';
 import { auditLog, extractIp } from '@/lib/audit/log';
 
 /** GET /api/org/members — list org members */
@@ -23,7 +26,7 @@ export async function GET() {
   if (!orgId) return NextResponse.json({ members: [], orgId: null });
 
   try {
-    await requirePermission(user.id, orgId, 'view_scans');
+    await requirePermission(user.id, orgId, 'view_scans', user.email);
   } catch {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -55,7 +58,7 @@ export async function POST(req: NextRequest) {
   if (!orgId) return NextResponse.json({ error: 'No organization found' }, { status: 400 });
 
   try {
-    await requirePermission(user.id, orgId, 'manage_users');
+    await requirePermission(user.id, orgId, 'manage_users', user.email);
   } catch {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -76,7 +79,12 @@ export async function POST(req: NextRequest) {
 
   const { data: org } = await admin.from('organizations').select('seat_limit').eq('id', orgId).single();
   const orgSub = await getOrgSubscription(orgId);
-  const seatLimit = org?.seat_limit ?? getSeatLimitForPlan(orgSub.plan);
+  const userWithPlan = await getUserWithPlan(user.id, orgId, user.email);
+  const effectivePlan = getEffectivePlan(userWithPlan);
+  const seatLimit =
+    isOwner(user.email) || effectivePlan !== 'free'
+      ? getSeatLimitForPlan(effectivePlan)
+      : (org?.seat_limit ?? getSeatLimitForPlan(orgSub.plan));
 
   const { count: memberCount } = await admin
     .from('organization_members')

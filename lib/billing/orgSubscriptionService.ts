@@ -5,6 +5,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePlan } from '@/lib/auth/permissions';
 import type { Plan } from './plans';
+import { planFromPriceId } from './plans';
 import { getSeatLimitForPlan } from './orgPlans';
 import { isSubscriptionActive } from './subscriptionService';
 
@@ -41,15 +42,45 @@ export async function getOrgSubscription(orgId: string): Promise<OrgSubscription
     return { orgId, ...DEFAULT_ORG_SUB };
   }
 
-  return {
+  const status = data.status ?? 'inactive';
+  const plan = resolveOrgSubscriptionPlan({
     orgId: data.org_id,
     plan: normalizePlan(data.plan),
-    status: data.status ?? 'inactive',
+    status,
+    stripeCustomerId: data.stripe_customer_id ?? null,
+    stripeSubscriptionId: data.stripe_subscription_id ?? null,
+    stripePriceId: data.stripe_price_id ?? null,
+    currentPeriodEnd: data.current_period_end ?? null,
+  });
+
+  return {
+    orgId: data.org_id,
+    plan,
+    status,
     stripeCustomerId: data.stripe_customer_id ?? null,
     stripeSubscriptionId: data.stripe_subscription_id ?? null,
     stripePriceId: data.stripe_price_id ?? null,
     currentPeriodEnd: data.current_period_end ?? null,
   };
+}
+
+/** Resolve plan from organization_subscriptions — never downgrade an active paid sub to free. */
+export function resolveOrgSubscriptionPlan(sub: OrgSubscription): Plan {
+  const storedPlan = normalizePlan(sub.plan);
+  if (!isSubscriptionActive(sub.status)) {
+    return storedPlan;
+  }
+
+  if (storedPlan !== 'free') {
+    return storedPlan;
+  }
+
+  if (sub.stripePriceId) {
+    const fromPrice = planFromPriceId(sub.stripePriceId);
+    if (fromPrice) return fromPrice;
+  }
+
+  return storedPlan;
 }
 
 export interface UpsertOrgSubscriptionParams {

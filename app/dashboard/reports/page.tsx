@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import { canAccessFeature } from "@/lib/auth/featureGate";
+import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import type { HeaderChecks } from "@/types";
 
 export const metadata: Metadata = {
@@ -47,6 +49,16 @@ export default async function ReportsPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  const access = await getSubscriptionAccessFromSession(
+    supabase as unknown as SessionSubscriptionClient,
+    user.id,
+    user.email,
+  );
+
+  if (!canAccessFeature({ email: user.email, plan: access.plan, subscription_status: access.status }, 'alerts')) {
+    redirect('/app/settings');
+  }
 
   const { data: rawScans } = await supabase
     .from("scans")

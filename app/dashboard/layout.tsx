@@ -14,7 +14,8 @@ import { getRedirectPath } from "@/lib/auth/redirect";
 
 import { isOwner } from "@/lib/auth/owner";
 
-import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
+import { type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
+import { resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
 
 import { ensureUserOrg } from "@/lib/org/migrateExistingUsers";
 
@@ -50,11 +51,12 @@ export default async function DashboardLayout({
 
   const owner = isOwner(user.email);
 
-  const access = await getSubscriptionAccessFromSession(
+  const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,
     user.email,
   );
+  const access = orgCtx.access;
 
 
 
@@ -74,15 +76,14 @@ export default async function DashboardLayout({
 
 
 
-  if (canAccessEnterprise({
-
-    email: user.email,
-
-    plan: access.plan,
-
-    subscription_status: access.status,
-
-  })) {
+  if (canAccessEnterprise(
+    {
+      email: user.email,
+      plan: access.plan,
+      subscription_status: access.status,
+    },
+    orgCtx.role,
+  )) {
 
     redirect('/enterprise/portal');
 

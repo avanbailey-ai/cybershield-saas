@@ -1,8 +1,9 @@
 import { canAccessDashboard } from '@/lib/auth/permissions';
 import { normalizePlan } from '@/lib/auth/permissions';
-import { isOwner } from '@/lib/auth/owner';
+import type { OrgRole } from '@/lib/auth/rbac';
 import type { Plan } from './plans';
 import { getActiveOrgId } from '@/lib/org/context';
+import { getUserOrgRole } from '@/lib/auth/rbac';
 import { getOrgSubscription } from './orgSubscriptionService';
 import { isSubscriptionActive } from './subscriptionService';
 
@@ -12,6 +13,7 @@ export type SubscriptionAccess = {
   isActive: boolean;
   canAccessDashboard: boolean;
   orgId?: string | null;
+  orgRole?: OrgRole | null;
 };
 
 export type SubscriptionRow = {
@@ -23,23 +25,14 @@ const DEFAULT_ACCESS: SubscriptionAccess = {
   plan: 'free',
   status: 'inactive',
   isActive: false,
-  canAccessDashboard: false,
+  canAccessDashboard: true,
 };
 
 /** Resolve access from org subscription row (organization_subscriptions is source of truth). */
 export function resolveSubscriptionAccess(
-  email: string | null | undefined,
+  _email: string | null | undefined,
   subscription: SubscriptionRow | null,
 ): SubscriptionAccess {
-  if (isOwner(email)) {
-    return {
-      plan: 'agency',
-      status: 'active',
-      isActive: true,
-      canAccessDashboard: true,
-    };
-  }
-
   if (!subscription) {
     return DEFAULT_ACCESS;
   }
@@ -47,7 +40,7 @@ export function resolveSubscriptionAccess(
   const plan = normalizePlan(subscription.plan);
   const status = subscription.status ?? 'inactive';
   const isActive = isSubscriptionActive(status);
-  const userForGate = { email, plan, subscription_status: status };
+  const userForGate = { email: _email, plan, subscription_status: status };
 
   return {
     plan,
@@ -68,13 +61,17 @@ export async function getSubscriptionAccess(
     return resolveSubscriptionAccess(email, null);
   }
 
-  const subscription = await getOrgSubscription(resolvedOrgId);
+  const [subscription, orgRole] = await Promise.all([
+    getOrgSubscription(resolvedOrgId),
+    getUserOrgRole(userId, resolvedOrgId),
+  ]);
   return {
     ...resolveSubscriptionAccess(email, {
       plan: subscription.plan,
       status: subscription.status,
     }),
     orgId: resolvedOrgId,
+    orgRole,
   };
 }
 
@@ -100,5 +97,5 @@ export async function getSubscriptionAccessFromSession(
 ): Promise<SubscriptionAccess> {
   const { resolveOrgSessionContextFromSession } = await import('@/lib/org/sessionContext');
   const ctx = await resolveOrgSessionContextFromSession(supabase, userId, email, orgId);
-  return { ...ctx.access, orgId: ctx.orgId };
+  return { ...ctx.access, orgId: ctx.orgId, orgRole: ctx.role };
 }

@@ -19,6 +19,7 @@ import { PLAN_LIMITS, type Plan } from './plans';
 import { getEffectivePlan, normalizePlan, type UserWithPlan } from '@/lib/auth/permissions';
 
 import { getActiveOrgId } from '@/lib/org/context';
+import { getUserOrgRole } from '@/lib/auth/rbac';
 
 import { getOrgSubscription } from './orgSubscriptionService';
 
@@ -184,50 +185,55 @@ export async function getUserPlan(userId: string, orgId?: string | null): Promis
 
 /** Build a UserWithPlan object for permission checks (org subscription is source of truth). */
 
-export async function getUserWithPlan(userId: string, orgId?: string | null): Promise<UserWithPlan & { id: string }> {
+export async function getUserWithPlan(
+  userId: string,
+  orgId?: string | null,
+  authEmail?: string | null,
+): Promise<UserWithPlan & { id: string }> {
+  const resolvedOrgId = orgId != null ? orgId : await getActiveOrgId(userId);
 
-  const [profile, resolvedOrgId] = await Promise.all([
-
+  const [profile, orgRole, subscription] = await Promise.all([
     getUserProfile(userId),
-
-    orgId != null ? Promise.resolve(orgId) : getActiveOrgId(userId),
-
+    resolvedOrgId ? getUserOrgRole(userId, resolvedOrgId) : Promise.resolve(null),
+    resolvedOrgId ? getOrgSubscription(resolvedOrgId) : Promise.resolve(null),
   ]);
 
+  const email = authEmail ?? profile.email;
 
-
-  if (!resolvedOrgId) {
-
+  if (!resolvedOrgId || !subscription) {
+    const resolvedPlan = 'free' as const;
+    console.log('[plan-resolve]', {
+      userId,
+      orgId: resolvedOrgId,
+      userRole: orgRole,
+      subscriptionTier: null,
+      subscriptionStatus: 'inactive',
+      resolvedPlan,
+    });
     return {
-
       id: userId,
-
-      email: profile.email,
-
-      plan: 'free',
-
+      email,
+      plan: resolvedPlan,
       subscription_status: 'inactive',
-
     };
-
   }
 
-
-
-  const subscription = await getOrgSubscription(resolvedOrgId);
+  const resolvedPlan = normalizePlan(subscription.plan);
+  console.log('[plan-resolve]', {
+    userId,
+    orgId: resolvedOrgId,
+    userRole: orgRole,
+    subscriptionTier: subscription.plan,
+    subscriptionStatus: subscription.status,
+    resolvedPlan,
+  });
 
   return {
-
     id: userId,
-
-    email: profile.email,
-
-    plan: subscription.plan,
-
+    email,
+    plan: resolvedPlan,
     subscription_status: subscription.status,
-
   };
-
 }
 
 

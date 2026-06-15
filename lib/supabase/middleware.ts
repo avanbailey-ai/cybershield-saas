@@ -252,11 +252,14 @@ export async function updateSession(request: NextRequest) {
 
       if (
         pathname.startsWith('/app') &&
-        canAccessEnterprise({
-          email: user.email,
-          plan: orgCtx.access.plan,
-          subscription_status: orgCtx.access.status,
-        })
+        canAccessEnterprise(
+          {
+            email: user.email,
+            plan: orgCtx.access.plan,
+            subscription_status: orgCtx.access.status,
+          },
+          orgCtx.role,
+        )
       ) {
         const url = request.nextUrl.clone();
         url.pathname = '/enterprise/portal';
@@ -267,11 +270,14 @@ export async function updateSession(request: NextRequest) {
 
       if (isEnterpriseOnboarding) {
         if (
-          !canAccessEnterprise({
-            email: user.email,
-            plan: orgCtx.access.plan,
-            subscription_status: orgCtx.access.status,
-          })
+          !canAccessEnterprise(
+            {
+              email: user.email,
+              plan: orgCtx.access.plan,
+              subscription_status: orgCtx.access.status,
+            },
+            orgCtx.role,
+          )
         ) {
           const url = request.nextUrl.clone();
           url.pathname = '/app';
@@ -329,11 +335,14 @@ export async function updateSession(request: NextRequest) {
           cookieOrgId,
         );
         const url = request.nextUrl.clone();
-        url.pathname = canAccessEnterprise({
-          email: user.email,
-          plan: access.plan,
-          subscription_status: access.status,
-        })
+        url.pathname = canAccessEnterprise(
+          {
+            email: user.email,
+            plan: access.plan,
+            subscription_status: access.status,
+          },
+          access.orgRole,
+        )
           ? '/enterprise/portal'
           : '/app';
         return NextResponse.redirect(url);

@@ -25,7 +25,7 @@ export default async function AlertsPage() {
   );
 
   if (!canAccessFeature({ email: user.email, plan: access.plan, subscription_status: access.status }, 'alerts')) {
-    redirect('/dashboard/settings');
+    redirect('/app/settings');
   }
 
   const { data: alerts } = await supabase

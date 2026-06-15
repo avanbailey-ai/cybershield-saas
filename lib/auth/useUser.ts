@@ -10,6 +10,8 @@ export interface UserInfo {
   email: string;
   plan: Plan;
   subscriptionStatus: string;
+  orgId: string | null;
+  orgRole: string | null;
   websiteCount: number;
   scansToday: number;
   websitesRemaining: number | null;
@@ -24,6 +26,8 @@ const DEFAULT: UserInfo = {
   email: '',
   plan: 'free',
   subscriptionStatus: 'inactive',
+  orgId: null,
+  orgRole: null,
   websiteCount: 0,
   scansToday: 0,
   websitesRemaining: 0,
@@ -57,6 +61,7 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
   const data = await res.json();
   const plan = (data.plan as Plan) ?? 'free';
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  // Plan is resolved server-side from organization_subscriptions only (/api/user/plan).
 
   const effectiveLimit = data.effectiveScansLimit ?? limits.maxScansPerDay;
   const scansRemaining =
@@ -70,6 +75,8 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
     email: user.email ?? '',
     plan,
     subscriptionStatus: data.subscription_status ?? 'inactive',
+    orgId: data.orgId ?? null,
+    orgRole: data.orgRole ?? null,
     websiteCount: data.websiteCount ?? 0,
     scansToday: data.scansToday ?? 0,
     websitesRemaining: data.websitesRemaining ?? null,

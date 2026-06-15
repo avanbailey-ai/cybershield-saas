@@ -1,5 +1,6 @@
-import { isOwner } from './owner';
 import { normalizePlan, type UserWithPlan } from './permissions';
+import type { OrgRole } from '@/lib/auth/rbac';
+import { isOrgAdminRole } from '@/lib/auth/rbac';
 import type { Plan } from '@/lib/billing/plans';
 
 export type Feature =
@@ -12,6 +13,7 @@ export type Feature =
 
 export type UserForFeatureGate = UserWithPlan & {
   subscription_status?: string | null;
+  orgRole?: OrgRole | null;
 };
 
 const PLAN_RANK: Record<Plan, number> = {
@@ -23,12 +25,15 @@ const PLAN_RANK: Record<Plan, number> = {
 };
 
 const FEATURE_MIN_PLAN: Record<Exclude<Feature, 'admin'>, Plan> = {
-  dashboard: 'pro',
-  monitoring: 'growth',
-  alerts: 'growth',
+  dashboard: 'free',
+  monitoring: 'pro',
+  alerts: 'pro',
   team: 'agency',
   unlimited_websites: 'agency',
 };
+
+/** Features available without an active paid subscription. */
+const FREE_TIER_FEATURES = new Set<Feature>(['dashboard']);
 
 function hasActiveSubscription(user: UserForFeatureGate): boolean {
   const status = user.subscription_status ?? 'inactive';
@@ -36,7 +41,6 @@ function hasActiveSubscription(user: UserForFeatureGate): boolean {
 }
 
 function effectiveRank(user: UserForFeatureGate): number {
-  if (isOwner(user.email)) return PLAN_RANK.owner;
   const plan = normalizePlan(user.plan);
   if (plan === 'owner') return PLAN_RANK.owner;
   return PLAN_RANK[plan] ?? 0;
@@ -44,14 +48,24 @@ function effectiveRank(user: UserForFeatureGate): number {
 
 /** Central feature gate — plan + status from organization_subscriptions. */
 export function canAccessFeature(user: UserForFeatureGate, feature: Feature): boolean {
-  if (isOwner(user.email)) return true;
+  if (feature === 'admin') {
+    return user.orgRole != null && isOrgAdminRole(user.orgRole);
+  }
 
-  if (feature === 'admin') return false;
+  if (feature === 'team' || feature === 'unlimited_websites') {
+    if (!user.orgRole || !isOrgAdminRole(user.orgRole)) return false;
+  }
+
+  const minPlan = FEATURE_MIN_PLAN[feature];
+  const rank = effectiveRank(user);
+
+  if (FREE_TIER_FEATURES.has(feature)) {
+    return rank >= PLAN_RANK[minPlan];
+  }
 
   if (!hasActiveSubscription(user)) return false;
 
-  const minPlan = FEATURE_MIN_PLAN[feature];
-  return effectiveRank(user) >= PLAN_RANK[minPlan];
+  return rank >= PLAN_RANK[minPlan];
 }
 
 export function getRequiredPlanForFeature(feature: Feature): Plan | null {

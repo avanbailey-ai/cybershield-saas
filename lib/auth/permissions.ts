@@ -1,6 +1,8 @@
 import { isOwner } from './owner';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
 import { canAccessFeature, type UserForFeatureGate } from './featureGate';
+import type { OrgRole } from '@/lib/auth/rbac';
+import { isOrgAdminRole } from '@/lib/auth/rbac';
 
 export type UserWithPlan = {
   id?: string;
@@ -108,10 +110,20 @@ export function canUseMonitoring(user: UserForFeatureGate): boolean {
   return canAccessFeature(user, 'monitoring');
 }
 
-/** Enterprise dashboard: paid plans + platform owner. */
-export function canAccessEnterprise(user: UserForFeatureGate): boolean {
-  if (isOwner(user.email)) return true;
-  return canAccessFeature(user, 'team');
+/** Enterprise dashboard: active agency org subscription + valid org membership. */
+export function canAccessEnterprise(
+  user: UserForFeatureGate,
+  orgRole?: OrgRole | null,
+): boolean {
+  if (!orgRole) return false;
+
+  const plan = normalizePlan(user.plan);
+  const status = user.subscription_status ?? 'inactive';
+  const isActive = status === 'active' || status === 'trialing';
+
+  if (!isActive || plan !== 'agency') return false;
+
+  return orgRole === 'owner' || orgRole === 'admin' || orgRole === 'member';
 }
 
 export function getWebsiteUsageMessage(current: number, user: UserWithPlan): string {
