@@ -8,7 +8,7 @@
  *   1. Validate website ownership
  *   2. Check daily scan limit (plan-gated)         ← billing enforcement
  *   3. Check website limit (plan-gated, api/manual only)
- *   4. 10-minute per-website cooldown (api/manual only)
+ *   4. 10-minute per-website cooldown (api/manual only; bypass via bypassCooldown)
  *   5. Duplicate pending/processing job check
  *   6. 60-second burst rate limit (api/manual only)
  *   7. Increment usage counter atomically
@@ -65,8 +65,10 @@ export async function enqueueScan(params: {
   websiteId: string;
   source: ScanSource;
   orgId?: string | null;
+  /** Explicit bulk "Scan All" — bypass per-website cooldown; plan/rate limits still apply */
+  bypassCooldown?: boolean;
 }): Promise<EnqueueResult> {
-  const { userId, websiteId, source } = params;
+  const { userId, websiteId, source, bypassCooldown = false } = params;
   let orgId = params.orgId ?? null;
 
   console.log(
@@ -153,8 +155,8 @@ export async function enqueueScan(params: {
     }
   }
 
-  // ── 4. Cooldown: skip for cron ─────────────────────────────────────────────
-  if (source !== 'cron' && website.last_scanned_at) {
+  // ── 4. Cooldown: skip for cron and explicit Scan All ───────────────────────
+  if (!bypassCooldown && source !== 'cron' && website.last_scanned_at) {
     const msSinceScan = Date.now() - new Date(website.last_scanned_at).getTime();
     if (msSinceScan < SCAN_COOLDOWN_MS) {
       const remainingSecs = Math.ceil((SCAN_COOLDOWN_MS - msSinceScan) / 1000);

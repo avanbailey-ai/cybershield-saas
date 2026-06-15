@@ -3,8 +3,8 @@
  * Enqueues all active websites for the authenticated user via the orchestrator.
  * Does NOT execute scans — the client should follow up with /api/scan/process-queue.
  *
- * All per-website cooldown, dedup, plan limit, and rate-limit checks are enforced
- * inside orchestrator.enqueueScan() — this route is a thin loop wrapper.
+ * Plan limits, dedup, and rate-limit checks are enforced inside orchestrator.enqueueScan().
+ * Scan All bypasses the per-website cooldown so explicit user intent to scan now is honored.
  *
  * Returns a summary including how many were blocked by plan limits.
  */
@@ -50,7 +50,12 @@ export async function POST() {
   let rateLimited = false;
 
   for (const website of websites) {
-    const result = await enqueueScan({ userId: user.id, websiteId: website.id, source: 'api' });
+    const result = await enqueueScan({
+      userId: user.id,
+      websiteId: website.id,
+      source: 'api',
+      bypassCooldown: true,
+    });
 
     if (result.queued) {
       queued++;
