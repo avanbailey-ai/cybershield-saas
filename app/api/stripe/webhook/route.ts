@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { planFromPriceId, type BilledPlan } from '@/lib/billing/plans';
+import { planFromPriceId, type BilledPlan, type Plan } from '@/lib/billing/plans';
+import {
+  mapStripeSubscriptionStatus,
+  periodEndFromSubscription,
+  priceIdFromInvoiceLine,
+  shouldDowngradePlanFromStatus,
+} from '@/lib/billing/stripeWebhookHelpers';
 import {
   upsertUserSubscription,
   updateSubscriptionByCustomerId,
@@ -43,14 +49,14 @@ async function claimWebhookEvent(
 async function updateOrgFromWebhook(
   supabase: ReturnType<typeof createAdminClient>,
   orgId: string,
-  plan: BilledPlan,
+  plan: Plan,
   customerId: string | null,
   subscriptionId: string | null,
   status?: string,
 ): Promise<void> {
   const update: Record<string, string | number | null> = {
     plan,
-    seat_limit: getSeatLimitForPlan(plan),
+    seat_limit: plan === 'free' ? 1 : getSeatLimitForPlan(plan as BilledPlan),
   };
   if (customerId) update.stripe_customer_id = customerId;
   if (subscriptionId) update.stripe_subscription_id = subscriptionId;
@@ -88,13 +94,6 @@ async function resolvePlanFromSession(session: Stripe.Checkout.Session): Promise
   }
 
   return null;
-}
-
-function periodEndFromSubscription(subscription: Stripe.Subscription): string | null {
-  const item = subscription.items?.data?.[0];
-  const end = item?.current_period_end;
-  if (!end) return null;
-  return new Date(end * 1000).toISOString();
 }
 
 /**
@@ -290,14 +289,7 @@ export async function POST(req: Request) {
 
         if (!customerId) break;
 
-        let priceId: string | null = null;
-        const pricingPrice = invoice.lines.data[0]?.pricing?.price_details?.price;
-        if (typeof pricingPrice === 'string') {
-          priceId = pricingPrice;
-        } else if (pricingPrice && typeof pricingPrice === 'object' && 'id' in pricingPrice) {
-          priceId = (pricingPrice as Stripe.Price).id;
-        }
-
+        const priceId = priceIdFromInvoiceLine(invoice.lines.data[0]);
         const plan = priceId ? planFromPriceId(priceId) : null;
 
         try {
@@ -329,7 +321,7 @@ export async function POST(req: Request) {
         try {
           await updateSubscriptionByCustomerId(customerId, {
             plan: 'free',
-            status: 'inactive',
+            status: 'canceled',
             stripeSubscriptionId: null,
           });
           console.log(`[webhook] customer.subscription.deleted: customer ${customerId} downgraded to free`);
@@ -349,24 +341,34 @@ export async function POST(req: Request) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        const status = subscription.status;
+        const status = mapStripeSubscriptionStatus(subscription.status);
         const priceId = subscription.items.data[0]?.price?.id;
         const plan = priceId ? planFromPriceId(priceId) : null;
 
         const update: {
           status: string;
-          plan?: BilledPlan;
+          plan?: BilledPlan | 'free';
           stripeSubscriptionId?: string;
           currentPeriodEnd?: string | null;
-        } = { status, stripeSubscriptionId: subscription.id, currentPeriodEnd: periodEndFromSubscription(subscription) };
-        if (plan && (status === 'active' || status === 'trialing')) {
+        } = {
+          status,
+          stripeSubscriptionId: subscription.id,
+          currentPeriodEnd: periodEndFromSubscription(subscription),
+        };
+
+        if (shouldDowngradePlanFromStatus(status)) {
+          update.plan = 'free';
+        } else if (plan && (status === 'active' || status === 'trialing')) {
           update.plan = plan;
         }
 
         try {
           await updateSubscriptionByCustomerId(customerId, update);
           console.log(`[webhook] customer.subscription.updated: customer ${customerId} status → ${status}${plan ? `, plan → ${plan}` : ''}`);
-          if (plan && (status === 'active' || status === 'trialing')) {
+          const orgPlan: Plan | null =
+            update.plan ??
+            (plan && (status === 'active' || status === 'trialing') ? plan : null);
+          if (orgPlan) {
             const { data: orgs } = await supabase
               .from('organizations')
               .select('id')
@@ -375,7 +377,7 @@ export async function POST(req: Request) {
               await updateOrgFromWebhook(
                 supabase,
                 org.id,
-                plan,
+                orgPlan,
                 customerId,
                 subscription.id,
                 status,

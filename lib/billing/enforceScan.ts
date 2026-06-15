@@ -63,7 +63,7 @@ export async function enforceScanLimit(userId: string): Promise<EnforceScanResul
   const userWithPlan: UserWithPlan = {
     id: userId,
     email: profile.email,
-    plan: profile.plan,
+    plan: subscription.plan,
     subscription_status: subscription.status,
   };
 

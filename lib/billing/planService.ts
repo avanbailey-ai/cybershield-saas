@@ -10,6 +10,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_LIMITS, type Plan } from './plans';
 import { getEffectivePlan, normalizePlan, type UserWithPlan } from '@/lib/auth/permissions';
+import { getUserSubscription } from './subscriptionService';
 
 export type { Plan };
 
@@ -89,14 +90,17 @@ export async function getUserPlan(userId: string): Promise<Plan> {
   return getEffectivePlan(profile);
 }
 
-/** Build a UserWithPlan object for permission checks. */
+/** Build a UserWithPlan object for permission checks (subscriptions table is source of truth). */
 export async function getUserWithPlan(userId: string): Promise<UserWithPlan & { id: string }> {
-  const profile = await getUserProfile(userId);
+  const [profile, subscription] = await Promise.all([
+    getUserProfile(userId),
+    getUserSubscription(userId),
+  ]);
   return {
     id: userId,
     email: profile.email,
-    plan: profile.plan,
-    subscription_status: profile.subscription_status,
+    plan: subscription.plan ?? profile.plan,
+    subscription_status: subscription.status ?? profile.subscription_status,
   };
 }
 

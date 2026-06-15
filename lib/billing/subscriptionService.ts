@@ -115,7 +115,7 @@ export async function updateSubscriptionByCustomerId(
   const now = new Date().toISOString();
 
   const profileUpdate: Record<string, string | null> = { subscription_status: update.status };
-  if (update.plan) profileUpdate.plan = update.plan;
+  if (update.plan !== undefined) profileUpdate.plan = update.plan;
   if (update.stripeSubscriptionId !== undefined) profileUpdate.stripe_subscription_id = update.stripeSubscriptionId;
 
   const { data: profiles, error: profileErr } = await supabase
@@ -130,7 +130,7 @@ export async function updateSubscriptionByCustomerId(
     status: update.status,
     updated_at: now,
   };
-  if (update.plan) subRow.plan = update.plan;
+  if (update.plan !== undefined) subRow.plan = update.plan;
   if (update.stripeSubscriptionId !== undefined) subRow.stripe_subscription_id = update.stripeSubscriptionId;
   if (update.currentPeriodEnd !== undefined) subRow.current_period_end = update.currentPeriodEnd;
 
@@ -142,7 +142,7 @@ export async function updateSubscriptionByCustomerId(
   if (subErr && subErr.code !== '42P01') throw subErr;
 
   for (const row of profiles ?? []) {
-    if (update.plan) {
+    if (update.plan !== undefined) {
       await supabase.from('subscriptions').upsert(
         {
           user_id: row.id,
