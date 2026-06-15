@@ -10,6 +10,7 @@
 
 const { spawnSync } = require('child_process');
 const path = require('path');
+const { resolveGitPath } = require('./resolve-git-path');
 
 const root = path.resolve(__dirname, '..');
 const cleanOnly = process.argv.includes('--clean-only');
@@ -22,6 +23,13 @@ if (!cleanOnly && !fresh) {
 
 function run(status) {
   process.exit(status ?? 1);
+}
+
+if (!process.env.GIT_PATH) {
+  const resolved = resolveGitPath();
+  if (resolved !== 'git') {
+    process.env.GIT_PATH = resolved;
+  }
 }
 
 if (process.platform === 'win32') {

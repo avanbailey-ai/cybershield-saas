@@ -7,7 +7,7 @@
 #   .\scripts\dev-reset.ps1 -SkipPull -SkipDev   # cache clean, no dev server
 #
 # Env:
-#   GIT_PATH  -  full path to git.exe (optional)
+#   GIT_PATH  -  full path to git.exe (optional; auto-detected GitHub Desktop on Windows)
 
 param(
   [switch]$SkipDev,
@@ -16,7 +16,42 @@ param(
 
 $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$Git = if ($env:GIT_PATH) { $env:GIT_PATH } else { "git" }
+function Get-GitHubDesktopGit {
+  $base = Join-Path $env:LOCALAPPDATA "GitHubDesktop"
+  if (-not (Test-Path -LiteralPath $base)) { return $null }
+
+  $apps = Get-ChildItem -LiteralPath $base -Directory -Filter "app-*" |
+    Sort-Object Name -Descending
+
+  foreach ($app in $apps) {
+    $gitExe = Join-Path $app.FullName "resources\app\git\cmd\git.exe"
+    if (Test-Path -LiteralPath $gitExe) { return $gitExe }
+  }
+
+  return $null
+}
+
+function Resolve-GitExecutable {
+  if ($env:GIT_PATH -and (Test-Path -LiteralPath $env:GIT_PATH)) {
+    return $env:GIT_PATH
+  }
+  if ($env:GIT_PATH) {
+    Write-Warning "[dev-reset] GIT_PATH set but not found: $env:GIT_PATH"
+  }
+
+  $cmd = Get-Command git -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return $cmd.Source }
+
+  $desktopGit = Get-GitHubDesktopGit
+  if ($desktopGit) { return $desktopGit }
+
+  $programFilesGit = "C:\Program Files\Git\cmd\git.exe"
+  if (Test-Path -LiteralPath $programFilesGit) { return $programFilesGit }
+
+  return "git"
+}
+
+$Git = Resolve-GitExecutable
 $LockHashFile = Join-Path $Root "node_modules\.package-lock.hash"
 
 Set-Location $Root
