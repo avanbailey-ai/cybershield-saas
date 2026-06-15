@@ -36,6 +36,8 @@ import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
 
 import { checkQueueBackpressure } from './backpressure';
 
+import { getScanUsageStatus } from '@/lib/usage/checkScanLimit';
+
 import {
 
   RATE_LIMIT_MAX_SCANS,
@@ -70,7 +72,7 @@ export async function enqueueScan(params: {
 
   idempotencyKey?: string;
 
-  /** Set when API already ran checkAndIncrementScanUsage. */
+  /** Caller already ran checkAndIncrementScanUsage — skips duplicate increment only. */
   usagePreChecked?: boolean;
 
 }): Promise<EnqueueResult> {
@@ -166,12 +168,17 @@ export async function enqueueScan(params: {
 
 
   const billingGate = usagePreChecked
-    ? {
-        allowed: true as const,
-        plan: getEffectivePlan(await getUserWithPlan(userId, orgId)),
-        scansUsed: 0,
-        scansLimit: Infinity,
-      }
+    ? await (async () => {
+        const userWithPlan = await getUserWithPlan(userId, orgId);
+        const resolvedPlan = getEffectivePlan(userWithPlan);
+        const status = await getScanUsageStatus(userId, orgId);
+        return {
+          allowed: true as const,
+          plan: resolvedPlan,
+          scansUsed: status.scansUsed,
+          scansLimit: status.scansLimit,
+        };
+      })()
     : await enforceScanLimit(userId, orgId);
 
   const plan = billingGate.plan;
@@ -180,7 +187,7 @@ export async function enqueueScan(params: {
 
     console.warn(
 
-      `[ORCHESTRATOR] BLOCK reason=${billingGate.reason} user=${userId} plan=${plan} scansToday=${billingGate.scansUsed} limit=${billingGate.scansLimit}`,
+      `[scan-limit] scan_blocked reason=${billingGate.reason} user=${userId} orgId=${orgId} plan=${plan} scansToday=${billingGate.scansUsed} limit=${billingGate.scansLimit} source=${source}`,
 
     );
 
@@ -208,7 +215,7 @@ export async function enqueueScan(params: {
 
 
 
-  const userWithPlan = await getUserWithPlan(userId);
+  const userWithPlan = await getUserWithPlan(userId, orgId);
 
   const limits = getPlanLimits(plan);
 
@@ -604,7 +611,7 @@ export async function enqueueScan(params: {
 
     console.log(
 
-      `[ORCHESTRATOR] ALLOW source=${source} websiteId=${websiteId} jobId=${job.id} orgId=${orgId} plan=${plan} priority=${getPlanQueuePriority(plan)} scansToday=${billingGate.scansUsed + 1}/${billingGate.scansLimit}`,
+      `[scan-limit] scan_allowed source=${source} websiteId=${websiteId} jobId=${job.id} userId=${userId} orgId=${orgId} plan=${plan} scansToday=${billingGate.scansUsed}/${billingGate.scansLimit} usagePreChecked=${usagePreChecked}`,
 
     );
 

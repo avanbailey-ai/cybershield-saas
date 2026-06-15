@@ -1,12 +1,9 @@
 "use client";
 
-
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
-import { usePlan } from "@/lib/billing/usePlan";
-import { useUser } from "@/lib/auth/useUser";
+import { useUser } from '@/lib/auth/useUser';
 import { useScanQueueRealtime, type ScanQueueJob } from "@/lib/scanner/useScanQueueRealtime";
 import { getWebsiteUsageMessage } from "@/lib/billing/guards";
 import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
@@ -121,11 +118,17 @@ function ScoreSparkline({ scores }: { scores: number[] }) {
 export default function WebsiteList() {
 
   const router = useRouter();
-  const { id: userId } = useUser();
+  const {
+    id: userId,
+    plan,
+    limits,
+    websiteCount,
+    websitesRemaining,
+    loading: planLoading,
+    refresh: refreshPlan,
+  } = useUser();
 
   const { getWebsiteJob, getActiveJob, jobsByWebsite } = useScanQueueRealtime(userId || null);
-
-  const { plan, limits, websiteCount, websitesRemaining, loading: planLoading } = usePlan();
 
   const [websites, setWebsites] = useState<WebsiteRow[]>([]);
 
@@ -238,6 +241,7 @@ export default function WebsiteList() {
       }
 
       router.refresh();
+      void refreshPlan();
 
     } else if (job.status === "failed") {
 
@@ -251,7 +255,7 @@ export default function WebsiteList() {
 
     }
 
-  }, [scanningId, getWebsiteJob, router]);
+  }, [scanningId, getWebsiteJob, router, refreshPlan]);
 
 
 
@@ -286,10 +290,11 @@ export default function WebsiteList() {
       void fetchWebsites();
 
       router.refresh();
+      void refreshPlan();
 
     }
 
-  }, [jobsByWebsite, fetchWebsites, router]);
+  }, [jobsByWebsite, fetchWebsites, router, refreshPlan]);
 
 
 
@@ -348,6 +353,7 @@ export default function WebsiteList() {
       setShowAddForm(false);
 
       await fetchWebsites();
+      void refreshPlan();
 
       if (data.jobId) {
 
@@ -472,6 +478,7 @@ export default function WebsiteList() {
         clearScanState(websiteId);
 
         router.refresh();
+        void refreshPlan();
 
         return;
 
@@ -532,6 +539,7 @@ export default function WebsiteList() {
       }
 
       await fetchWebsites();
+      void refreshPlan();
 
     } catch (e) {
 

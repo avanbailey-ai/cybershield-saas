@@ -1,2 +1,2 @@
 export { sendEmail } from '@/lib/email';
-export { sendSecurityAlert } from '@/lib/sendAlertEmail';
+export { sendMonitoringAlert, sendSecurityAlert } from '@/lib/sendAlertEmail';

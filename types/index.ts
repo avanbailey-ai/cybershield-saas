@@ -19,6 +19,8 @@ export interface Profile {
   avatar_url: string | null;
 }
 
+export type ScanScheduleMode = 'daily_scan' | 'weekly_deep_scan' | 'hourly_monitor';
+
 export interface Website {
   id: string;
   user_id: string;
@@ -26,7 +28,10 @@ export interface Website {
   label: string | null;
   risk_score: number | null;
   last_scanned_at: string | null;
+  next_scan_at: string | null;
+  scan_frequency: ScanScheduleMode | null;
   created_at: string;
+  /** Monitoring enabled — cron enqueues when next_scan_at is due. */
   is_active: boolean;
 }
 

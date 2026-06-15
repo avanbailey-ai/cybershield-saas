@@ -1,3 +1,5 @@
+import { parseHtmlSnapshot, type PageSnapshotPartial } from './pageSnapshot';
+
 export interface HeaderChecks {
   csp: boolean;
   hsts: boolean;
@@ -12,6 +14,7 @@ export interface ScanResult {
   ssl: boolean;
   headers: HeaderChecks;
   rawHeaders: Record<string, string>;
+  pageSnapshot: PageSnapshotPartial;
   score: number;
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
   issues: string[];
@@ -37,6 +40,12 @@ export async function runScan(url: string): Promise<ScanResult> {
   const issues: string[] = [];
   const passed: string[] = [];
   let rawHeaders: Record<string, string> = {};
+  let pageSnapshot: PageSnapshotPartial = {
+    metaTags: {},
+    scripts: [],
+    loginFormDetected: false,
+    endpoints: [],
+  };
 
   const ssl = url.toLowerCase().startsWith('https://');
 
@@ -62,6 +71,7 @@ export async function runScan(url: string): Promise<ScanResult> {
         permissionsPolicy: false,
       },
       rawHeaders: {},
+      pageSnapshot,
       score: 0,
       riskLevel: 'critical',
       issues: [`Could not reach website: ${message}`],
@@ -69,6 +79,21 @@ export async function runScan(url: string): Promise<ScanResult> {
       explanation: `Scan failed: ${message}`,
       error: message,
     };
+  }
+
+  try {
+    const htmlResponse = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000),
+      headers: { 'User-Agent': 'CyberShield-Scanner/1.0' },
+    });
+    if (htmlResponse.ok) {
+      const html = await htmlResponse.text();
+      pageSnapshot = parseHtmlSnapshot(html, url);
+    }
+  } catch {
+    // HTML fetch is best-effort; header-based scan still succeeds.
   }
 
   let score = 100;
@@ -154,6 +179,10 @@ export async function runScan(url: string): Promise<ScanResult> {
     explanation += 'All major security headers are present.';
   }
 
+  if (pageSnapshot.loginFormDetected) {
+    passed.push('Login form detected on page');
+  }
+
   return {
     url,
     ssl,
@@ -166,6 +195,7 @@ export async function runScan(url: string): Promise<ScanResult> {
       permissionsPolicy: hasPermissions,
     },
     rawHeaders,
+    pageSnapshot,
     score,
     riskLevel,
     issues,

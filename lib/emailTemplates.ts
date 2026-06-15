@@ -176,6 +176,137 @@ export function weeklyDigestEmail(data: {
 </html>`;
 }
 
+const MONITORING_ALERT_LABELS: Record<string, string> = {
+  security_score_drop: 'Security Score Drop',
+  change_detected: 'Website Change Detected',
+  ssl_changed: 'SSL / HTTPS Change',
+  header_removed: 'Security Header Removed',
+  new_script_detected: 'New Script Detected',
+};
+
+export function monitoringAlertEmail(data: {
+  websiteUrl: string;
+  alertType: string;
+  severity: string;
+  headline: string;
+  summary: string;
+  changes: Array<{
+    label: string;
+    severity: string;
+    summary: string;
+    before: string;
+    after: string;
+  }>;
+  recommendedFix: string;
+  reportUrl: string;
+  previousScore?: number;
+  currentScore?: number;
+}): string {
+  const severityColor =
+    data.severity === 'critical' ? '#dc2626' :
+    data.severity === 'high' ? '#ea580c' :
+    data.severity === 'medium' ? '#ca8a04' : '#16a34a';
+
+  const severityLabel = data.severity.charAt(0).toUpperCase() + data.severity.slice(1);
+  const alertLabel = MONITORING_ALERT_LABELS[data.alertType] ?? 'Security Monitoring Alert';
+
+  const scoreBlock =
+    data.previousScore !== undefined && data.currentScore !== undefined
+      ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:24px;">
+          <p style="margin:0 0 8px;color:#64748b;font-size:13px;">Security Score</p>
+          <p style="margin:0;font-size:20px;font-weight:700;color:#0f172a;">
+            <span style="color:#94a3b8;text-decoration:line-through;">${data.previousScore}</span>
+            &nbsp;&rarr;&nbsp;
+            <span style="color:${severityColor};">${data.currentScore}</span>
+            <span style="font-size:14px;color:#94a3b8;">/100</span>
+          </p>
+        </div>`
+      : '';
+
+  const changeRows = data.changes.slice(0, 5).map((change) => {
+    const changeSeverityColor =
+      change.severity === 'critical' ? '#dc2626' :
+      change.severity === 'high' ? '#ea580c' :
+      change.severity === 'medium' ? '#ca8a04' : '#16a34a';
+
+    return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="color:#0f172a;font-size:14px;text-transform:capitalize;">${escapeHtml(change.label)}</strong>
+        <span style="background:${changeSeverityColor};color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;text-transform:uppercase;">${escapeHtml(change.severity)}</span>
+      </div>
+      <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.5;">${escapeHtml(change.summary)}</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
+        <tr>
+          <td style="width:50%;padding:8px;background:#fef2f2;border-radius:6px 0 0 6px;vertical-align:top;">
+            <p style="margin:0 0 4px;color:#991b1b;font-size:11px;font-weight:600;text-transform:uppercase;">Before</p>
+            <p style="margin:0;color:#374151;word-break:break-word;">${escapeHtml(change.before)}</p>
+          </td>
+          <td style="width:50%;padding:8px;background:#f0fdf4;border-radius:0 6px 6px 0;vertical-align:top;">
+            <p style="margin:0 0 4px;color:#166534;font-size:11px;font-weight:600;text-transform:uppercase;">After</p>
+            <p style="margin:0;color:#374151;word-break:break-word;">${escapeHtml(change.after)}</p>
+          </td>
+        </tr>
+      </table>
+    </div>`;
+  }).join('');
+
+  const moreChangesNote =
+    data.changes.length > 5
+      ? `<p style="margin:0 0 16px;color:#64748b;font-size:13px;">…and ${data.changes.length - 5} more change(s) in your dashboard.</p>`
+      : '';
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:system-ui,-apple-system,sans-serif;background:#f9fafb;margin:0;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+
+    <div style="background:#0f172a;padding:24px 32px;">
+      <p style="color:#94a3b8;margin:0;font-size:12px;letter-spacing:1px;text-transform:uppercase;">CyberShield Monitoring Alert</p>
+      <h1 style="color:#ffffff;margin:8px 0 0;font-size:22px;font-weight:700;">${escapeHtml(alertLabel)}</h1>
+    </div>
+
+    <div style="padding:32px;">
+      <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 16px;">
+        ${escapeHtml(data.headline)}
+      </p>
+
+      <div style="text-align:center;margin-bottom:24px;">
+        <span style="display:inline-block;background:${severityColor};color:#fff;font-size:12px;font-weight:700;padding:6px 14px;border-radius:99px;text-transform:uppercase;">${severityLabel} Severity</span>
+      </div>
+
+      ${scoreBlock}
+
+      <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 20px;">${escapeHtml(data.summary)}</p>
+
+      ${data.changes.length > 0 ? `
+      <h2 style="color:#0f172a;font-size:16px;margin:0 0 12px;">What changed</h2>
+      ${changeRows}
+      ${moreChangesNote}
+      ` : ''}
+
+      <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:16px;border-radius:0 8px 8px 0;margin-bottom:24px;">
+        <p style="margin:0;color:#1e40af;font-size:14px;line-height:1.5;">
+          <strong>Recommended fix:</strong> ${escapeHtml(data.recommendedFix)}
+        </p>
+      </div>
+
+      <a href="${data.reportUrl}" style="display:block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:8px;text-align:center;font-weight:600;font-size:15px;">
+        View Full Security Report &rarr;
+      </a>
+    </div>
+
+    <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e5e7eb;">
+      <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">
+        You&apos;re receiving this because you monitor <strong>${escapeHtml(data.websiteUrl)}</strong> on CyberShield.<br>
+        Monitoring alerts are limited to one email per alert type every 24 hours.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')

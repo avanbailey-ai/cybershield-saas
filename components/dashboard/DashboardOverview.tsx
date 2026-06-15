@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePlan } from '@/lib/billing/usePlan';
+import { useUser } from '@/lib/auth/useUser';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
 import ScanAllButton from './ScanAllButton';
 
@@ -42,7 +42,7 @@ export default function DashboardOverview({
   lastScan,
   criticalAlertCount,
 }: DashboardOverviewProps) {
-  const { plan, limits, scansToday, scansRemaining, loading } = usePlan();
+  const { plan, limits, scansToday, scansRemaining, loading } = useUser();
 
   if (loading) {
     return (

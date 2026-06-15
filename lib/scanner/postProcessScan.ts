@@ -13,7 +13,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assessRisk } from '@/lib/riskEngine';
-import { sendSecurityAlert } from '@/lib/sendAlertEmail';
+import { sendMonitoringAlert } from '@/lib/sendAlertEmail';
 import { generateAndStoreReport, extractDomain } from '@/lib/ai/storeReport';
 import { updateLeaderboard } from '@/lib/leaderboard/update';
 import { triggerScanEmailFunnel } from '@/lib/email/funnel';
@@ -21,6 +21,25 @@ import { emitEvent } from '@/lib/brain/eventBus';
 import type { ScanResult } from './runScan';
 import { getActiveOrgId } from '@/lib/org/context';
 import { buildRiskBreakdown } from './riskBreakdown';
+import { getUserWithPlan } from '@/lib/billing/planService';
+import { getEffectivePlan } from '@/lib/auth/permissions';
+import {
+  computeNextScanAt,
+  resolveScanModeForWebsite,
+} from '@/lib/jobs/scanFrequency';
+import {
+  buildSnapshotFromDbRow,
+  buildSnapshotFromScanResult,
+} from './pageSnapshot';
+import {
+  buildMonitoringChangeDetails,
+  detectScanChanges,
+  formatChangeAlert,
+  groupChangesByMonitoringAlertType,
+  maxChangeSeverity,
+  shouldAlertOnChanges,
+  type MonitoringAlertType,
+} from './diffDetection';
 
 export async function postProcessScan(params: {
   scanId: string;
@@ -43,22 +62,29 @@ export async function postProcessScan(params: {
 
   const { data: websiteRow } = await supabase
     .from('websites')
-    .select('org_id')
+    .select('org_id, scan_frequency, is_active')
     .eq('id', websiteId)
     .single();
   const orgId = websiteRow?.org_id ?? (await getActiveOrgId(userId));
 
-  // Fetch the previous scan's risk score for risk-increase detection
+  // Fetch the previous completed scan for risk-increase and change detection
   const { data: prevScans } = await supabase
     .from('scans')
-    .select('risk_score')
+    .select('id, risk_score, security_score, ssl_valid, headers, scan_snapshot')
     .eq('website_id', websiteId)
     .eq('status', 'completed')
     .neq('id', scanId)
     .order('completed_at', { ascending: false })
     .limit(1);
 
-  const previousRiskScore: number | null = prevScans?.[0]?.risk_score ?? null;
+  const previousScanRow = prevScans?.[0] ?? null;
+  const previousRiskScore: number | null = previousScanRow?.risk_score ?? null;
+  const previousSecurityScore: number | null = previousScanRow?.security_score ?? null;
+  const currentSnapshot = buildSnapshotFromScanResult({
+    ssl: scanResult.ssl,
+    rawHeaders: scanResult.rawHeaders,
+    pageSnapshot: scanResult.pageSnapshot,
+  });
 
   // 1. Persist scan results
   const { error: scanUpdateErr } = await supabase.from('scans').update({
@@ -77,6 +103,7 @@ export async function postProcessScan(params: {
     recommendations: risk.recommendations,
     vulnerabilities_count: scanResult.issues.length,
     error_message: scanResult.error ?? null,
+    scan_snapshot: currentSnapshot,
   }).eq('id', scanId);
 
   if (scanUpdateErr) {
@@ -84,11 +111,26 @@ export async function postProcessScan(params: {
     throw scanUpdateErr; // Bubble up so worker marks job failed
   }
 
-  // 2. Update website metadata
-  await supabase.from('websites').update({
+  // 2. Update website metadata + schedule next automated scan
+  const websiteUpdate: {
+    risk_score: number;
+    last_scanned_at: string;
+    next_scan_at?: string;
+  } = {
     risk_score: newRiskScore,
     last_scanned_at: now,
-  }).eq('id', websiteId);
+  };
+
+  if (!scanResult.error && websiteRow?.is_active) {
+    const userWithPlan = await getUserWithPlan(userId, orgId);
+    const plan = getEffectivePlan(userWithPlan);
+    const mode = resolveScanModeForWebsite(plan, websiteRow.scan_frequency);
+    if (mode) {
+      websiteUpdate.next_scan_at = computeNextScanAt(plan, mode, new Date(now));
+    }
+  }
+
+  await supabase.from('websites').update(websiteUpdate).eq('id', websiteId);
 
   console.log(`[POST-PROCESS] Scan record and website updated for scanId=${scanId}`);
 
@@ -98,12 +140,12 @@ export async function postProcessScan(params: {
       .from('alerts')
       .select('id')
       .eq('scan_id', scanId)
-      .eq('type', 'ssl')
+      .eq('type', 'ssl_changed')
       .limit(1);
 
     if (!existingSSL || existingSSL.length === 0) {
       try {
-        await supabase.from('alerts').insert({
+        const { data: sslAlert } = await supabase.from('alerts').insert({
           user_id: userId,
           website_id: websiteId,
           scan_id: scanId,
@@ -112,16 +154,39 @@ export async function postProcessScan(params: {
           message:
             'This website does not use HTTPS. All traffic is unencrypted and users are at risk of data interception.',
           severity: 'critical',
-          type: 'ssl',
+          type: 'ssl_changed',
           is_read: false,
-        });
+        }).select('id').single();
+
+        if (sslAlert?.id) {
+          try {
+            const emailResult = await sendMonitoringAlert(sslAlert.id, {
+              changeDetails: [
+                {
+                  label: 'ssl status',
+                  severity: 'critical',
+                  summary: 'HTTPS/SSL is not detected on this website',
+                  before: previousScanRow?.ssl_valid ? 'HTTPS enabled' : 'HTTPS not detected',
+                  after: 'HTTPS not detected',
+                },
+              ],
+            });
+            if (!emailResult.sent && !emailResult.skipped) {
+              console.error(
+                `[POST-PROCESS] SSL alert email not sent for alert=${sslAlert.id} reason=${emailResult.reason ?? 'unknown'}`,
+              );
+            }
+          } catch (err) {
+            console.error('[POST-PROCESS] SSL alert email failed (non-fatal):', err);
+          }
+        }
       } catch (err) {
         console.error('[POST-PROCESS] SSL alert creation failed (non-fatal):', err);
       }
     }
   }
 
-  // 3b. Security score alert + email (24h dedup handled inside sendSecurityAlert)
+  // 3b. Security score alert + email (per-type 24h cooldown in sendMonitoringAlert)
   if (scanResult.score < 60) {
     try {
       const { data: existingSecIssue } = await supabase
@@ -147,7 +212,22 @@ export async function postProcessScan(params: {
 
         if (alert?.id) {
           try {
-            const emailResult = await sendSecurityAlert(alert.id);
+            const emailResult = await sendMonitoringAlert(alert.id, {
+              currentScore: scanResult.score,
+              previousScore: previousSecurityScore ?? undefined,
+              changeDetails: [
+                {
+                  label: 'security score',
+                  severity,
+                  summary: scanResult.explanation,
+                  before:
+                    previousSecurityScore !== null
+                      ? `${previousSecurityScore}/100`
+                      : 'No prior baseline',
+                  after: `${scanResult.score}/100`,
+                },
+              ],
+            });
             if (!emailResult.sent && !emailResult.skipped) {
               console.error(
                 `[POST-PROCESS] Alert email not sent for alert=${alert.id} reason=${emailResult.reason ?? 'unknown'}`,
@@ -160,6 +240,66 @@ export async function postProcessScan(params: {
       }
     } catch (err) {
       console.error('[POST-PROCESS] Security alert creation failed (non-fatal):', err);
+    }
+  }
+
+  // 3b2. Security score drop — when score falls 10+ points vs previous scan
+  if (
+    previousSecurityScore !== null &&
+    scanResult.score <= previousSecurityScore - 10
+  ) {
+    try {
+      const { data: existingScoreDrop } = await supabase
+        .from('alerts')
+        .select('id')
+        .eq('scan_id', scanId)
+        .eq('type', 'security_score_drop')
+        .limit(1);
+
+      if (!existingScoreDrop || existingScoreDrop.length === 0) {
+        const dropAmount = previousSecurityScore - scanResult.score;
+        const severity: 'critical' | 'high' | 'medium' =
+          dropAmount >= 25 ? 'critical' : dropAmount >= 15 ? 'high' : 'medium';
+
+        const { data: scoreDropAlert } = await supabase.from('alerts').insert({
+          user_id: userId,
+          website_id: websiteId,
+          scan_id: scanId,
+          org_id: orgId,
+          title: `Security score dropped on ${url}`,
+          message: `Security score decreased from ${previousSecurityScore} to ${scanResult.score} (−${dropAmount} points).`,
+          severity,
+          type: 'security_score_drop',
+          is_read: false,
+        }).select('id').single();
+
+        if (scoreDropAlert?.id) {
+          try {
+            const emailResult = await sendMonitoringAlert(scoreDropAlert.id, {
+              previousScore: previousSecurityScore,
+              currentScore: scanResult.score,
+              changeDetails: [
+                {
+                  label: 'security score',
+                  severity,
+                  summary: `Score dropped by ${dropAmount} points since the last scan`,
+                  before: `${previousSecurityScore}/100`,
+                  after: `${scanResult.score}/100`,
+                },
+              ],
+            });
+            if (!emailResult.sent && !emailResult.skipped) {
+              console.error(
+                `[POST-PROCESS] Score drop email not sent for alert=${scoreDropAlert.id} reason=${emailResult.reason ?? 'unknown'}`,
+              );
+            }
+          } catch (err) {
+            console.error('[POST-PROCESS] Score drop email failed (non-fatal):', err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[POST-PROCESS] Score drop alert creation failed (non-fatal):', err);
     }
   }
 
@@ -194,6 +334,90 @@ export async function postProcessScan(params: {
     console.log(
       `[POST-PROCESS] Risk increase detected for ${url}: ${previousRiskScore} → ${newRiskScore}`,
     );
+  }
+
+  // 3d. Website change detection — compare against prior completed scan snapshot
+  if (!scanResult.error) {
+    const previousSnapshot = previousScanRow
+      ? buildSnapshotFromDbRow(previousScanRow)
+      : null;
+    const changeDiff = detectScanChanges(previousSnapshot, currentSnapshot, now);
+
+    if (changeDiff.changes.length > 0) {
+      try {
+        await supabase.from('scan_changes').insert(
+          changeDiff.changes.map((change) => ({
+            scan_id: scanId,
+            website_id: websiteId,
+            type: change.type,
+            severity: change.severity,
+            description: change.description,
+            detected_at: change.detectedAt,
+          })),
+        );
+      } catch (err) {
+        console.error('[POST-PROCESS] scan_changes persistence failed (non-fatal):', err);
+      }
+
+      if (shouldAlertOnChanges(changeDiff)) {
+        const groupedChanges = groupChangesByMonitoringAlertType(changeDiff.changes);
+
+        for (const [alertType, typeChanges] of groupedChanges) {
+          const { data: existingChangeAlert } = await supabase
+            .from('alerts')
+            .select('id')
+            .eq('scan_id', scanId)
+            .eq('type', alertType)
+            .limit(1);
+
+          if (existingChangeAlert && existingChangeAlert.length > 0) continue;
+
+          const { title, message } = formatChangeAlert(url, typeChanges);
+          const alertSeverity = maxChangeSeverity(typeChanges);
+          const changeDetails = buildMonitoringChangeDetails(
+            previousSnapshot,
+            currentSnapshot,
+            typeChanges,
+          );
+
+          try {
+            const { data: changeAlert } = await supabase.from('alerts').insert({
+              user_id: userId,
+              website_id: websiteId,
+              scan_id: scanId,
+              org_id: orgId,
+              title,
+              message,
+              severity: alertSeverity,
+              type: alertType as MonitoringAlertType,
+              is_read: false,
+            }).select('id').single();
+
+            if (changeAlert?.id) {
+              try {
+                const emailResult = await sendMonitoringAlert(changeAlert.id, { changeDetails });
+                if (!emailResult.sent && !emailResult.skipped) {
+                  console.error(
+                    `[POST-PROCESS] Change alert email not sent for alert=${changeAlert.id} type=${alertType} reason=${emailResult.reason ?? 'unknown'}`,
+                  );
+                }
+              } catch (err) {
+                console.error('[POST-PROCESS] Change alert email failed (non-fatal):', err);
+              }
+            }
+          } catch (err) {
+            console.error(
+              `[POST-PROCESS] Website change alert creation failed for type=${alertType} (non-fatal):`,
+              err,
+            );
+          }
+        }
+      }
+
+      console.log(
+        `[POST-PROCESS] Detected ${changeDiff.changes.length} website change(s) for scanId=${scanId}`,
+      );
+    }
   }
 
   // 4. Growth Engine V2 — fire-and-forget (never block critical path)

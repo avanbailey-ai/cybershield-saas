@@ -12,17 +12,11 @@ import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from "@/lib/o
 import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
+import { getOrgDashboardSummary } from "@/lib/enterprise/orgDashboardSummary";
 
 export const metadata: Metadata = {
   title: "Enterprise Dashboard",
 };
-
-function scoreBucket(score: number): "critical" | "high" | "medium" | "low" {
-  if (score < 50) return "critical";
-  if (score < 70) return "high";
-  if (score < 90) return "medium";
-  return "low";
-}
 
 export default async function EnterpriseDashboardPage() {
   const supabase = await createClient();
@@ -60,8 +54,6 @@ export default async function EnterpriseDashboardPage() {
   const admin = createAdminClient();
 
   let memberCount = 0;
-  let avgScore: number | null = null;
-  let openAlerts = 0;
   let recentScans: Array<{
     id: string;
     security_score: number | null;
@@ -69,10 +61,25 @@ export default async function EnterpriseDashboardPage() {
     started_at: string;
     websites: { url: string; label: string | null } | null;
   }> = [];
-  const scoreBuckets = { critical: 0, high: 0, medium: 0, low: 0 };
+
+  const emptySummary = {
+    totalSitesMonitored: 0,
+    riskDistribution: { critical: 0, high: 0, medium: 0, low: 0, unknown: 0 },
+    criticalAlertsCount: 0,
+    openAlertsCount: 0,
+    avgScore: null as number | null,
+    sitesByClientGroup: [] as Array<{
+      clientGroup: string;
+      siteCount: number;
+      criticalAlertsCount: number;
+      riskDistribution: { critical: number; high: number; medium: number; low: number; unknown: number };
+    }>,
+  };
+
+  let summary = emptySummary;
 
   if (orgId) {
-    const [membersRes, scansRes, alertsRes] = await Promise.all([
+    const [membersRes, scansRes, orgSummary] = await Promise.all([
       admin
         .from("organization_members")
         .select("*", { count: "exact", head: true })
@@ -83,33 +90,20 @@ export default async function EnterpriseDashboardPage() {
         .eq("org_id", orgId)
         .order("started_at", { ascending: false })
         .limit(20),
-      admin
-        .from("alerts")
-        .select("*", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .eq("resolved", false),
+      getOrgDashboardSummary(orgId),
     ]);
 
     memberCount = membersRes.count ?? 0;
-    openAlerts = alertsRes.count ?? 0;
+    summary = orgSummary;
     recentScans = (scansRes.data ?? []).map((s) => ({
       ...s,
       websites: Array.isArray(s.websites) ? s.websites[0] ?? null : s.websites,
     })) as typeof recentScans;
-
-    const completed = recentScans.filter(
-      (s) => s.status === "completed" && s.security_score !== null,
-    );
-    if (completed.length > 0) {
-      avgScore = Math.round(
-        completed.reduce((sum, s) => sum + (s.security_score ?? 0), 0) / completed.length,
-      );
-      for (const s of completed) {
-        const bucket = scoreBucket(s.security_score ?? 0);
-        scoreBuckets[bucket]++;
-      }
-    }
   }
+
+  const { totalSitesMonitored, riskDistribution, criticalAlertsCount, openAlertsCount, avgScore, sitesByClientGroup } =
+    summary;
+  const scoreBuckets = riskDistribution;
 
   const orgRole = orgCtx.role ?? (orgId ? await getUserOrgRole(user.id, orgId) : null);
   const resolvedPlan = normalizePlan(orgCtx.access.plan);
@@ -153,7 +147,15 @@ export default async function EnterpriseDashboardPage() {
           )}
         </div>
 
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Sites Monitored</p>
+            <p className="mt-2 text-3xl font-bold text-white">{totalSitesMonitored}</p>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Critical Alerts</p>
+            <p className="mt-2 text-3xl font-bold text-red-400">{criticalAlertsCount}</p>
+          </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Avg Score</p>
             <p className="mt-2 text-3xl font-bold text-white">
@@ -162,7 +164,7 @@ export default async function EnterpriseDashboardPage() {
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Open Alerts</p>
-            <p className="mt-2 text-3xl font-bold text-orange-400">{openAlerts}</p>
+            <p className="mt-2 text-3xl font-bold text-orange-400">{openAlertsCount}</p>
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Team Members</p>
@@ -177,7 +179,8 @@ export default async function EnterpriseDashboardPage() {
         </div>
 
         <div className="mb-8 rounded-xl border border-gray-800 bg-gray-900/50 p-6">
-          <h3 className="mb-4 text-sm font-semibold text-white">Risk Distribution</h3>
+          <h3 className="mb-1 text-sm font-semibold text-white">Risk Distribution</h3>
+          <p className="mb-4 text-xs text-gray-500">Latest completed scan per monitored site</p>
           <div className="space-y-3">
             {(
               [
@@ -185,6 +188,7 @@ export default async function EnterpriseDashboardPage() {
                 { key: "high", label: "High (50–69)", color: "bg-orange-500", text: "text-orange-400" },
                 { key: "medium", label: "Medium (70–89)", color: "bg-yellow-500", text: "text-yellow-400" },
                 { key: "low", label: "Low (90+)", color: "bg-green-500", text: "text-green-400" },
+                { key: "unknown", label: "Not scanned", color: "bg-gray-500", text: "text-gray-400" },
               ] as const
             ).map(({ key, label, color, text }) => {
               const count = scoreBuckets[key];
@@ -204,6 +208,45 @@ export default async function EnterpriseDashboardPage() {
             })}
           </div>
         </div>
+
+        {sitesByClientGroup.length > 0 && (
+          <div className="mb-8 rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+            <h3 className="mb-1 text-sm font-semibold text-white">Sites by Client</h3>
+            <p className="mb-4 text-xs text-gray-500">Grouped by optional client_group on each website</p>
+            <ul className="space-y-2">
+              {sitesByClientGroup.map((group) => (
+                <li
+                  key={group.clientGroup}
+                  className="flex items-center justify-between rounded-lg bg-gray-800/40 px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm text-gray-200">{group.clientGroup}</p>
+                    <p className="text-xs text-gray-500">
+                      {group.siteCount} site{group.siteCount === 1 ? "" : "s"}
+                      {group.criticalAlertsCount > 0 && (
+                        <span className="ml-2 text-red-400">
+                          · {group.criticalAlertsCount} critical alert
+                          {group.criticalAlertsCount === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    {group.riskDistribution.critical > 0 && (
+                      <span className="text-red-400">{group.riskDistribution.critical} critical</span>
+                    )}
+                    {group.riskDistribution.high > 0 && (
+                      <span className="text-orange-400">{group.riskDistribution.high} high</span>
+                    )}
+                    {group.riskDistribution.unknown > 0 && (
+                      <span>{group.riskDistribution.unknown} unscanned</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
           <h3 className="mb-4 text-sm font-semibold text-white">Recent Org Scans</h3>

@@ -49,6 +49,13 @@ export async function getScanUsageStatus(
  * Atomically verify daily scan allowance and increment usage before enqueue.
  * Syncs plan from profiles on each call via getEffectiveMaxScansPerDay.
  */
+function logScanLimit(
+  event: 'scan_allowed' | 'scan_blocked',
+  details: Record<string, unknown>,
+): void {
+  console.log(`[scan-limit] ${event}`, details);
+}
+
 export async function checkAndIncrementScanUsage(
   userId: string,
   plan: Plan,
@@ -56,6 +63,7 @@ export async function checkAndIncrementScanUsage(
 ): Promise<ScanUsageCheckResult> {
   const profile = await getUserProfile(userId);
   if (isOwner(profile.email)) {
+    logScanLimit('scan_allowed', { userId, orgId, plan: 'owner', reason: 'owner_bypass' });
     return { allowed: true, remaining: Infinity, scansUsed: 0, scansLimit: Infinity };
   }
 
@@ -74,9 +82,18 @@ export async function checkAndIncrementScanUsage(
     const usage = await getUsage(userId, today);
     const scanCheck = canRunScan(userWithPlan, usage.scans_used, scansLimit);
     if (!scanCheck.allowed) {
+      const reason = scanCheck.message ?? 'Daily scan limit reached';
+      logScanLimit('scan_blocked', {
+        userId,
+        orgId,
+        plan,
+        reason,
+        scansUsed: usage.scans_used,
+        scansLimit,
+      });
       return {
         allowed: false,
-        reason: scanCheck.message ?? 'Daily scan limit reached',
+        reason,
         scansUsed: usage.scans_used,
         scansLimit,
         remaining: 0,
@@ -84,6 +101,14 @@ export async function checkAndIncrementScanUsage(
     }
     const { error: incErr } = await admin.rpc('increment_scan_usage', { p_user_id: userId });
     if (incErr) {
+      logScanLimit('scan_blocked', {
+        userId,
+        orgId,
+        plan,
+        reason: 'unable_to_record_usage',
+        scansUsed: usage.scans_used,
+        scansLimit,
+      });
       return {
         allowed: false,
         reason: 'Unable to record scan usage',
@@ -93,6 +118,14 @@ export async function checkAndIncrementScanUsage(
       };
     }
     const nextUsed = usage.scans_used + 1;
+    logScanLimit('scan_allowed', {
+      userId,
+      orgId,
+      plan,
+      scansUsed: nextUsed,
+      scansLimit,
+      remaining: scansLimit === Infinity ? undefined : Math.max(0, scansLimit - nextUsed),
+    });
     return {
       allowed: true,
       scansUsed: nextUsed,
@@ -124,6 +157,14 @@ export async function checkAndIncrementScanUsage(
         ? `Upgrade to ${upgrade} for more daily scans`
         : `You've reached your daily scan limit (${scansLimit})`);
 
+    logScanLimit('scan_blocked', {
+      userId,
+      orgId,
+      plan,
+      reason: message,
+      scansUsed: payload.scans_used ?? scansLimit,
+      scansLimit,
+    });
     return {
       allowed: false,
       reason: message,
@@ -133,6 +174,14 @@ export async function checkAndIncrementScanUsage(
     };
   }
 
+  logScanLimit('scan_allowed', {
+    userId,
+    orgId,
+    plan,
+    scansUsed: payload.scans_used,
+    scansLimit,
+    remaining: payload.remaining ?? undefined,
+  });
   return {
     allowed: true,
     scansUsed: payload.scans_used,

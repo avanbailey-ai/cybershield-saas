@@ -40,6 +40,19 @@ const DEFAULT: UserInfo = {
 let cached: UserInfo | null = null;
 let inflight: Promise<UserInfo | null> | null = null;
 
+type UserInfoSubscriber = (info: UserInfo) => void;
+const subscribers = new Set<UserInfoSubscriber>();
+
+function publish(info: UserInfo): void {
+  cached = info;
+  subscribers.forEach((subscriber) => subscriber(info));
+}
+
+function subscribe(subscriber: UserInfoSubscriber): () => void {
+  subscribers.add(subscriber);
+  return () => subscribers.delete(subscriber);
+}
+
 const CHECKOUT_REFRESH_ATTEMPTS = 5;
 const CHECKOUT_REFRESH_INTERVAL_MS = 2000;
 
@@ -102,7 +115,7 @@ function loadUserInfo(): Promise<UserInfo | null> {
 
   inflight = fetchUserInfo()
     .then((info) => {
-      if (info) cached = info;
+      if (info) publish(info);
       return info;
     })
     .finally(() => {
@@ -118,24 +131,25 @@ export function useUser(): UserInfo & { refresh: () => Promise<void> } {
   const checkoutRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
+    publish({ ...(cached ?? DEFAULT), loading: true });
     cached = null;
-    setInfo((prev) => ({ ...prev, loading: true }));
     const next = await fetchUserInfo();
     if (next) {
-      cached = next;
-      setInfo(next);
+      publish(next);
     } else {
-      setInfo({ ...DEFAULT, loading: false });
+      publish({ ...DEFAULT, loading: false });
     }
   }, []);
+
+  useEffect(() => subscribe(setInfo), []);
 
   useEffect(() => {
     let cancelled = false;
 
     loadUserInfo().then((next) => {
       if (cancelled) return;
-      if (next) setInfo(next);
-      else setInfo({ ...DEFAULT, loading: false });
+      if (next) publish(next);
+      else publish({ ...DEFAULT, loading: false });
     });
 
     function onVisible() {

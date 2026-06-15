@@ -17,7 +17,7 @@ export const PLAN_LIMITS = {
     name: 'Pro',
     websites: 25,
     maxScansPerDay: 50,
-    scanFrequency: 'weekly' as const,
+    scanFrequency: 'daily' as const,
     stripePriceEnvKey: 'STRIPE_PRICE_PRO',
   },
   growth: {
@@ -83,8 +83,7 @@ export function formatWebsiteLimit(websites: number): string {
 export function formatScanFrequency(frequency: (typeof PLAN_LIMITS)[Plan]['scanFrequency']): string {
   const labels: Record<(typeof PLAN_LIMITS)[Plan]['scanFrequency'], string> = {
     manual: 'Manual scans',
-    weekly: 'Weekly scans',
-    daily: 'Daily scans',
+    daily: 'Daily + weekly deep scans',
     hourly: 'Hourly monitoring',
   };
   return labels[frequency];

@@ -35,7 +35,7 @@ export const PLANS: Record<PlanId, Plan> = {
     id: 'pro',
     name: 'Pro',
     websiteLimit: 25,
-    scanFrequency: 'weekly',
+    scanFrequency: 'daily',
   },
   growth: {
     id: 'growth',

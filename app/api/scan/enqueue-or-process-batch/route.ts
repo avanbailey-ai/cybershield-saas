@@ -27,6 +27,7 @@ async function handleRequest(req: Request) {
 
   logApiTiming('/api/scan/enqueue-or-process-batch', result.durationMs, 200, {
     enqueued: enqueueResult.queued,
+    enqueueBlocked: enqueueResult.blocked,
     processed: result.processed,
     failed: result.failed,
     skipped: result.skipped,
@@ -35,6 +36,7 @@ async function handleRequest(req: Request) {
 
   return NextResponse.json({
     enqueued: enqueueResult.queued,
+    enqueueBlocked: enqueueResult.blocked,
     enqueueSkipped: enqueueResult.skipped,
     processed: result.processed,
     failed: result.failed,

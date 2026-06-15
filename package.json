@@ -13,7 +13,8 @@
     "enforce:layers": "node scripts/enforce-layers.mjs",
     "enforce:layers:staged": "node scripts/enforce-layers.mjs --staged",
     "ci:check": "node scripts/enforce-layers.mjs --pr && npm run build && npm run smoke:scan",
-    "smoke:scan": "tsx scripts/smoke-scan-core.ts"
+    "smoke:scan": "tsx scripts/smoke-scan-core.ts",
+    "smoke:production": "node scripts/smoke-production-check.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
