@@ -1,12 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePlan } from '@/lib/billing/usePlan';
 
 export default function ScanAllButton() {
-  const router = useRouter();
   const { limits, scansToday, scansRemaining, loading: planLoading } = usePlan();
   const isScanningRef = useRef(false);
   const [loading, setLoading] = useState(false);
@@ -53,12 +51,7 @@ export default function ScanAllButton() {
         return;
       }
 
-      setStatus(`Queued ${enqueueData.queued} website(s) — processing in background...`);
-
-      // Poll queue status briefly (non-blocking UX)
-      await new Promise((r) => setTimeout(r, 2000));
-      router.refresh();
-      setStatus(`Done: ${enqueueData.queued} scan(s) queued${enqueueData.blocked > 0 ? `, ${enqueueData.blocked} blocked` : ''}`);
+      setStatus(`Queued ${enqueueData.queued} website(s) — updates appear live`);
     } catch (err) {
       setStatus('Error — check console for details');
       console.error('[ScanAll]', err);

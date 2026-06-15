@@ -42,13 +42,7 @@ export async function GET() {
 
     .from('websites')
 
-    .select(`
-
-      id, url, label, is_active, created_at, last_scanned_at, org_id,
-
-      scans(id, security_score, status, completed_at, started_at)
-
-    `)
+    .select('id, url, label, is_active, created_at, last_scanned_at, org_id')
 
     .order('created_at', { ascending: false })
 
@@ -74,23 +68,45 @@ export async function GET() {
 
 
 
-  const withLatestScan = (websites ?? []).map((w: Record<string, unknown>) => {
+  const { data: queueJobs } = await supabase
 
-    const scans = (w.scans as Array<{ started_at: string; [key: string]: unknown }> | null) ?? []
+    .from('scan_queue')
 
-    const sorted = [...scans].sort(
+    .select('id, website_id, status, domain, result, error, created_at, started_at, completed_at')
 
-      (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+    .eq('user_id', user.id)
 
-    )
+    .order('created_at', { ascending: false })
 
-    return { ...w, scans: undefined, latestScan: sorted[0] ?? null }
+    .limit(500)
+
+
+
+  const latestByWebsite = new Map<string, Record<string, unknown>>()
+
+  for (const job of queueJobs ?? []) {
+
+    if (!latestByWebsite.has(job.website_id)) {
+
+      latestByWebsite.set(job.website_id, job)
+
+    }
+
+  }
+
+
+
+  const withQueueStatus = (websites ?? []).map((w: Record<string, unknown>) => {
+
+    const latestQueueJob = latestByWebsite.get(w.id as string) ?? null
+
+    return { ...w, latestQueueJob }
 
   })
 
 
 
-  return NextResponse.json(withLatestScan)
+  return NextResponse.json(withQueueStatus)
 
 }
 

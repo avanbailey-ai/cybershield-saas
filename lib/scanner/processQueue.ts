@@ -83,11 +83,13 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
     console.error('[scanWorker] ERROR', { jobId: job.id, websiteId: job.website_id, msg, error: err });
 
   if (!job.source || job.source === 'unknown') {
+    const errMsg = 'missing_source: bypassed orchestrator';
     await supabase
       .from('scan_queue')
       .update({
         status: 'failed',
-        error: 'missing_source: bypassed orchestrator',
+        error: errMsg,
+        result: { error: errMsg },
         completed_at: new Date().toISOString(),
         locked_at: null,
       })
@@ -108,6 +110,7 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       .update({
         status: 'failed',
         error: 'Website not found',
+        result: { error: 'Website not found' },
         completed_at: new Date().toISOString(),
         locked_at: null,
       })
@@ -176,15 +179,7 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       .from('scans')
       .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
       .eq('id', scanRecordId);
-    await supabase
-      .from('scan_queue')
-      .update({
-        status: 'failed',
-        error: String(err),
-        completed_at: new Date().toISOString(),
-        locked_at: null,
-      })
-      .eq('id', job.id);
+    await markScanJobFailed(job.id, fresh.attempts ?? 0, fresh.max_attempts ?? DEFAULT_MAX_ATTEMPTS, String(err));
     return { ...base, url: website.url, success: false, error: String(err) };
   }
 
@@ -231,6 +226,7 @@ async function markScanJobFailed(
         status: 'pending',
         attempts,
         error: errorMessage,
+        result: { error: errorMessage },
         locked_at: null,
         started_at: null,
       })
@@ -242,6 +238,7 @@ async function markScanJobFailed(
         status: 'failed',
         attempts,
         error: errorMessage,
+        result: { error: errorMessage },
         completed_at: new Date().toISOString(),
         locked_at: null,
       })

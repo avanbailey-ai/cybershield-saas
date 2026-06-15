@@ -6,24 +6,25 @@
  *
  * Enforcement order:
  *   1. Validate website ownership
- *   2. Check daily scan limit (plan-gated)         ← billing enforcement
+ *   2. Billing gate (subscription + daily scan limit)  ← enforceScanLimit
  *   3. Check website limit (plan-gated, api/manual only)
  *   4. 10-minute per-website cooldown (api/manual only; bypass via bypassCooldown)
  *   5. Duplicate pending/processing job check
  *   6. 60-second burst rate limit (api/manual only)
- *   7. Increment usage counter atomically
- *   8. Per-org hourly rate limit (when org_id present)
- *   9. Insert job into scan_queue (with optional org_id)
+ *   7. Per-org hourly rate limit (when org_id present)
+ *   8. Insert job into scan_queue (with optional org_id)
+ *   9. Increment usage counter on successful enqueue only
  *
  * This IS the enterprise job queue — no separate lib/jobs/queue.ts.
  * processQueue.ts is the worker; orchestrator is the gateway.
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getUserWithPlan, getUserPlan, getPlanLimits, getEffectiveMaxScansPerDay } from '@/lib/billing/planService';
-import { canAddWebsite, canRunScan } from '@/lib/auth/permissions';
+import { getUserWithPlan, getPlanLimits } from '@/lib/billing/planService';
+import { enforceScanLimit } from '@/lib/billing/enforceScan';
+import { canAddWebsite } from '@/lib/auth/permissions';
 import type { Plan } from '@/lib/billing/plans';
-import { getUsage, incrementScanUsage, decrementScanUsage, getUserWebsiteCount } from '@/lib/billing/usageService';
+import { incrementScanUsage, getUserWebsiteCount } from '@/lib/billing/usageService';
 import { getActiveOrgId, getOrganization } from '@/lib/org/context';
 import { getOrgHourlyScanLimit } from '@/lib/billing/orgPlans';
 import { auditLog } from '@/lib/audit/log';
@@ -112,30 +113,27 @@ export async function enqueueScan(params: {
     orgId = website.org_id ?? (await getActiveOrgId(userId));
   }
 
-  // ── 2. Billing: daily scan limit ──────────────────────────────────────────
-  const userWithPlan = await getUserWithPlan(userId);
-  const plan = await getUserPlan(userId);
-  const limits = getPlanLimits(plan);
-  const effectiveMaxScans = await getEffectiveMaxScansPerDay(userId);
-  const today = new Date().toISOString().split('T')[0];
-  const usage = await getUsage(userId, today);
-
-  const scanCheck = canRunScan(userWithPlan, usage.scans_used, effectiveMaxScans);
-  if (!scanCheck.allowed) {
+  // ── 2. Billing gate: subscription + daily scan limit ─────────────────────
+  const billingGate = await enforceScanLimit(userId);
+  const plan = billingGate.plan;
+  if (!billingGate.allowed) {
     console.warn(
-      `[ORCHESTRATOR] BLOCK reason=scan_limit_reached user=${userId} plan=${plan} scansToday=${usage.scans_used} limit=${effectiveMaxScans}`,
+      `[ORCHESTRATOR] BLOCK reason=${billingGate.reason} user=${userId} plan=${plan} scansToday=${billingGate.scansUsed} limit=${billingGate.scansLimit}`,
     );
     return {
       queued: false,
       reason: 'scan_limit_reached',
       error: 'USAGE_LIMIT_REACHED',
-      message: scanCheck.message,
-      upgradeUrl: '/dashboard/settings',
+      message: billingGate.message,
+      upgradeUrl: billingGate.upgradeUrl,
       plan,
-      scansUsed: usage.scans_used,
-      scansLimit: effectiveMaxScans,
+      scansUsed: billingGate.scansUsed,
+      scansLimit: billingGate.scansLimit,
     };
   }
+
+  const userWithPlan = await getUserWithPlan(userId);
+  const limits = getPlanLimits(plan);
 
   // ── 3. Billing: website limit (skip for cron — cron scans existing sites) ─
   if (source !== 'cron' && limits.maxWebsites !== Infinity) {
@@ -210,11 +208,7 @@ export async function enqueueScan(params: {
     }
   }
 
-  // ── 7. Increment usage counter BEFORE queue insert ─────────────────────────
-  // This ensures usage is tracked even if the queue insert fails.
-  await incrementScanUsage(userId);
-
-  // ── 8. Per-org hourly rate limit ───────────────────────────────────────────
+  // ── 7. Per-org hourly rate limit ───────────────────────────────────────────
   if (orgId && source !== 'cron') {
     const org = await getOrganization(orgId);
     const orgPlan = org?.plan ?? 'free';
@@ -239,7 +233,7 @@ export async function enqueueScan(params: {
     }
   }
 
-  // ── 9. Insert job — the ONLY place that writes to scan_queue ───────────────
+  // ── 8. Insert job — the ONLY place that writes to scan_queue ───────────────
   try {
     const { data: job, error: insertErr } = await supabase
       .from('scan_queue')
@@ -259,6 +253,8 @@ export async function enqueueScan(params: {
 
     if (insertErr) throw insertErr;
 
+    await incrementScanUsage(userId);
+
     auditLog({
       orgId,
       userId,
@@ -267,16 +263,10 @@ export async function enqueueScan(params: {
     });
 
     console.log(
-      `[ORCHESTRATOR] ALLOW source=${source} websiteId=${websiteId} jobId=${job.id} orgId=${orgId} plan=${plan} scansToday=${usage.scans_used + 1}/${effectiveMaxScans}`,
+      `[ORCHESTRATOR] ALLOW source=${source} websiteId=${websiteId} jobId=${job.id} orgId=${orgId} plan=${plan} scansToday=${billingGate.scansUsed + 1}/${billingGate.scansLimit}`,
     );
     return { queued: true, jobId: job.id };
   } catch (err) {
-    // Compensate: decrement usage since scan was never queued
-    try {
-      await decrementScanUsage(userId);
-    } catch (compensateErr) {
-      console.error('[ORCHESTRATOR] Failed to compensate usage decrement after failed insert', { userId, err: compensateErr });
-    }
     console.error('[ORCHESTRATOR] Queue insert failed', { userId, websiteId, err });
     return { queued: false, reason: 'queue_error', message: 'Failed to queue scan. Please try again.' };
   }

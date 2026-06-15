@@ -12,6 +12,11 @@ export interface DailyUsage {
   websites_used: number;
 }
 
+/** UTC calendar date (YYYY-MM-DD) — daily limits reset at UTC midnight. */
+export function getTodayUtc(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 /** Returns today's usage row for a user, or zeroed defaults if none exists yet. */
 export async function getUsage(userId: string, date: string): Promise<DailyUsage> {
   try {
@@ -46,7 +51,7 @@ export async function incrementScanUsage(userId: string): Promise<void> {
 
     // Fallback: read current value first, then upsert with incremented value.
     // Not perfectly atomic (race condition possible under extreme concurrency) but correct for all normal usage.
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayUtc();
     const { data: existing } = await supabase
       .from('user_usage')
       .select('scans_used')
@@ -76,7 +81,7 @@ export async function decrementScanUsage(userId: string): Promise<void> {
   const { error: rpcError } = await supabase.rpc('decrement_scan_usage', { p_user_id: userId });
   if (rpcError) {
     // Fallback: read-then-decrement
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayUtc();
     const { data: existing } = await supabase
       .from('user_usage')
       .select('scans_used')

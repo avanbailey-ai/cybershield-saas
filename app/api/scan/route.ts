@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
 
             status: enqueueResult.jobStatus ?? 'pending',
 
-            message: 'Scan already queued or in progress — poll jobId for status',
+            message: 'Scan already queued or in progress — status updates live',
 
           },
 
@@ -352,7 +352,7 @@ export async function POST(req: NextRequest) {
 
       status: 'pending',
 
-      message: 'Scan queued — poll GET /api/scan?jobId= for results',
+      message: 'Scan queued — status updates live via dashboard',
 
       durationMs,
 

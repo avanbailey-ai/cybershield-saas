@@ -17,3 +17,5 @@ export {
   canAccessFeature,
   getRequiredPlanForFeature,
 } from '@/lib/auth/featureGate';
+
+export { enforceScanLimit, type EnforceScanResult, type EnforceScanReason } from './enforceScan';
