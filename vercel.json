@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/workers/process-scans",
+      "path": "/api/scan/enqueue-or-process-batch",
       "schedule": "0 6 * * *"
     },
     {
