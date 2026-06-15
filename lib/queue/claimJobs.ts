@@ -3,7 +3,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { QueueJob } from '@/lib/scanner/queue';
+import type { QueueJob } from '@/lib/queue/scanJobTypes';
 import { STALE_LOCK_MINUTES } from './constants';
 
 export interface EmailQueueJob {

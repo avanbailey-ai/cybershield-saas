@@ -9,16 +9,17 @@ import {
   claimScanJobs,
   reclaimStaleScanJobs,
 } from '@/lib/queue/claimJobs';
-import { runWithConcurrency } from '@/lib/queue/concurrency';
+import { runWithConcurrency, clampWorkerConcurrency } from '@/lib/queue/concurrency';
 import {
   DEFAULT_MAX_ATTEMPTS,
-  SCAN_BATCH_SIZE,
+  MAX_SCAN_BATCH,
   STALE_LOCK_MINUTES,
-  WORKER_CONCURRENCY,
+  getScanBatchLimit,
+  getWorkerConcurrency,
 } from '@/lib/queue/constants';
-import type { QueueJob } from './queue';
-import { runScan } from './runScan';
+import type { QueueJob } from '@/lib/queue/scanJobTypes';
 import { postProcessScan } from './postProcessScan';
+import { runScanWithTimeout } from './runScanWithTimeout';
 import { logScanTiming } from '@/lib/observability/log';
 
 export interface ProcessResult {
@@ -39,175 +40,6 @@ export interface ScanWorkerResult {
   failed: number;
   skipped: number;
   results: ProcessResult[];
-}
-
-async function processScanJob(job: QueueJob): Promise<ProcessResult> {
-  const supabase = createAdminClient();
-  const base = { jobId: job.id, websiteId: job.website_id, url: '' };
-
-  const { data: fresh } = await supabase
-    .from('scan_queue')
-    .select('id, status, result, attempts, max_attempts')
-    .eq('id', job.id)
-    .maybeSingle();
-
-  if (!fresh) {
-    return { ...base, success: false, error: 'job_not_found' };
-  }
-
-  if (fresh.status === 'completed') {
-    const stored = fresh.result as { score?: number; riskLevel?: string } | null;
-    console.log(`[scanWorker] job=${job.id} already completed — skipping (idempotent)`);
-    return {
-      ...base,
-      success: true,
-      skipped: true,
-      score: stored?.score,
-      riskLevel: stored?.riskLevel,
-    };
-  }
-
-  if (fresh.result && typeof fresh.result === 'object' && 'scanId' in (fresh.result as object)) {
-    console.log(`[scanWorker] job=${job.id} has stored result — skipping re-run`);
-    await supabase
-      .from('scan_queue')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
-      .eq('id', job.id);
-    const stored = fresh.result as { score?: number; riskLevel?: string };
-    return { ...base, success: true, skipped: true, score: stored.score, riskLevel: stored.riskLevel };
-  }
-
-  const log = (msg: string, data?: unknown) =>
-    console.log(`[scanWorker] job=${job.id} website=${job.website_id}`, msg, data ?? '');
-  const logError = (msg: string, err: unknown) =>
-    console.error('[scanWorker] ERROR', { jobId: job.id, websiteId: job.website_id, msg, error: err });
-
-  if (!job.source || job.source === 'unknown') {
-    const errMsg = 'missing_source: bypassed orchestrator';
-    await supabase
-      .from('scan_queue')
-      .update({
-        status: 'failed',
-        error: errMsg,
-        result: { error: errMsg },
-        completed_at: new Date().toISOString(),
-        locked_at: null,
-      })
-      .eq('id', job.id);
-    return { ...base, success: false, error: 'missing_source' };
-  }
-
-  const { data: website, error: wErr } = await supabase
-    .from('websites')
-    .select('id, url, user_id')
-    .eq('id', job.website_id)
-    .single();
-
-  if (wErr || !website) {
-    logError('website not found', wErr);
-    await supabase
-      .from('scan_queue')
-      .update({
-        status: 'failed',
-        error: 'Website not found',
-        result: { error: 'Website not found' },
-        completed_at: new Date().toISOString(),
-        locked_at: null,
-      })
-      .eq('id', job.id);
-    return { ...base, success: false, error: 'Website not found' };
-  }
-
-  let scanRecordId!: string;
-  const orgId = job.org_id ?? null;
-
-  try {
-    const { data: scan, error: scanErr } = await supabase
-      .from('scans')
-      .insert({
-        website_id: website.id,
-        user_id: website.user_id,
-        org_id: orgId,
-        status: 'running',
-        started_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
-    if (scanErr) throw scanErr;
-    scanRecordId = scan.id;
-    log('scan record created', { scanId: scanRecordId });
-  } catch (err) {
-    logError('failed to create scan record', err);
-    await markScanJobFailed(job.id, fresh.attempts ?? 0, fresh.max_attempts ?? DEFAULT_MAX_ATTEMPTS, String(err));
-    return { ...base, url: website.url, success: false, error: String(err) };
-  }
-
-  let scanResult: Awaited<ReturnType<typeof runScan>> | null = null;
-  const scanStart = Date.now();
-
-  try {
-    log('running scan');
-    scanResult = await runScan(website.url);
-
-    if (typeof scanResult.score !== 'number') throw new Error('Invalid scan result: score missing');
-    if (!Array.isArray(scanResult.issues)) throw new Error('Invalid scan result: issues not array');
-
-    logScanTiming(scanRecordId, Date.now() - scanStart);
-    log('scan complete', { score: scanResult.score, riskLevel: scanResult.riskLevel });
-  } catch (err) {
-    logError('scan failed', err);
-    await supabase
-      .from('scans')
-      .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
-      .eq('id', scanRecordId);
-
-    await markScanJobFailed(job.id, fresh.attempts ?? 0, fresh.max_attempts ?? DEFAULT_MAX_ATTEMPTS, String(err));
-    return { ...base, url: website.url, success: false, error: String(err) };
-  }
-
-  try {
-    await postProcessScan({
-      scanId: scanRecordId,
-      websiteId: website.id,
-      userId: website.user_id,
-      url: website.url,
-      scanResult,
-    });
-  } catch (err) {
-    logError('postProcessScan failed', err);
-    await supabase
-      .from('scans')
-      .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
-      .eq('id', scanRecordId);
-    await markScanJobFailed(job.id, fresh.attempts ?? 0, fresh.max_attempts ?? DEFAULT_MAX_ATTEMPTS, String(err));
-    return { ...base, url: website.url, success: false, error: String(err) };
-  }
-
-  const jobResult = {
-    scanId: scanRecordId,
-    score: scanResult.score,
-    riskLevel: scanResult.riskLevel,
-  };
-
-  await supabase
-    .from('scan_queue')
-    .update({
-      status: 'completed',
-      result: jobResult,
-      completed_at: new Date().toISOString(),
-      locked_at: null,
-      error: null,
-    })
-    .eq('id', job.id);
-
-  return {
-    jobId: job.id,
-    websiteId: job.website_id,
-    url: website.url,
-    success: true,
-    score: scanResult.score,
-    riskLevel: scanResult.riskLevel,
-  };
 }
 
 async function markScanJobFailed(
@@ -246,15 +78,251 @@ async function markScanJobFailed(
   }
 }
 
+/** Release a stuck processing lock if the job never reached a terminal state. */
+async function releaseStuckProcessingLock(jobId: string, errorMessage: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { data: row } = await supabase
+    .from('scan_queue')
+    .select('status, attempts, max_attempts')
+    .eq('id', jobId)
+    .maybeSingle();
+
+  if (!row || row.status !== 'processing') return;
+
+  await markScanJobFailed(
+    jobId,
+    row.attempts ?? 0,
+    row.max_attempts ?? DEFAULT_MAX_ATTEMPTS,
+    errorMessage,
+  );
+}
+
+async function processScanJob(job: QueueJob): Promise<ProcessResult> {
+  const supabase = createAdminClient();
+  const base = { jobId: job.id, websiteId: job.website_id, url: '' };
+  let terminalUpdated = false;
+  let result: ProcessResult = { ...base, success: false, error: 'unknown' };
+
+  const log = (msg: string, data?: unknown) =>
+    console.log(`[scanWorker] job=${job.id} website=${job.website_id}`, msg, data ?? '');
+  const logError = (msg: string, err: unknown) =>
+    console.error('[scanWorker] ERROR', { jobId: job.id, websiteId: job.website_id, msg, error: err });
+
+  try {
+    const { data: fresh } = await supabase
+      .from('scan_queue')
+      .select('id, status, result, attempts, max_attempts')
+      .eq('id', job.id)
+      .maybeSingle();
+
+    if (!fresh) {
+      terminalUpdated = true;
+      result = { ...base, success: false, error: 'job_not_found' };
+      return result;
+    }
+
+    if (fresh.status === 'completed') {
+      const stored = fresh.result as { score?: number; riskLevel?: string } | null;
+      log('already completed — skipping (idempotent)');
+      terminalUpdated = true;
+      result = {
+        ...base,
+        success: true,
+        skipped: true,
+        score: stored?.score,
+        riskLevel: stored?.riskLevel,
+      };
+      return result;
+    }
+
+    if (fresh.result && typeof fresh.result === 'object' && 'scanId' in (fresh.result as object)) {
+      log('has stored result — skipping re-run');
+      await supabase
+        .from('scan_queue')
+        .update({ status: 'completed', completed_at: new Date().toISOString(), locked_at: null })
+        .eq('id', job.id);
+      const stored = fresh.result as { score?: number; riskLevel?: string };
+      terminalUpdated = true;
+      result = { ...base, success: true, skipped: true, score: stored.score, riskLevel: stored.riskLevel };
+      return result;
+    }
+
+    if (fresh.status !== 'processing') {
+      log(`unexpected status=${fresh.status} — skipping`);
+      terminalUpdated = true;
+      result = { ...base, success: false, skipped: true, error: `unexpected_status:${fresh.status}` };
+      return result;
+    }
+
+    if (!job.source || job.source === 'unknown') {
+      const errMsg = 'missing_source: bypassed orchestrator';
+      await supabase
+        .from('scan_queue')
+        .update({
+          status: 'failed',
+          error: errMsg,
+          result: { error: errMsg },
+          completed_at: new Date().toISOString(),
+          locked_at: null,
+        })
+        .eq('id', job.id);
+      terminalUpdated = true;
+      result = { ...base, success: false, error: 'missing_source' };
+      return result;
+    }
+
+    const { data: website, error: wErr } = await supabase
+      .from('websites')
+      .select('id, url, user_id')
+      .eq('id', job.website_id)
+      .single();
+
+    if (wErr || !website) {
+      logError('website not found', wErr);
+      await supabase
+        .from('scan_queue')
+        .update({
+          status: 'failed',
+          error: 'Website not found',
+          result: { error: 'Website not found' },
+          completed_at: new Date().toISOString(),
+          locked_at: null,
+        })
+        .eq('id', job.id);
+      terminalUpdated = true;
+      result = { ...base, success: false, error: 'Website not found' };
+      return result;
+    }
+
+    base.url = website.url;
+    const orgId = job.org_id ?? null;
+    const maxAttempts = fresh.max_attempts ?? DEFAULT_MAX_ATTEMPTS;
+    const currentAttempts = fresh.attempts ?? 0;
+
+    let scanRecordId!: string;
+
+    try {
+      const { data: scan, error: scanErr } = await supabase
+        .from('scans')
+        .insert({
+          website_id: website.id,
+          user_id: website.user_id,
+          org_id: orgId,
+          status: 'running',
+          started_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (scanErr) throw scanErr;
+      scanRecordId = scan.id;
+      log('scan record created', { scanId: scanRecordId });
+    } catch (err) {
+      logError('failed to create scan record', err);
+      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err));
+      terminalUpdated = true;
+      result = { ...base, success: false, error: String(err) };
+      return result;
+    }
+
+    let scanResult: Awaited<ReturnType<typeof runScanWithTimeout>> | null = null;
+    const scanStart = Date.now();
+
+    try {
+      log('running scan');
+      scanResult = await runScanWithTimeout(website.url);
+
+      if (typeof scanResult.score !== 'number') throw new Error('Invalid scan result: score missing');
+      if (!Array.isArray(scanResult.issues)) throw new Error('Invalid scan result: issues not array');
+
+      logScanTiming(scanRecordId, Date.now() - scanStart);
+      log('scan complete', { score: scanResult.score, riskLevel: scanResult.riskLevel });
+    } catch (err) {
+      logError('scan failed', err);
+      await supabase
+        .from('scans')
+        .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
+        .eq('id', scanRecordId);
+
+      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err));
+      terminalUpdated = true;
+      result = { ...base, success: false, error: String(err) };
+      return result;
+    }
+
+    try {
+      await postProcessScan({
+        scanId: scanRecordId,
+        websiteId: website.id,
+        userId: website.user_id,
+        url: website.url,
+        scanResult,
+      });
+    } catch (err) {
+      logError('postProcessScan failed', err);
+      await supabase
+        .from('scans')
+        .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
+        .eq('id', scanRecordId);
+      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err));
+      terminalUpdated = true;
+      result = { ...base, success: false, error: String(err) };
+      return result;
+    }
+
+    const jobResult = {
+      scanId: scanRecordId,
+      score: scanResult.score,
+      riskLevel: scanResult.riskLevel,
+    };
+
+    await supabase
+      .from('scan_queue')
+      .update({
+        status: 'completed',
+        result: jobResult,
+        completed_at: new Date().toISOString(),
+        locked_at: null,
+        error: null,
+      })
+      .eq('id', job.id);
+
+    terminalUpdated = true;
+    result = {
+      jobId: job.id,
+      websiteId: job.website_id,
+      url: website.url,
+      success: true,
+      score: scanResult.score,
+      riskLevel: scanResult.riskLevel,
+    };
+    return result;
+  } catch (err) {
+    logError('unexpected worker error', err);
+    if (!terminalUpdated) {
+      await releaseStuckProcessingLock(job.id, String(err));
+      terminalUpdated = true;
+    }
+    result = { ...base, success: false, error: String(err) };
+    return result;
+  } finally {
+    if (!terminalUpdated) {
+      await releaseStuckProcessingLock(job.id, 'worker_exit_without_terminal_state');
+    }
+  }
+}
+
 export async function runScanWorker(
-  batchSize = SCAN_BATCH_SIZE,
-  concurrency = WORKER_CONCURRENCY,
+  batchSize = getScanBatchLimit(),
+  concurrency = getWorkerConcurrency(),
 ): Promise<ScanWorkerResult> {
+  const cappedBatch = Math.min(Math.max(1, batchSize), MAX_SCAN_BATCH);
+  const cappedConcurrency = clampWorkerConcurrency(concurrency);
+
   const reclaimed = await reclaimStaleScanJobs(STALE_LOCK_MINUTES);
-  const jobs = await claimScanJobs(batchSize);
+  const jobs = await claimScanJobs(cappedBatch);
 
   console.log(
-    `[scanWorker] ${new Date().toISOString()} — claimed ${jobs.length} job(s) (cap=${batchSize}, reclaimed=${reclaimed})`,
+    `[scanWorker] ${new Date().toISOString()} — claimed ${jobs.length} job(s) (cap=${cappedBatch}, concurrency=${cappedConcurrency}, reclaimed=${reclaimed})`,
   );
 
   if (jobs.length === 0) {
@@ -263,7 +331,7 @@ export async function runScanWorker(
 
   const results: ProcessResult[] = [];
 
-  await runWithConcurrency(jobs, concurrency, async (job) => {
+  await runWithConcurrency(jobs, cappedConcurrency, async (job) => {
     results.push(await processScanJob(job));
   });
 
@@ -283,7 +351,7 @@ export async function runScanWorker(
 
 /** @deprecated Use runScanWorker — kept for legacy route delegation. */
 export async function processQueue(
-  maxJobs = SCAN_BATCH_SIZE,
+  maxJobs = getScanBatchLimit(),
 ): Promise<{ processed: number; succeeded: number; failed: number; results: ProcessResult[] }> {
   const result = await runScanWorker(maxJobs);
   return {
