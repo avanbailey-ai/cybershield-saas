@@ -30,7 +30,7 @@ export async function signUp(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/#pricing");
 }
 
 export async function signIn(formData: FormData) {

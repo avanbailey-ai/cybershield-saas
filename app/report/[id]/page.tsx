@@ -112,7 +112,7 @@ export default async function ReportPage({ params }: PageProps) {
   const riskScore = scanRow.risk_score ?? 0;
   const riskLevel = scanRow.risk_level ?? null;
 
-  const gate = gateReport(riskScore, plan);
+  const gate = gateReport(riskScore, plan, user.email);
 
   // Fetch last 5 scans for same website (scan history)
   interface PastScan {

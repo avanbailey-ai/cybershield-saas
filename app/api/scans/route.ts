@@ -1,10 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess'
 
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const access = await requireDashboardAccess(user)
+  if (!access.allowed) return access.response
 
   const { data: scans, error } = await supabase
     .from('scans')

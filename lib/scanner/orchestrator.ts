@@ -16,8 +16,9 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getUserPlan, getPlanLimits, type Plan } from '@/lib/billing/planService';
-import { canAddWebsite, canRunScan } from '@/lib/billing/guards';
+import { getUserWithPlan, getUserPlan, getPlanLimits } from '@/lib/billing/planService';
+import { canAddWebsite, canRunScan } from '@/lib/auth/permissions';
+import type { Plan } from '@/lib/billing/plans';
 import { getUsage, incrementScanUsage, decrementScanUsage, getUserWebsiteCount } from '@/lib/billing/usageService';
 
 export type ScanSource = 'api' | 'manual' | 'cron';
@@ -78,12 +79,13 @@ export async function enqueueScan(params: {
   }
 
   // ── 2. Billing: daily scan limit ──────────────────────────────────────────
+  const userWithPlan = await getUserWithPlan(userId);
   const plan = await getUserPlan(userId);
   const limits = getPlanLimits(plan);
   const today = new Date().toISOString().split('T')[0];
   const usage = await getUsage(userId, today);
 
-  const scanCheck = canRunScan({ id: userId, plan }, usage.scans_used);
+  const scanCheck = canRunScan(userWithPlan, usage.scans_used);
   if (!scanCheck.allowed) {
     console.warn(
       `[ORCHESTRATOR] BLOCK reason=scan_limit_reached user=${userId} plan=${plan} scansToday=${usage.scans_used} limit=${limits.maxScansPerDay}`,
@@ -104,7 +106,7 @@ export async function enqueueScan(params: {
   if (source !== 'cron' && limits.maxWebsites !== Infinity) {
     const websiteCount = await getUserWebsiteCount(userId);
     if (websiteCount > limits.maxWebsites) {
-      const websiteCheck = canAddWebsite({ id: userId, plan }, websiteCount);
+      const websiteCheck = canAddWebsite(userWithPlan, websiteCount);
       console.warn(
         `[ORCHESTRATOR] BLOCK reason=website_limit_reached user=${userId} plan=${plan} websites=${websiteCount} limit=${limits.maxWebsites}`,
       );

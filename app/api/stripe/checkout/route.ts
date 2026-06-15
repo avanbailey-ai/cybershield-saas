@@ -92,7 +92,7 @@ export async function POST(req: Request) {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/dashboard?upgraded=true`,
-      cancel_url: `${baseUrl}/dashboard/settings`,
+      cancel_url: `${baseUrl}/#pricing`,
       metadata: { userId: user.id, plan },
       client_reference_id: user.id,
       ...(existingCustomerId ? { customer: existingCustomerId } : { customer_email: user.email }),

@@ -11,18 +11,20 @@ import {
 const plans = [
   {
     id: 'free' as const,
-    name: PLAN_LIMITS.free.name,
-    price: `$${PLAN_LIMITS.free.price}`,
-    period: '/mo',
-    description: 'Get started at no cost.',
+    name: 'Public Scan',
+    price: 'Free',
+    period: '',
+    description: 'One-off security check — no account needed.',
     features: [
-      formatWebsiteLimit(PLAN_LIMITS.free.websites),
-      `${PLAN_LIMITS.free.maxScansPerDay} scans/day`,
+      'Instant risk score',
+      'Vulnerability overview',
+      'No login required',
       formatScanFrequency(PLAN_LIMITS.free.scanFrequency),
     ],
-    cta: 'Get Started',
+    cta: 'Scan Now',
     highlighted: false,
     stripePlan: null,
+    href: '/scan',
   },
   {
     id: 'pro' as const,
@@ -110,7 +112,7 @@ export default function Pricing() {
   }
 
   return (
-    <section className="relative py-24 px-4">
+    <section id="pricing" className="relative py-24 px-4">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
       <div className="mx-auto max-w-7xl">
         <div className="mb-14 text-center">
@@ -121,7 +123,7 @@ export default function Pricing() {
             Simple, transparent pricing
           </h2>
           <p className="mx-auto max-w-xl text-gray-400">
-            Start free, scale when you need. No hidden fees, no surprises.
+            Try a free public scan, then upgrade for continuous monitoring.
           </p>
         </div>
 
@@ -189,7 +191,7 @@ export default function Pricing() {
                 </button>
               ) : (
                 <a
-                  href="/signup"
+                  href={'href' in plan ? plan.href : '/scan'}
                   className="w-full rounded-lg border border-gray-700 py-2.5 text-center text-sm font-semibold text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
                 >
                   {plan.cta}

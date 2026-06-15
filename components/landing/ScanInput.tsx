@@ -1,20 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface PublicScanResult {
   url: string;
+  score: number;
+  riskLevel: string;
+  issues: string[];
+  vulnerabilitiesCount: number;
   genericMessage: string;
   riskDetected: boolean;
 }
 
-interface AuthScanResult {
-  scan: { id: string };
+interface ScanInputProps {
+  showUpgradeCta?: boolean;
 }
 
-export default function ScanInput() {
-  const router = useRouter();
+export default function ScanInput({ showUpgradeCta = false }: ScanInputProps) {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,32 +47,31 @@ export default function ScanInput() {
     setLoading(true);
 
     try {
-      // Try authenticated scan first
-      const authRes = await fetch('/api/scan/public', {
+      const res = await fetch('/api/scan/public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: normalizedUrl }),
       });
 
-      if (!authRes.ok) {
-        const data = await authRes.json().catch(() => ({}));
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string }).error ?? 'Scan failed');
       }
 
-      const data = await authRes.json() as PublicScanResult | AuthScanResult;
-
-      // If returned a scan ID, user is authenticated — redirect to report
-      if ('scan' in data && data.scan?.id) {
-        router.push(`/report/${data.scan.id}`);
-        return;
-      }
-
-      setResult(data as PublicScanResult);
+      const data = (await res.json()) as PublicScanResult;
+      setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
+  }
+
+  function scoreColor(score: number): string {
+    if (score >= 80) return 'text-green-400';
+    if (score >= 60) return 'text-yellow-400';
+    if (score >= 40) return 'text-orange-400';
+    return 'text-red-400';
   }
 
   return (
@@ -79,7 +81,7 @@ export default function ScanInput() {
           Check Your Website Security — Free
         </h2>
         <p className="mb-8 text-gray-400">
-          Enter your URL below for an instant security risk assessment.
+          Enter your URL below for an instant security risk assessment. No login required.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
@@ -146,17 +148,47 @@ export default function ScanInput() {
                     ? `Risk Detected on ${result.url}`
                     : `No major issues found on ${result.url}`}
                 </p>
+                <p className="mt-2 text-sm text-gray-300">
+                  Security score:{' '}
+                  <span className={`font-bold ${scoreColor(result.score)}`}>{result.score}/100</span>
+                  {' · '}
+                  Risk level: <span className="capitalize">{result.riskLevel}</span>
+                </p>
                 <p className="mt-1 text-sm text-gray-400">{result.genericMessage}</p>
-                <a
-                  href="/login"
+
+                {result.issues.length > 0 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Vulnerabilities ({result.vulnerabilitiesCount})
+                    </p>
+                    <ul className="space-y-1.5">
+                      {result.issues.slice(0, 5).map((issue) => (
+                        <li key={issue} className="flex items-start gap-2 text-sm text-gray-300">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                          {issue}
+                        </li>
+                      ))}
+                      {result.issues.length > 5 && (
+                        <li className="text-xs text-gray-500">
+                          +{result.issues.length - 5} more — upgrade for full report
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                <Link
+                  href="/#pricing"
                   className={`mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                     result.riskDetected
                       ? 'bg-red-600/80 text-white hover:bg-red-600'
-                      : 'bg-green-600/80 text-white hover:bg-green-600'
+                      : 'bg-blue-600/80 text-white hover:bg-blue-600'
                   }`}
                 >
-                  {result.riskDetected ? 'Sign up free to learn more →' : 'Sign up to monitor over time →'}
-                </a>
+                  {showUpgradeCta || result.riskDetected
+                    ? 'Upgrade to monitor continuously →'
+                    : 'Get continuous monitoring →'}
+                </Link>
               </div>
             </div>
           </div>

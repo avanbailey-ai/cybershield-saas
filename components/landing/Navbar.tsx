@@ -13,6 +13,11 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3">
+          <Link href="/scan">
+            <Button variant="ghost" size="sm">
+              Free Scan
+            </Button>
+          </Link>
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Sign In

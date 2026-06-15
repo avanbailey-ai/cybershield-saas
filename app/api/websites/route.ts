@@ -1,11 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { canAddWebsite } from '@/lib/billing/guards'
+import { canAddWebsite } from '@/lib/auth/permissions'
+import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess'
+import { getUserWithPlan } from '@/lib/billing/planService'
 
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const access = await requireDashboardAccess(user)
+  if (!access.allowed) return access.response
 
   const { data: websites, error } = await supabase
     .from('websites')
@@ -35,6 +40,9 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const access = await requireDashboardAccess(user)
+  if (!access.allowed) return access.response
+
   const body = await req.json()
   const { url, label } = body as { url?: string; label?: string }
 
@@ -46,18 +54,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 })
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('plan')
-    .eq('id', user.id)
-    .single()
-
   const { count: websiteCount } = await supabase
     .from('websites')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
 
-  const userWithPlan = { id: user.id, plan: profile?.plan ?? null }
+  const userWithPlan = await getUserWithPlan(user.id)
   const check = canAddWebsite(userWithPlan, websiteCount ?? 0)
 
   if (!check.allowed) {

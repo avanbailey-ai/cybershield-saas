@@ -1,0 +1,89 @@
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isOwner } from '@/lib/auth/owner';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+
+export const metadata: Metadata = {
+  title: 'Admin — CyberShield',
+};
+
+export default async function AdminPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || !isOwner(user.email)) {
+    redirect('/dashboard');
+  }
+
+  const admin = createAdminClient();
+
+  const [profilesRes, websitesRes, scansRes, alertsRes] = await Promise.all([
+    admin.from('profiles').select('id', { count: 'exact', head: true }),
+    admin.from('websites').select('id', { count: 'exact', head: true }),
+    admin.from('scans').select('id', { count: 'exact', head: true }),
+    admin.from('alerts').select('id', { count: 'exact', head: true }),
+  ]);
+
+  const stats = [
+    { label: 'Total Users', value: profilesRes.count ?? 0 },
+    { label: 'Websites Monitored', value: websitesRes.count ?? 0 },
+    { label: 'Scans Run', value: scansRes.count ?? 0 },
+    { label: 'Alerts', value: alertsRes.count ?? 0 },
+  ];
+
+  const { data: planBreakdown } = await admin.from('profiles').select('plan');
+
+  const planCounts = (planBreakdown ?? []).reduce<Record<string, number>>((acc, row) => {
+    const plan = row.plan ?? 'free';
+    acc[plan] = (acc[plan] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="flex flex-1 flex-col overflow-auto">
+      <DashboardHeader email={user.email ?? 'Owner'} title="Admin" />
+
+      <main className="flex-1 overflow-auto p-6">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-white">Platform Overview</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Owner access — full override active for {user.email}
+          </p>
+        </div>
+
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-gray-800 bg-gray-900/50 p-5"
+            >
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                {stat.label}
+              </p>
+              <p className="mt-2 text-3xl font-bold text-white">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+          <h3 className="mb-4 text-sm font-semibold text-white">Users by Plan</h3>
+          <ul className="space-y-2">
+            {Object.entries(planCounts).map(([plan, count]) => (
+              <li
+                key={plan}
+                className="flex items-center justify-between rounded-lg bg-gray-800/40 px-4 py-3 text-sm"
+              >
+                <span className="capitalize text-gray-300">{plan}</span>
+                <span className="font-semibold text-white">{count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </main>
+    </div>
+  );
+}

@@ -1,14 +1,7 @@
 /**
  * POST /api/scan/public
- * Unauthenticated, limited scan used on the marketing landing page to demonstrate
- * the product. Returns only a pass/fail signal — no detailed results.
- *
- * INTENTIONAL EXCEPTION: This route calls runScan() directly (bypassing the queue)
- * because it is stateless, unauthenticated, and must return results synchronously
- * for the landing page demo. It does NOT write to the DB, create alerts, or send
- * emails — it is read-only and fire-and-forget.
- *
- * All authenticated scans MUST use orchestrator.enqueueScan() instead.
+ * Unauthenticated, stateless scan for the public /scan page and landing demo.
+ * Returns risk score and vulnerability summary — no DB writes.
  */
 import { runScan } from '@/lib/scanner/runScan'
 import { NextRequest, NextResponse } from 'next/server'
@@ -39,5 +32,13 @@ export async function POST(req: NextRequest) {
     ? 'Risk Detected — upgrade to see full details'
     : 'No major issues found — upgrade for continuous monitoring'
 
-  return NextResponse.json({ url, genericMessage, riskDetected })
+  return NextResponse.json({
+    url: result.url,
+    score: result.score,
+    riskLevel: result.riskLevel,
+    issues: result.issues,
+    vulnerabilitiesCount: result.issues.length,
+    genericMessage,
+    riskDetected,
+  })
 }

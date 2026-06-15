@@ -9,8 +9,8 @@ export const PLAN_LIMITS = {
   free: {
     name: 'Free',
     price: 0,
-    websites: 1,
-    maxScansPerDay: 3,
+    websites: 0,
+    maxScansPerDay: 0,
     scanFrequency: 'manual' as const,
   },
   pro: {
@@ -38,6 +38,13 @@ export const PLAN_LIMITS = {
     scanFrequency: 'hourly' as const,
     stripePriceEnvKey: 'STRIPE_PRICE_AGENCY',
   },
+  owner: {
+    name: 'Owner',
+    price: 0,
+    websites: Infinity,
+    maxScansPerDay: Infinity,
+    scanFrequency: 'hourly' as const,
+  },
 } as const;
 
 export const STRIPE_PRICE_IDS = {
@@ -46,7 +53,7 @@ export const STRIPE_PRICE_IDS = {
   agency: process.env.STRIPE_PRICE_AGENCY ?? '',
 } as const;
 
-export type Plan = 'free' | 'pro' | 'growth' | 'agency';
+export type Plan = 'free' | 'pro' | 'growth' | 'agency' | 'owner';
 export type BilledPlan = 'pro' | 'growth' | 'agency';
 
 export const BILLED_PLANS: BilledPlan[] = ['pro', 'growth', 'agency'];

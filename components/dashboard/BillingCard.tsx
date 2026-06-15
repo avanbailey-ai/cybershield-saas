@@ -37,6 +37,11 @@ const PLAN_META: Record<Plan, { name: string; price: number | null; description:
     price: PLAN_LIMITS.agency.price,
     description: formatWebsiteDescription('agency'),
   },
+  owner: {
+    name: PLAN_LIMITS.owner.name,
+    price: PLAN_LIMITS.owner.price,
+    description: 'Unlimited access · Owner override',
+  },
 };
 
 export default function BillingCard({ currentPlan, subscriptionStatus }: BillingCardProps) {
@@ -96,7 +101,8 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
     }
   }
 
-  const isSubscribed = currentPlan !== 'free' && subscriptionStatus === 'active';
+  const isSubscribed =
+    (currentPlan !== 'free' && subscriptionStatus === 'active') || currentPlan === 'owner';
 
   return (
     <div className="space-y-4">

@@ -17,6 +17,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
 import { processQueue } from '@/lib/scanner/processQueue';
+import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const access = await requireDashboardAccess(user);
+  if (!access.allowed) return access.response;
 
   const body = await req.json();
   const { websiteId } = body as { websiteId?: string };

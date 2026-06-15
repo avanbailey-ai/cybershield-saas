@@ -16,17 +16,17 @@ const faqs = [
   {
     question: "How often are websites checked?",
     answer:
-      "On the Starter plan, websites are scanned weekly. The Professional plan includes daily scans, and Business customers receive near-real-time monitoring with priority scan queues. You can also trigger manual scans at any time.",
+      "Pro plan websites are scanned weekly. Growth includes daily scans, and Agency customers receive hourly monitoring with priority scan queues. You can also trigger manual scans at any time from the dashboard.",
   },
   {
     question: "Can I monitor multiple websites?",
     answer:
-      "Yes. All plans support monitoring multiple websites from a single dashboard. The Starter plan includes up to 3 websites, Professional up to 25, and the Business plan includes unlimited websites with team-based access controls.",
+      "Yes. Paid plans support monitoring multiple websites from a single dashboard. Pro includes up to 25 websites, Growth up to 100, and Agency includes unlimited websites.",
   },
   {
-    question: "Is there a free trial?",
+    question: "Is there a free option?",
     answer:
-      "Yes. You can create a free account and begin monitoring your first website immediately with no credit card required. The free tier gives you access to basic monitoring features so you can evaluate CyberShield before committing to a paid plan.",
+      "Yes. Use the free public scan at /scan — no account required. To monitor websites continuously with alerts and a full dashboard, choose a paid plan after signing up.",
   },
 ];
 

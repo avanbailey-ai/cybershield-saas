@@ -12,6 +12,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
+import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
 
 export async function POST() {
   const supabase = await createClient();
@@ -19,6 +20,9 @@ export async function POST() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const access = await requireDashboardAccess(user);
+  if (!access.allowed) return access.response;
 
   // Fetch all active websites for this user
   const adminSupabase = createAdminClient();

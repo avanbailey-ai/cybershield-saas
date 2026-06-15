@@ -47,7 +47,7 @@ export default function SignupForm() {
 
     // If email confirmation is enabled, show message; otherwise redirect
     if (data.user && data.session) {
-      router.push("/dashboard");
+      router.push("/#pricing");
       router.refresh();
     } else {
       setMessage("Check your email to confirm your account before signing in.");

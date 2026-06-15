@@ -1,8 +1,18 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { canAccessDashboard } from "@/lib/auth/permissions";
+import { isOwner } from "@/lib/auth/owner";
+
+const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing"];
+const AUTH_PATHS = ["/login", "/signup"];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
 
 export async function updateSession(request: NextRequest) {
-  // Guard: if Supabase env vars are missing, pass through without crashing
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     console.log('[middleware] Supabase env vars missing — passing through');
     return NextResponse.next({ request });
@@ -37,29 +47,67 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     const { pathname } = request.nextUrl;
+    const isProtected = pathname.startsWith("/dashboard");
+    const isAuthPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
 
-    const protectedPaths = ["/dashboard"];
-    const authPaths = ["/login", "/signup"];
+    if (isProtected) {
+      if (!user) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("redirectTo", pathname);
+        return NextResponse.redirect(url);
+      }
 
-    const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
-    const isAuthPath = authPaths.some((p) => pathname.startsWith(p));
+      let plan = "free";
+      if (isOwner(user.email)) {
+        plan = "owner";
+      } else {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan")
+          .eq("id", user.id)
+          .single();
+        plan = profile?.plan ?? "free";
+      }
 
-    if (isProtected && !user) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      url.searchParams.set("redirectTo", pathname);
-      return NextResponse.redirect(url);
+      if (!canAccessDashboard({ email: user.email, plan })) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        url.hash = "pricing";
+        return NextResponse.redirect(url);
+      }
     }
 
     if (isAuthPath && user) {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      if (isOwner(user.email)) {
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+
+      const plan = profile?.plan ?? "free";
+      if (canAccessDashboard({ email: user.email, plan })) {
+        url.pathname = "/dashboard";
+      } else {
+        url.pathname = "/";
+        url.hash = "pricing";
+      }
       return NextResponse.redirect(url);
+    }
+
+    // Allow public routes without auth checks
+    if (isPublicPath(pathname)) {
+      return supabaseResponse;
     }
 
     return supabaseResponse;
   } catch (error) {
-    // Middleware must never throw — log and pass through
     console.log('[middleware] error', error);
     return NextResponse.next({ request });
   }

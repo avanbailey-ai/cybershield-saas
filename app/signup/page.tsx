@@ -22,7 +22,7 @@ export default function SignupPage() {
       footerLinkText="Sign in"
       footerLinkHref="/login"
       panelHeadline="Start Protecting Your Websites"
-      panelDescription="Create your account and begin monitoring in minutes. No credit card required."
+      panelDescription="Create your account, then choose a plan to unlock the monitoring dashboard."
       panelBullets={bullets}
     >
       <SignupForm />

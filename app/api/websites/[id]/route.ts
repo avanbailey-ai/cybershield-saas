@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess'
 
 export async function DELETE(
   _req: NextRequest,
@@ -8,6 +9,9 @@ export async function DELETE(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const access = await requireDashboardAccess(user)
+  if (!access.allowed) return access.response
 
   const { id } = await params
 

@@ -1,4 +1,6 @@
-export type UserPlan = 'free' | 'pro' | 'growth' | 'agency';
+import { isOwner } from '@/lib/auth/owner';
+
+export type UserPlan = 'free' | 'pro' | 'growth' | 'agency' | 'owner';
 
 export interface GatedReport {
   canViewFull: boolean;
@@ -6,8 +8,8 @@ export interface GatedReport {
   plan: UserPlan;
 }
 
-export function gateReport(riskScore: number, plan: UserPlan): GatedReport {
-  const canViewFull = plan !== 'free';
+export function gateReport(riskScore: number, plan: UserPlan, email?: string | null): GatedReport {
+  const canViewFull = plan !== 'free' || isOwner(email);
   const genericMessage = riskScore > 40
     ? 'Risk Detected — upgrade to see full details'
     : 'No major issues found — upgrade for continuous monitoring';
@@ -15,6 +17,7 @@ export function gateReport(riskScore: number, plan: UserPlan): GatedReport {
   return { canViewFull, genericMessage, plan };
 }
 
-export function isPaidPlan(plan: UserPlan): boolean {
+export function isPaidPlan(plan: UserPlan, email?: string | null): boolean {
+  if (isOwner(email)) return true;
   return plan !== 'free';
 }

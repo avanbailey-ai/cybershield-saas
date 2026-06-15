@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
-import { getUserPlan, getPlanLimits } from '@/lib/billing/guards';
+import { getEffectivePlan, getPlanLimits } from '@/lib/auth/permissions';
+import { getUserWithPlan } from '@/lib/billing/planService';
 import { getUsage } from '@/lib/billing/usageService';
 
 export async function GET() {
@@ -16,14 +17,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('plan')
-      .eq('id', user.id)
-      .single();
-
-    const userWithPlan = { id: user.id, plan: profile?.plan ?? null };
-    const plan = getUserPlan(userWithPlan);
+    const userWithPlan = await getUserWithPlan(user.id);
+    const plan = getEffectivePlan(userWithPlan);
     const limits = getPlanLimits(userWithPlan);
 
     const admin = createAdminClient();
