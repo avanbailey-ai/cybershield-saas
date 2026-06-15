@@ -316,6 +316,30 @@ export async function POST(req: NextRequest) {
 
 
 
+      case 'queue_busy':
+
+        return NextResponse.json(
+
+          {
+
+            error: 'QUEUE_BUSY',
+
+            message:
+
+              enqueueResult.message ??
+
+              'Scan demand is very high right now. Please try again shortly or upgrade for priority processing.',
+
+            queueDepth: enqueueResult.queueDepth,
+
+          },
+
+          { status: 503 },
+
+        );
+
+
+
       default:
 
         return NextResponse.json(
@@ -352,7 +376,15 @@ export async function POST(req: NextRequest) {
 
       status: 'pending',
 
-      message: 'Scan queued — status updates live via dashboard',
+      message: enqueueResult.queueWarning
+
+        ? 'Scan queued — high demand may increase wait time'
+
+        : 'Scan queued — status updates live via dashboard',
+
+      queueWarning: enqueueResult.queueWarning ?? false,
+
+      queueDepth: enqueueResult.queueDepth,
 
       durationMs,
 

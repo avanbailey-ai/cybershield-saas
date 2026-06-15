@@ -1,8 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export type SystemEventType =
+  | 'scan_created'
   | 'scan_started'
   | 'scan_completed'
+  | 'scan_failed'
   | 'report_viewed'
   | 'paywall_viewed'
   | 'upgrade_clicked'

@@ -139,6 +139,8 @@ export default function UpgradeModal({
     second_scan: 'Free scans are limited — upgrade for unlimited monitoring.',
     add_website: 'Add more websites and enable continuous protection.',
     export: 'Export full reports with a paid subscription.',
+    scan_limit: "You've reached your scan limit — upgrade to scan more today.",
+    queue_busy: 'Upgrade for priority processing and faster scan throughput.',
     manual: null,
   };
 

@@ -88,3 +88,18 @@ export function formatScanFrequency(frequency: (typeof PLAN_LIMITS)[Plan]['scanF
   };
   return labels[frequency];
 }
+
+/** Queue priority for claim_scan_jobs (higher = claimed first). */
+export function getPlanQueuePriority(plan: Plan): number {
+  switch (plan) {
+    case 'agency':
+    case 'owner':
+      return 3;
+    case 'growth':
+      return 2;
+    case 'pro':
+      return 1;
+    default:
+      return 0;
+  }
+}

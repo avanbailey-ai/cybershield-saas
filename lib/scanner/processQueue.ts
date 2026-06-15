@@ -21,6 +21,13 @@ import type { QueueJob } from '@/lib/queue/scanJobTypes';
 import { postProcessScan } from './postProcessScan';
 import { runScanWithTimeout } from './runScanWithTimeout';
 import { logScanTiming } from '@/lib/observability/log';
+import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
+
+const RETRY_BASE_DELAY_MS = 30_000;
+
+function retryDelayMs(attempts: number): number {
+  return RETRY_BASE_DELAY_MS * Math.pow(2, Math.max(0, attempts - 1));
+}
 
 export interface ProcessResult {
   jobId: string;
@@ -47,11 +54,13 @@ async function markScanJobFailed(
   currentAttempts: number,
   maxAttempts: number,
   errorMessage: string,
-): Promise<void> {
+  context?: { userId?: string; websiteId?: string; source?: string },
+): Promise<'retry' | 'failed'> {
   const supabase = createAdminClient();
   const attempts = currentAttempts + 1;
 
   if (attempts < maxAttempts) {
+    const scheduledFor = new Date(Date.now() + retryDelayMs(attempts)).toISOString();
     await supabase
       .from('scan_queue')
       .update({
@@ -61,8 +70,10 @@ async function markScanJobFailed(
         result: { error: errorMessage },
         locked_at: null,
         started_at: null,
+        scheduled_for: scheduledFor,
       })
       .eq('id', jobId);
+    return 'retry';
   } else {
     await supabase
       .from('scan_queue')
@@ -73,8 +84,25 @@ async function markScanJobFailed(
         result: { error: errorMessage },
         completed_at: new Date().toISOString(),
         locked_at: null,
+        scheduled_for: null,
       })
       .eq('id', jobId);
+
+    if (context?.userId) {
+      void trackServerEvent(
+        'scan_failed',
+        {
+          jobId,
+          websiteId: context.websiteId,
+          error: errorMessage,
+          attempts,
+          source: context.source,
+          permanent: true,
+        },
+        context.userId,
+      );
+    }
+    return 'failed';
   }
 }
 
@@ -218,7 +246,11 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       log('scan record created', { scanId: scanRecordId });
     } catch (err) {
       logError('failed to create scan record', err);
-      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err));
+      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
+        userId: website.user_id,
+        websiteId: job.website_id,
+        source: job.source,
+      });
       terminalUpdated = true;
       result = { ...base, success: false, error: String(err) };
       return result;
@@ -243,7 +275,11 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
         .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
         .eq('id', scanRecordId);
 
-      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err));
+      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
+        userId: website.user_id,
+        websiteId: job.website_id,
+        source: job.source,
+      });
       terminalUpdated = true;
       result = { ...base, success: false, error: String(err) };
       return result;
@@ -263,7 +299,11 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
         .from('scans')
         .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
         .eq('id', scanRecordId);
-      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err));
+      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
+        userId: website.user_id,
+        websiteId: job.website_id,
+        source: job.source,
+      });
       terminalUpdated = true;
       result = { ...base, success: false, error: String(err) };
       return result;
@@ -282,9 +322,23 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
         result: jobResult,
         completed_at: new Date().toISOString(),
         locked_at: null,
+        scheduled_for: null,
         error: null,
       })
       .eq('id', job.id);
+
+    void trackServerEvent(
+      'scan_completed',
+      {
+        jobId: job.id,
+        websiteId: job.website_id,
+        scanId: scanRecordId,
+        score: scanResult.score,
+        riskLevel: scanResult.riskLevel,
+        source: job.source,
+      },
+      website.user_id,
+    );
 
     terminalUpdated = true;
     result = {

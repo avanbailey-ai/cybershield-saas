@@ -9,6 +9,8 @@ export type PaywallTrigger =
   | 'second_scan'
   | 'add_website'
   | 'export'
+  | 'scan_limit'
+  | 'queue_busy'
   | 'manual';
 
 interface UpgradeModalState {

@@ -1,24 +1,35 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import Link from 'next/link';
 import { usePlan } from '@/lib/billing/usePlan';
+import { useConversion } from '@/components/conversion/ConversionProvider';
+import QueueDemandBanner from '@/components/dashboard/QueueDemandBanner';
 
 export default function ScanAllButton() {
   const { scansToday, scansRemaining, effectiveScansLimit, loading: planLoading } = usePlan();
+  const { openUpgradeModal } = useConversion();
   const isScanningRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [limitHit, setLimitHit] = useState<{ message: string; upgradeUrl: string } | null>(null);
+  const [queueWarning, setQueueWarning] = useState(false);
 
   const scanLimitReached = !planLoading && scansRemaining === 0;
 
   async function handleScanAll() {
-    if (isScanningRef.current || scanLimitReached) return;
+    if (isScanningRef.current) return;
+
+    if (scanLimitReached) {
+      openUpgradeModal({
+        trigger: 'scan_limit',
+        recommendedPlan: 'growth',
+      });
+      return;
+    }
+
     isScanningRef.current = true;
     setLoading(true);
     setStatus('Queuing websites...');
-    setLimitHit(null);
+    setQueueWarning(false);
 
     try {
       const enqueueRes = await fetch('/api/scan/trigger-all', { method: 'POST' });
@@ -26,13 +37,27 @@ export default function ScanAllButton() {
 
       if (enqueueRes.status === 403) {
         const isUsageLimit = enqueueData.error === 'USAGE_LIMIT_REACHED';
-        setLimitHit({
-          message: enqueueData.message ?? (isUsageLimit
-            ? 'Daily scan limit reached. Upgrade your plan to scan more.'
-            : 'Website limit reached for your plan.'),
-          upgradeUrl: enqueueData.upgradeUrl ?? '/dashboard/settings',
+        if (isUsageLimit) {
+          openUpgradeModal({
+            trigger: 'scan_limit',
+            recommendedPlan: 'growth',
+          });
+        }
+        setStatus(
+          enqueueData.message ??
+            (isUsageLimit
+              ? "You've reached your scan limit."
+              : 'Website limit reached for your plan.'),
+        );
+        return;
+      }
+
+      if (enqueueRes.status === 503 || enqueueData.error === 'QUEUE_BUSY') {
+        openUpgradeModal({
+          trigger: 'queue_busy',
+          recommendedPlan: 'pro',
         });
-        setStatus(null);
+        setStatus(enqueueData.message ?? 'Scan queue is at capacity — try again shortly.');
         return;
       }
 
@@ -51,6 +76,10 @@ export default function ScanAllButton() {
         return;
       }
 
+      if (enqueueData.queueWarning) {
+        setQueueWarning(true);
+      }
+
       setStatus(`Queued ${enqueueData.queued} website(s) — updates appear live`);
     } catch (err) {
       setStatus('Error — check console for details');
@@ -63,11 +92,12 @@ export default function ScanAllButton() {
 
   return (
     <div className="flex flex-col gap-2">
+      <QueueDemandBanner show={queueWarning} onDismiss={() => setQueueWarning(false)} />
       <div className="flex items-center gap-3">
         <button
           onClick={handleScanAll}
-          disabled={loading || scanLimitReached}
-          title={scanLimitReached ? 'Daily scan limit reached — upgrade for more scans' : undefined}
+          disabled={loading}
+          title={scanLimitReached ? "You've reached your scan limit — upgrade for more scans" : undefined}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {loading ? 'Scanning...' : 'Scan All Websites'}
@@ -79,18 +109,6 @@ export default function ScanAllButton() {
         )}
         {status && <span className="text-sm text-gray-400">{status}</span>}
       </div>
-
-      {limitHit && (
-        <div className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-400">
-          <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span>{limitHit.message}</span>
-          <Link href={limitHit.upgradeUrl} className="ml-1 font-semibold underline hover:text-orange-300 whitespace-nowrap">
-            Upgrade plan →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

@@ -47,6 +47,8 @@ export async function POST() {
   let blockMessage: string | undefined;
   let upgradeUrl: string | undefined;
   let rateLimited = false;
+  let queueWarning = false;
+  let queueBusyBlocked = false;
 
   for (const website of websites) {
     const result = await enqueueScan({
@@ -58,6 +60,11 @@ export async function POST() {
 
     if (result.queued) {
       queued++;
+      if (result.queueWarning) queueWarning = true;
+    } else if (result.reason === 'queue_busy') {
+      queueBusyBlocked = true;
+      blockMessage = blockMessage ?? result.message;
+      skipped++;
     } else if (result.reason === 'scan_limit_reached' || result.reason === 'website_limit_reached') {
       blocked++;
       blockReason = blockReason ?? result.reason;
@@ -69,6 +76,21 @@ export async function POST() {
     } else {
       skipped++;
     }
+  }
+
+  // If queue is at critical capacity and nothing queued
+  if (queueBusyBlocked && queued === 0) {
+    return Response.json(
+      {
+        error: 'QUEUE_BUSY',
+        message:
+          blockMessage ??
+          'Scan demand is very high right now. Please try again shortly or upgrade for priority processing.',
+        queued: 0,
+        skipped,
+      },
+      { status: 503 },
+    );
   }
 
   // If scan limit was hit and nothing queued, surface it as a 403
@@ -101,6 +123,7 @@ export async function POST() {
     queued,
     skipped,
     blocked,
+    queueWarning,
     blockReason: blocked > 0 ? blockReason : undefined,
     upgradeUrl: blocked > 0 ? (upgradeUrl ?? '/dashboard/settings') : undefined,
     message:

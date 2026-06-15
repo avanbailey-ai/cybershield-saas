@@ -1,7 +1,9 @@
 export type AnalyticsEventType =
   | 'page_view'
+  | 'scan_created'
   | 'scan_started'
   | 'scan_completed'
+  | 'scan_failed'
   | 'report_viewed'
   | 'paywall_viewed'
   | 'upgrade_clicked'
@@ -50,8 +52,10 @@ export function getSessionId(): string {
 }
 
 const BRAIN_EVENT_TYPES = new Set([
+  'scan_created',
   'scan_started',
   'scan_completed',
+  'scan_failed',
   'report_viewed',
   'paywall_viewed',
   'upgrade_clicked',

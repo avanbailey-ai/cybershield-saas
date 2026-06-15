@@ -22,4 +22,7 @@ export interface EnqueueResult {
   plan?: Plan;
   scansUsed?: number;
   scansLimit?: number;
+  /** Set when queue is busy but enqueue succeeded. */
+  queueWarning?: boolean;
+  queueDepth?: number;
 }

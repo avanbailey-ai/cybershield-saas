@@ -5,8 +5,10 @@ import { emitEvent, type SystemEventType } from '@/lib/brain/eventBus';
 
 const VALID_EVENTS: AnalyticsEventType[] = [
   'page_view',
+  'scan_created',
   'scan_started',
   'scan_completed',
+  'scan_failed',
   'report_viewed',
   'paywall_viewed',
   'upgrade_clicked',
@@ -58,8 +60,10 @@ export async function POST(req: NextRequest) {
     }
 
     const brainTypes: SystemEventType[] = [
+      'scan_created',
       'scan_started',
       'scan_completed',
+      'scan_failed',
       'report_viewed',
       'paywall_viewed',
       'upgrade_clicked',
