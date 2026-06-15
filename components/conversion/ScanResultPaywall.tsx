@@ -26,6 +26,7 @@ export interface PublicScanResult {
 interface ScanResultPaywallProps {
   result: PublicScanResult;
   onUpgradeClick?: () => void;
+  onRescanClick?: () => void;
 }
 
 function scoreRingColor(score: number): string {
@@ -45,7 +46,7 @@ function severityBadgeClass(level: 'low' | 'medium' | 'high'): string {
   }
 }
 
-export default function ScanResultPaywall({ result, onUpgradeClick }: ScanResultPaywallProps) {
+export default function ScanResultPaywall({ result, onUpgradeClick, onRescanClick }: ScanResultPaywallProps) {
   const conversion = useConversionOptional();
   const { showPaywall, requireExplicitClick, revealPaywall } = usePaywallTiming();
   const { tier, config } = useAdaptiveConfig();
@@ -74,6 +75,14 @@ export default function ScanResultPaywall({ result, onUpgradeClick }: ScanResult
       trigger,
       recommendedPlan: config.highlightPlan ?? urgency.highlightPlan,
     });
+  }
+
+  function handleRescan() {
+    if (onRescanClick) {
+      onRescanClick();
+      return;
+    }
+    window.location.href = '/scan';
   }
 
   const protectCta = getPersonalizedCta(result.url, 'protect');
@@ -251,10 +260,14 @@ export default function ScanResultPaywall({ result, onUpgradeClick }: ScanResult
             ) : (
               <button
                 type="button"
-                onClick={() => handleUpgrade('full_report')}
+                onClick={() =>
+                  tier === 'low' && !config.showPricingPressure
+                    ? handleRescan()
+                    : handleUpgrade('full_report')
+                }
                 className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
               >
-                {tier === 'low' ? 'Run another free scan' : protectCta}
+                {tier === 'low' && !config.showPricingPressure ? 'Run another free scan' : protectCta}
               </button>
             )}
             <button

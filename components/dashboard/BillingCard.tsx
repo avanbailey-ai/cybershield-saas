@@ -39,6 +39,10 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = `/signup?redirectTo=${encodeURIComponent('/dashboard/settings')}`;
+          return;
+        }
         if (res.status === 503) {
           setError(data.error ?? 'Stripe payments not yet configured. Please contact support.');
         } else {

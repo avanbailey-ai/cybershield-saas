@@ -236,8 +236,9 @@ export default function WebsiteList() {
           )}
           <button
             onClick={() => {
-              if (websiteCount >= 1 && websiteLimitReached) {
+              if (websiteLimitReached) {
                 openUpgradeModal({ trigger: 'add_website', recommendedPlan: plan === 'pro' ? 'growth' : 'agency' });
+                return;
               }
               setShowAddForm(!showAddForm);
               setAddError(null);

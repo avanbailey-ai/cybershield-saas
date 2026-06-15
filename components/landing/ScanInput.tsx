@@ -51,10 +51,6 @@ function ScanInputInner(_props: ScanInputProps) {
       return;
     }
 
-    if (count >= 1) {
-      openUpgradeModal({ trigger: 'second_scan', score: 50, domain: normalizedUrl });
-    }
-
     setLoading(true);
     trackEvent('scan_started', { domain: normalizedUrl });
 
@@ -82,7 +78,10 @@ function ScanInputInner(_props: ScanInputProps) {
       const data = (await res.json()) as PublicScanResult;
       setResult(data);
 
-      recordPublicScan(normalizedUrl);
+      const { isSecondScan } = recordPublicScan(normalizedUrl);
+      if (isSecondScan) {
+        openUpgradeModal({ trigger: 'second_scan', score: data.score, domain: normalizedUrl });
+      }
       sessionStorage.setItem('cybershield_last_score', String(data.score));
 
       trackEvent('scan_completed', {
@@ -152,6 +151,11 @@ function ScanInputInner(_props: ScanInputProps) {
                 recommendedPlan: getUrgencyMessage(result.score, result.url).highlightPlan,
               })
             }
+            onRescanClick={() => {
+              setResult(null);
+              setError(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         )}
       </div>

@@ -22,6 +22,7 @@ interface AdaptiveCTAProps {
   className?: string;
   fallbackLabel?: string;
   variant?: 'primary' | 'secondary';
+  disabled?: boolean;
 }
 
 export default function AdaptiveCTA({
@@ -31,6 +32,7 @@ export default function AdaptiveCTA({
   className = '',
   fallbackLabel = 'Upgrade Now',
   variant = 'primary',
+  disabled = false,
 }: AdaptiveCTAProps) {
   const { score, loading } = useConversionScore();
   const [ctaText, setCtaText] = useState<string | null>(null);
@@ -85,7 +87,12 @@ export default function AdaptiveCTA({
   }
 
   return (
-    <button type="button" onClick={onClick} className={`${baseClass}${urgencyClass} ${className}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseClass}${urgencyClass} disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
       {label}
     </button>
   );

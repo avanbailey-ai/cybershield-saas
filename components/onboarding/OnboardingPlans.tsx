@@ -58,6 +58,10 @@ export default function OnboardingPlans() {
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = `/signup?redirectTo=${encodeURIComponent('/onboarding')}`;
+          return;
+        }
         if (res.status === 503) {
           setError(data.error ?? 'Stripe payments not yet configured. Please contact support.');
         } else {
@@ -117,6 +121,7 @@ export default function OnboardingPlans() {
               {isHighlighted && config.showPricingPressure ? (
                 <AdaptiveCTA
                   onClick={() => handleUpgrade(plan)}
+                  disabled={loading !== null}
                   className="mt-6 w-full"
                   fallbackLabel={loading === plan ? 'Redirecting…' : `Choose ${limits.name}`}
                 />
