@@ -4,7 +4,7 @@ import { type ReactNode } from 'react';
 import { useConversionScore } from '@/lib/analytics/useConversionScore';
 import { getAdaptationConfig, getCtaLabel, getIntentTier } from '@/lib/analytics/uiAdaptation';
 import { getSessionId } from '@/lib/analytics/events';
-import { getVariantClient } from '@/lib/analytics/experiments';
+import { getVariantClient } from '@/lib/analytics/experimentsClient';
 import { useEffect, useState } from 'react';
 
 interface ExperimentData {

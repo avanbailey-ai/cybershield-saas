@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
-import { getRedirectPath, getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import { getRedirectPath, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import { getRedirectPathForSession } from "@/lib/auth/redirectServer";
 
 import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import {

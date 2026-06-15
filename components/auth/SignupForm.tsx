@@ -3,10 +3,10 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import { fetchPostAuthRedirectPath } from "@/lib/auth/fetchPostAuthRedirectPath";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { isValidReferralCode } from "@/lib/referrals/code";
+import { isValidReferralCode } from "@/lib/referrals/codeFormat";
 
 export default function SignupForm() {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function SignupForm() {
         router.push(
           redirectTo && redirectTo.startsWith("/")
             ? redirectTo
-            : await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient),
+            : await fetchPostAuthRedirectPath(),
         );
         router.refresh();
       } else {

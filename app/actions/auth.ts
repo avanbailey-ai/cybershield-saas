@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseEnvError } from "@/lib/supabase/env";
-import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import type { SessionSupabaseClient } from "@/lib/auth/redirect";
+import { getRedirectPathForSession } from "@/lib/auth/redirectServer";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 

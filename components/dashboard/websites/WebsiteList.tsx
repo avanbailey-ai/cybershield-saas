@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
 import { useUser } from '@/lib/auth/useUser';
 import { useScanQueueRealtime, type ScanQueueJob } from "@/lib/scanner/useScanQueueRealtime";
-import { getWebsiteUsageMessage } from "@/lib/billing/guards";
+import { getWebsiteUsageMessage } from "@/lib/auth/permissions";
 import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
 import QueueDemandBanner from "@/components/dashboard/QueueDemandBanner";
 

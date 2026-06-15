@@ -1,8 +1,8 @@
 import { isOwner } from './owner';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
 import { canAccessFeature, type UserForFeatureGate } from './featureGate';
-import type { OrgRole } from '@/lib/auth/rbac';
-import { isOrgAdminRole } from '@/lib/auth/rbac';
+import type { OrgRole } from '@/lib/auth/orgRoles';
+import { isOrgAdminRole } from '@/lib/auth/orgRoles';
 
 export type UserWithPlan = {
   id?: string;

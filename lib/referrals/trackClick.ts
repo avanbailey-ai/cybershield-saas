@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
-import { isValidReferralCode } from '@/lib/referrals/code';
+import { isValidReferralCode } from '@/lib/referrals/codeFormat';
 
 
 

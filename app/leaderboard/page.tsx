@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { maskDomain } from '@/lib/leaderboard/update';
-import { maskUserId } from '@/lib/referrals/code';
+import { maskUserId } from '@/lib/referrals/codeFormat';
 
 export const metadata: Metadata = {
   title: 'Security Leaderboard — Top Websites & Referrers',

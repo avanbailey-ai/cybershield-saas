@@ -80,11 +80,21 @@ export function requireSupabasePublicEnv(): SupabasePublicEnv {
   return env;
 }
 
+/** Where to configure the service role key (server-only, never NEXT_PUBLIC_). */
+export function serviceRoleKeySetupHint(): string {
+  if (process.env.VERCEL) {
+    return "Add it in Vercel → Project Settings → Environment Variables (Production/Preview), then redeploy.";
+  }
+  return "Add it to .env.local for local dev (copy service_role from Supabase Dashboard → Settings → API for project ezuihaqvbtqehjkzusjp), then restart `npm run dev`.";
+}
+
 /** Server-only — never use in browser/client components. */
 export function getSupabaseServiceRoleKey(): string | null {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!key) {
-    console.error("[supabase] Missing env: SUPABASE_SERVICE_ROLE_KEY");
+    console.error(
+      `[supabase] Missing env: SUPABASE_SERVICE_ROLE_KEY. ${serviceRoleKeySetupHint()}`
+    );
     return null;
   }
   return key;

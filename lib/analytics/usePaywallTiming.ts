@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getSessionId } from './events';
 import { getPaywallDelay } from './paywallTiming';
-import { getVariantClient } from './experiments';
+import { getVariantClient } from './experimentsClient';
 import { useConversionScore } from './useConversionScore';
 
 interface PaywallTimingState {

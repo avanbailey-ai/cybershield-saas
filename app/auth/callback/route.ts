@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseEnvError } from "@/lib/supabase/env";
-import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import type { SessionSupabaseClient } from "@/lib/auth/redirect";
+import { getRedirectPathForSession } from "@/lib/auth/redirectServer";
 import { attachReferralOnSignup } from "@/lib/referrals/attach";
 import { auditLog, extractIp } from "@/lib/audit/log";
 import { ensureUserOrg } from "@/lib/org/migrateExistingUsers";

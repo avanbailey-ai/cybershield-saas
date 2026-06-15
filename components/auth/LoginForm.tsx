@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getRedirectPathForSession, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import { fetchPostAuthRedirectPath } from "@/lib/auth/fetchPostAuthRedirectPath";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
@@ -40,7 +40,7 @@ export default function LoginForm({ defaultRedirectTo }: LoginFormProps = {}) {
       router.push(
         redirectTo && redirectTo.startsWith("/")
           ? redirectTo
-          : await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient),
+          : await fetchPostAuthRedirectPath(),
       );
       router.refresh();
     } catch (err) {

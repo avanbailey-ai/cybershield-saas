@@ -1,6 +1,6 @@
 import { normalizePlan, type UserWithPlan } from './permissions';
-import type { OrgRole } from '@/lib/auth/rbac';
-import { isOrgAdminRole } from '@/lib/auth/rbac';
+import type { OrgRole } from '@/lib/auth/orgRoles';
+import { isOrgAdminRole } from '@/lib/auth/orgRoles';
 import type { Plan } from '@/lib/billing/plans';
 
 export type Feature =

@@ -2,10 +2,6 @@ import { isOwner } from './owner';
 import { canAccessEnterprise } from './permissions';
 import type { OrgRole } from '@/lib/auth/rbac';
 
-import { getSubscriptionAccessFromSession } from '@/lib/billing/getSubscriptionAccess';
-
-
-
 export type UserForRedirect = {
 
   email?: string | null;
@@ -102,45 +98,4 @@ export type SessionSupabaseClient = {
   };
 
 };
-
-
-
-export async function getRedirectPathForSession(
-
-  supabase: SessionSupabaseClient,
-
-): Promise<string> {
-
-  const {
-
-    data: { user },
-
-  } = await supabase.auth.getUser();
-
-
-
-  if (!user) return '/login';
-
-
-
-  const access = await getSubscriptionAccessFromSession(supabase, user.id, user.email);
-
-  return getRedirectPath(
-
-    {
-
-      email: user.email,
-
-      plan: access.plan,
-
-      subscription_status: access.status,
-
-    },
-
-    access.orgRole,
-
-  );
-
-}
-
 

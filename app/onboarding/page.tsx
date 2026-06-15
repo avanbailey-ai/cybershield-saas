@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getRedirectPathForSession, type SessionSupabaseClient } from '@/lib/auth/redirect';
+import type { SessionSupabaseClient } from '@/lib/auth/redirect';
+import { getRedirectPathForSession } from '@/lib/auth/redirectServer';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 
 export const metadata: Metadata = {

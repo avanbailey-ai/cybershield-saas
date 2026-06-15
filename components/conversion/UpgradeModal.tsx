@@ -13,7 +13,7 @@ import { getUrgencyMessage } from '@/lib/conversion/urgency';
 import { getPersonalizedCta } from '@/lib/conversion/personalize';
 import { trackEvent, getSessionId } from '@/lib/analytics/events';
 import { useAdaptiveConfig } from '@/components/analytics/AdaptiveCTA';
-import { getVariantClient } from '@/lib/analytics/experiments';
+import { getVariantClient } from '@/lib/analytics/experimentsClient';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 import type { PaywallTrigger } from './ConversionProvider';

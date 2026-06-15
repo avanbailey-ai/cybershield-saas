@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useUser } from '@/lib/auth/useUser';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
 import { useConversionOptional } from '@/components/conversion/ConversionProvider';
-import { getWebsiteUsageMessage } from '@/lib/billing/guards';
+import { getWebsiteUsageMessage } from '@/lib/auth/permissions';
 
 export default function PlanUsageWidget() {
   const { plan, limits, websiteCount, scansToday, websitesRemaining, scansRemaining, loading } =

@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { computeViralScore } from '@/lib/referrals/viralScore';
-import { isValidReferralCode } from '@/lib/referrals/code';
+import { isValidReferralCode } from '@/lib/referrals/codeFormat';
 
 const BONUS_SCANS_REWARD = 5;
 const PRO_UNLOCK_DAYS = 7;
