@@ -11,12 +11,13 @@ import {
   hasOrgMembership,
 } from "@/lib/org/sessionContext";
 import { isOwner } from "@/lib/auth/owner";
+import { canAccessEnterprise } from "@/lib/auth/permissions";
 
 
 
 const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise"];
 
-const AUTH_PATHS = ["/login", "/signup"];
+const AUTH_PATHS = ["/login", "/signup", "/enterprise/login"];
 
 const REF_COOKIE = "cybershield_ref";
 
@@ -207,11 +208,13 @@ export async function updateSession(request: NextRequest) {
 
     if (isProtected) {
 
+      const isEnterprisePortal = pathname.startsWith('/enterprise/portal');
+
       if (!user) {
 
         const url = request.nextUrl.clone();
 
-        url.pathname = "/login";
+        url.pathname = isEnterprisePortal ? "/enterprise/login" : "/login";
 
         url.searchParams.set("redirectTo", pathname);
 
@@ -227,8 +230,6 @@ export async function updateSession(request: NextRequest) {
         user.email,
         cookieOrgId,
       );
-
-      const isEnterprisePortal = pathname.startsWith('/enterprise/portal');
 
       if (!isEnterprisePortal && !isOwner(user.email) && !hasOrgMembership(orgCtx)) {
 
@@ -285,6 +286,24 @@ export async function updateSession(request: NextRequest) {
 
 
     if (isAuthPath && user) {
+
+      if (pathname.startsWith('/enterprise/login')) {
+        const access = await getSubscriptionAccessFromSession(
+          supabase as unknown as SessionSubscriptionClient,
+          user.id,
+          user.email,
+          cookieOrgId,
+        );
+        const url = request.nextUrl.clone();
+        url.pathname = canAccessEnterprise({
+          email: user.email,
+          plan: access.plan,
+          subscription_status: access.status,
+        })
+          ? '/enterprise/portal'
+          : '/app';
+        return NextResponse.redirect(url);
+      }
 
       const redirectPath = await getRedirectPathForSession(
 

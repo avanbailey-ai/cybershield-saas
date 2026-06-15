@@ -13,10 +13,14 @@ const supabaseConfigured =
   typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string" &&
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0;
 
-export default function LoginForm() {
+interface LoginFormProps {
+  defaultRedirectTo?: string;
+}
+
+export default function LoginForm({ defaultRedirectTo }: LoginFormProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo");
+  const redirectTo = searchParams.get("redirectTo") ?? defaultRedirectTo;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

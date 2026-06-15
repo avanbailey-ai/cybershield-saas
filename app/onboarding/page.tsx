@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getRedirectPathForSession, type SessionSupabaseClient } from '@/lib/auth/redirect';
 import OnboardingPlans from '@/components/onboarding/OnboardingPlans';
-import ExitIntentModal from '@/components/conversion/ExitIntentModal';
 
 export const metadata: Metadata = {
   title: 'Choose a Plan — CyberShield',
@@ -29,7 +28,6 @@ export default async function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gray-950">
-      <ExitIntentModal />
       <header className="border-b border-gray-800 px-6 py-4">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600">
@@ -53,9 +51,9 @@ export default async function OnboardingPage() {
 
       <main className="mx-auto max-w-5xl px-6 py-16">
         <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-white">Choose a plan to get started</h1>
+          <h1 className="text-3xl font-bold text-white">Choose your monitoring plan</h1>
           <p className="mt-3 text-gray-400">
-            Select a plan to unlock your security monitoring dashboard.
+            Start with continuous scanning, alerts, and full reports. Prices shown are from Stripe.
           </p>
         </div>
 

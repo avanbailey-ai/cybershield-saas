@@ -4,11 +4,13 @@ import PlanUsageWidget from '@/components/dashboard/PlanUsageWidget';
 interface DashboardHeaderProps {
   email: string;
   title?: string;
+  showPlanUsage?: boolean;
 }
 
 export default function DashboardHeader({
   email,
   title = "Dashboard",
+  showPlanUsage = true,
 }: DashboardHeaderProps) {
   const initial = email.charAt(0).toUpperCase();
 
@@ -17,7 +19,7 @@ export default function DashboardHeader({
       <h1 className="text-base font-semibold text-white">{title}</h1>
 
       <div className="flex items-center gap-3">
-        <PlanUsageWidget />
+        {showPlanUsage && <PlanUsageWidget />}
 
         {/* Notifications bell */}
         <button

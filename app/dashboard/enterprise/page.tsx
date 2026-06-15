@@ -25,7 +25,7 @@ export default async function EnterpriseDashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/enterprise/login?redirectTo=/enterprise/portal");
 
   const access = await getSubscriptionAccessFromSession(
     supabase as unknown as SessionSubscriptionClient,
@@ -34,7 +34,7 @@ export default async function EnterpriseDashboardPage() {
   );
 
   if (!canAccessEnterprise({ email: user.email, plan: access.plan, subscription_status: access.status })) {
-    redirect("/enterprise/portal");
+    redirect("/app");
   }
 
   const orgId = await getActiveOrgId(user.id);
@@ -98,7 +98,7 @@ export default async function EnterpriseDashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email={user.email ?? "User"} />
+      <DashboardHeader email={user.email ?? "User"} title="Enterprise Overview" showPlanUsage={false} />
 
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-8 flex items-center justify-between">

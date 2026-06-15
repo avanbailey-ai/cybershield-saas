@@ -11,6 +11,7 @@ import {
 } from '@/lib/conversion/limits';
 import { trackEvent } from '@/lib/conversion/track';
 import { getUrgencyMessage } from '@/lib/conversion/urgency';
+import ExitIntentModal from '@/components/conversion/ExitIntentModal';
 
 interface ScanInputProps {
   showUpgradeCta?: boolean;
@@ -22,6 +23,7 @@ function ScanInputInner(_props: ScanInputProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PublicScanResult | null>(null);
+  const [isSecondScan, setIsSecondScan] = useState(false);
   const submittingRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,6 +32,7 @@ function ScanInputInner(_props: ScanInputProps) {
 
     setError(null);
     setResult(null);
+    setIsSecondScan(false);
 
     let normalizedUrl = url.trim();
     if (!normalizedUrl) {
@@ -52,9 +55,11 @@ function ScanInputInner(_props: ScanInputProps) {
       if (domainAlreadyScanned) {
         setError('You already scanned this website today. Upgrade for unlimited monitoring.');
       } else {
-        setError(`Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). Upgrade for unlimited monitoring.`);
+        setError(
+          `Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). Upgrade for unlimited monitoring.`,
+        );
       }
-      openUpgradeModal({ trigger: 'second_scan', score: 50, domain: normalizedUrl });
+      openUpgradeModal({ trigger: 'scan_limit', score: 50, domain: normalizedUrl });
       return;
     }
 
@@ -74,9 +79,12 @@ function ScanInputInner(_props: ScanInputProps) {
       });
 
       if (res.status === 429) {
-        openUpgradeModal({ trigger: 'second_scan', domain: normalizedUrl });
+        openUpgradeModal({ trigger: 'scan_limit', domain: normalizedUrl });
         const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error ?? 'Daily scan limit reached. Upgrade for unlimited monitoring.');
+        throw new Error(
+          (data as { error?: string }).error ??
+            'Daily scan limit reached. Upgrade for unlimited monitoring.',
+        );
       }
 
       if (!res.ok) {
@@ -87,10 +95,8 @@ function ScanInputInner(_props: ScanInputProps) {
       const data = (await res.json()) as PublicScanResult;
       setResult(data);
 
-      const { isSecondScan } = recordPublicScan(normalizedUrl);
-      if (isSecondScan) {
-        openUpgradeModal({ trigger: 'second_scan', score: data.score, domain: normalizedUrl });
-      }
+      const { isSecondScan: second } = recordPublicScan(normalizedUrl);
+      setIsSecondScan(second);
       sessionStorage.setItem('cybershield_last_score', String(data.score));
 
       trackEvent('scan_completed', {
@@ -107,13 +113,14 @@ function ScanInputInner(_props: ScanInputProps) {
   }
 
   return (
-    <section className="relative py-16 px-4">
+    <section className="relative px-4 py-16">
+      <ExitIntentModal enabled={!!result} />
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="mb-2 text-2xl font-bold text-white sm:text-3xl">
           Check Your Website Security — Free
         </h2>
         <p className="mb-8 text-gray-400">
-          Enter your URL below for an instant security risk assessment. No login required.
+          Enter your URL for an instant security score and top findings. No login required.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
@@ -133,8 +140,19 @@ function ScanInputInner(_props: ScanInputProps) {
             {loading ? (
               <>
                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 Scanning…
               </>
@@ -153,16 +171,18 @@ function ScanInputInner(_props: ScanInputProps) {
         {result && (
           <ScanResultPaywall
             result={result}
+            isSecondScan={isSecondScan}
             onUpgradeClick={() =>
               openUpgradeModal({
                 score: result.score,
                 domain: result.url,
-                trigger: 'full_report',
+                trigger: isSecondScan ? 'second_scan' : 'full_report',
                 recommendedPlan: getUrgencyMessage(result.score, result.url).highlightPlan,
               })
             }
             onRescanClick={() => {
               setResult(null);
+              setIsSecondScan(false);
               setError(null);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}

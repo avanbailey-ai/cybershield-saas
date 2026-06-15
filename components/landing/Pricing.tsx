@@ -22,8 +22,6 @@ import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 
 import PlanComparisonTable from '@/components/conversion/PlanComparisonTable';
 
-import ExitIntentModal from '@/components/conversion/ExitIntentModal';
-
 import { trackEvent } from '@/lib/conversion/track';
 
 
@@ -282,8 +280,6 @@ export default function Pricing() {
 
     <section id="pricing" className="relative py-24 px-4">
 
-      <ExitIntentModal />
-
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
 
       <div className="mx-auto max-w-7xl">
@@ -303,9 +299,7 @@ export default function Pricing() {
           </h2>
 
           <p className="mx-auto max-w-xl text-gray-400">
-
-            Try a free public scan, then upgrade for continuous monitoring.
-
+            Start with a free scan, then upgrade for continuous monitoring. All prices from Stripe.
           </p>
 
           {trustSignals && (

@@ -4,8 +4,6 @@ import Link from 'next/link';
 
 import ScanInput from '@/components/landing/ScanInput';
 
-import ExitIntentModal from '@/components/conversion/ExitIntentModal';
-
 
 
 export const metadata: Metadata = {
@@ -23,8 +21,6 @@ export default function ScanPage() {
   return (
 
     <div className="min-h-screen bg-[#0a0f1e]">
-
-      <ExitIntentModal />
 
       <header className="border-b border-gray-800/60 bg-[#0a0f1e]/80 backdrop-blur-md">
 

@@ -2,29 +2,26 @@
  * POST /api/scan/trigger-all
  * Enqueues all active websites for the authenticated user via the orchestrator.
  * Does NOT execute scans — /api/scan/enqueue-or-process-batch processes the queue.
- *
- * Plan limits, dedup, and rate-limit checks are enforced inside orchestrator.enqueueScan().
- * Scan All bypasses the per-website cooldown so explicit user intent to scan now is honored.
- *
- * Returns a summary including how many were blocked by plan limits.
  */
+
+import '@/services';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { enqueueScan } from '@/lib/scanner/orchestrator';
 import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess';
+import { emit } from '@/core/events/emit';
+import { getUser } from '@/services/supabaseService';
+import { enqueueScan } from '@/services/scanService';
 
 export async function POST() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getUser(supabase);
+
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const access = await requireDashboardAccess(user);
   if (!access.allowed) return access.response;
 
-  // Fetch all active websites for this user
   const adminSupabase = createAdminClient();
   const { data: websites, error: fetchErr } = await adminSupabase
     .from('websites')
@@ -61,11 +58,25 @@ export async function POST() {
     if (result.queued) {
       queued++;
       if (result.queueWarning) queueWarning = true;
+      if (result.jobId) {
+        void emit({
+          type: 'scanCreated',
+          payload: {
+            scanId: result.jobId,
+            websiteId: website.id,
+            userId: user.id,
+          },
+        });
+      }
     } else if (result.reason === 'queue_busy') {
       queueBusyBlocked = true;
       blockMessage = blockMessage ?? result.message;
       skipped++;
-    } else if (result.reason === 'scan_limit_reached' || result.reason === 'website_limit_reached' || result.reason === 'website_scan_limit') {
+    } else if (
+      result.reason === 'scan_limit_reached' ||
+      result.reason === 'website_limit_reached' ||
+      result.reason === 'website_scan_limit'
+    ) {
       blocked++;
       blockReason = blockReason ?? result.reason;
       blockMessage = blockMessage ?? result.message;
@@ -78,7 +89,6 @@ export async function POST() {
     }
   }
 
-  // If queue is at critical capacity and nothing queued
   if (queueBusyBlocked && queued === 0) {
     return Response.json(
       {
@@ -93,15 +103,16 @@ export async function POST() {
     );
   }
 
-  // If scan limit was hit and nothing queued, surface it as a 403
   if (blocked > 0 && queued === 0) {
     const isScanLimit = blockReason === 'scan_limit_reached';
     return Response.json(
       {
         error: isScanLimit ? 'USAGE_LIMIT_REACHED' : 'WEBSITE_LIMIT_REACHED',
-        message: blockMessage ?? (isScanLimit
-          ? 'Daily scan limit reached. Upgrade your plan to scan more websites.'
-          : 'Website limit reached for your plan.'),
+        message:
+          blockMessage ??
+          (isScanLimit
+            ? 'Daily scan limit reached. Upgrade your plan to scan more websites.'
+            : 'Website limit reached for your plan.'),
         queued: 0,
         skipped,
         blocked,

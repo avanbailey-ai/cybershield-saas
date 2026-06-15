@@ -83,11 +83,11 @@ export default function ExitIntentModal({ enabled = true }: ExitIntentModalProps
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <p className="text-xs font-semibold uppercase tracking-wider text-red-400">Before you go</p>
-        <h2 className="mt-2 text-xl font-bold text-white">Wait — your site may still be exposed</h2>
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">Before you go</p>
+        <h2 className="mt-2 text-xl font-bold text-white">Your scan results are ready</h2>
         <p className="mt-3 text-sm text-gray-400">
-          A one-time scan can&apos;t protect you from new threats. Growth plan includes daily monitoring
-          {domain ? ` for ${domain}` : ''} and real-time alerts.
+          A one-time scan can&apos;t catch new threats. Upgrade for daily monitoring
+          {domain ? ` on ${domain}` : ''} and real-time alerts.
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <button

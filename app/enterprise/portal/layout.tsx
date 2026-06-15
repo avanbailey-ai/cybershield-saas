@@ -12,7 +12,7 @@ export default async function EnterprisePortalLayout({ children }: { children: R
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/login?redirectTo=/enterprise/portal');
+    redirect('/enterprise/login?redirectTo=/enterprise/portal');
   }
 
   const access = await getSubscriptionAccessFromSession(

@@ -144,9 +144,13 @@ export default function OnboardingPlans() {
       </div>
 
       <p className="text-center text-sm text-gray-500">
-        Want to compare plans first?{' '}
+        Need enterprise coverage?{' '}
+        <Link href="/enterprise/lead" className="font-medium text-amber-400 hover:text-amber-300">
+          Talk to a security expert
+        </Link>
+        {' · '}
         <Link href="/#pricing" className="font-medium text-blue-400 hover:text-blue-300">
-          View full pricing
+          Compare all plans
         </Link>
       </p>
     </div>

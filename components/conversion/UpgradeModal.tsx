@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   PLAN_LIMITS,
   BILLED_PLANS,
@@ -39,7 +40,6 @@ export default function UpgradeModal({
   const [ctaText, setCtaText] = useState<string | null>(null);
   const [autopilotPlan, setAutopilotPlan] = useState<BilledPlan | null>(null);
   const [trustSignals, setTrustSignals] = useState(true);
-  const [urgencyLevel, setUrgencyLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const { config: adaptiveConfig } = useAdaptiveConfig();
   const { prices } = useDisplayPrices();
 
@@ -58,9 +58,6 @@ export default function UpgradeModal({
           if (cfg.cta_text_variant) setCtaText(String(cfg.cta_text_variant));
           if (typeof cfg.trust_signals_visible === 'boolean') {
             setTrustSignals(cfg.trust_signals_visible);
-          }
-          if (cfg.urgency_level) {
-            setUrgencyLevel(cfg.urgency_level as 'low' | 'medium' | 'high');
           }
         }
         const sessionId = getSessionId();
@@ -135,8 +132,8 @@ export default function UpgradeModal({
   }
 
   const triggerMessages: Record<PaywallTrigger, string | null> = {
-    full_report: 'Unlock the complete vulnerability report with a paid plan.',
-    second_scan: 'Free scans are limited — upgrade for unlimited monitoring.',
+    full_report: 'Unlock the complete vulnerability report with continuous monitoring.',
+    second_scan: 'Free scans are limited — upgrade for unlimited daily monitoring.',
     add_website: 'Add more websites and enable continuous protection.',
     export: 'Export full reports with a paid subscription.',
     scan_limit: "You've reached your scan limit — upgrade to scan more today.",
@@ -146,24 +143,33 @@ export default function UpgradeModal({
 
   const triggerMessage = trigger ? triggerMessages[trigger] : null;
   const protectCta = ctaText ?? getPersonalizedCta(domain, 'protect');
+  const enterpriseHref = domain
+    ? `/enterprise/lead?domain=${encodeURIComponent(domain)}`
+    : '/enterprise/lead';
 
   const headline =
-    adaptiveConfig.ctaStyle === 'aggressive' && adaptiveConfig.showUrgency
-      ? urgency.headline
-      : adaptiveConfig.ctaStyle === 'educational'
-        ? 'Compare plans and find the right protection level'
-        : urgency.headline;
+    trigger === 'full_report'
+      ? 'Unlock your full security report'
+      : trigger === 'second_scan' || trigger === 'scan_limit'
+        ? 'Keep monitoring beyond the free scan'
+        : adaptiveConfig.ctaStyle === 'educational'
+          ? 'Choose the right protection level'
+          : urgency.headline;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
         aria-label="Close"
       />
-      <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-700 bg-gray-950 shadow-2xl">
-        <div className="border-b border-gray-800 p-6">
+      <div
+        role="dialog"
+        aria-labelledby="upgrade-modal-title"
+        className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-gray-700 bg-gray-950 shadow-2xl sm:rounded-2xl"
+      >
+        <div className="border-b border-gray-800 p-5 sm:p-6">
           <button
             type="button"
             onClick={onClose}
@@ -174,40 +180,34 @@ export default function UpgradeModal({
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          {adaptiveConfig.showUrgency && urgencyLevel !== 'low' && (
-            <p
-              className={`text-xs font-semibold uppercase tracking-wider ${
-                urgency.level === 'high'
-                  ? 'text-red-400'
-                  : urgency.level === 'medium'
-                    ? 'text-yellow-400'
-                    : 'text-green-400'
-              }`}
-            >
-              {urgency.level === 'high' ? 'Urgent' : urgency.level === 'medium' ? 'Action needed' : 'Recommended'}
-            </p>
-          )}
-          <h2 className="mt-2 text-xl font-bold text-white">{headline}</h2>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+            Upgrade to monitor
+          </p>
+          <h2 id="upgrade-modal-title" className="mt-2 pr-8 text-xl font-bold text-white sm:text-2xl">
+            {headline}
+          </h2>
           <p className="mt-2 text-sm text-gray-400">{urgency.subtext}</p>
           {triggerMessage && (
-            <p className="mt-2 text-sm text-blue-400">{triggerMessage}</p>
+            <p className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-sm text-blue-300">
+              {triggerMessage}
+            </p>
           )}
         </div>
 
         {error && (
-          <div className="mx-6 mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mx-5 mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400 sm:mx-6">
             {error}
           </div>
         )}
 
-        <div className="grid gap-4 p-6 sm:grid-cols-3">
+        <div className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6">
           {BILLED_PLANS.map((plan) => {
             const limits = PLAN_LIMITS[plan];
             const isHighlighted = plan === highlightPlan;
             return (
               <div
                 key={plan}
-                className={`relative flex flex-col rounded-xl border p-5 ${
+                className={`relative flex flex-col rounded-xl border p-4 sm:p-5 ${
                   isHighlighted
                     ? 'border-blue-500/60 bg-blue-500/5 ring-1 ring-blue-500/30'
                     : 'border-gray-800 bg-gray-900/40'
@@ -215,53 +215,64 @@ export default function UpgradeModal({
               >
                 {isHighlighted && (
                   <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white">
-                    {adaptiveConfig.showPricingPressure ? 'Best Value' : 'Recommended'}
+                    Recommended
                   </span>
                 )}
-                {plan === 'growth' && PLAN_LIMITS.growth.mostPopular && !isHighlighted && (
-                  <span className="mb-2 self-start rounded-full bg-blue-600/20 px-2 py-0.5 text-xs font-semibold text-blue-400">
-                    Most Popular
-                  </span>
-                )}
-                <h3 className="text-lg font-bold text-white">{limits.name}</h3>
+                <h3 className="text-base font-bold text-white sm:text-lg">{limits.name}</h3>
                 <p className="mt-1 text-2xl font-bold text-white">
                   {formatDisplayPrice(prices[plan])}
                   <span className="text-sm font-normal text-gray-500">/mo</span>
                 </p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-gray-400">
+                <ul className="mt-3 flex-1 space-y-1.5 text-sm text-gray-400">
                   <li>{formatWebsiteLimit(limits.websites)}</li>
                   <li>{limits.maxScansPerDay} scans/day</li>
                   <li>{formatScanFrequency(limits.scanFrequency)}</li>
                 </ul>
-                <button
-                  type="button"
-                  onClick={() => handleCheckout(plan)}
-                  disabled={loading !== null}
-                  className={`mt-5 w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${
-                    isHighlighted
-                      ? adaptiveConfig.ctaStyle === 'aggressive'
-                        ? 'bg-red-600 text-white hover:bg-red-500'
-                        : 'bg-blue-600 text-white hover:bg-blue-500'
-                      : 'border border-gray-700 text-gray-300 hover:border-gray-600 hover:text-white'
-                  }`}
-                >
-                  {loading === plan ? 'Redirecting…' : isHighlighted ? protectCta : `Choose ${limits.name}`}
-                </button>
+                {isHighlighted ? (
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(plan)}
+                    disabled={loading !== null}
+                    className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
+                  >
+                    {loading === plan ? 'Redirecting…' : protectCta}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(plan)}
+                    disabled={loading !== null}
+                    className="mt-4 w-full rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-60"
+                  >
+                    {loading === plan ? 'Redirecting…' : `Choose ${limits.name}`}
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
 
         {trustSignals && (
-          <div className="mx-6 mb-2 flex flex-wrap justify-center gap-4 text-xs text-gray-500">
-            <span>✓ 30-day money-back guarantee</span>
-            <span>✓ Cancel anytime</span>
-            <span>✓ Secure Stripe checkout</span>
+          <div className="mx-5 mb-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-500 sm:mx-6">
+            <span>30-day money-back guarantee</span>
+            <span>Cancel anytime</span>
+            <span>Secure Stripe checkout</span>
           </div>
         )}
 
-        <div className="border-t border-gray-800 px-6 py-4 text-center">
-          <p className="text-sm text-gray-400">{protectCta}</p>
+        <div className="border-t border-gray-800 px-5 py-4 text-center sm:px-6">
+          <p className="text-xs text-gray-500">
+            Need enterprise coverage or a security review?{' '}
+            <Link
+              href={enterpriseHref}
+              onClick={() =>
+                trackEvent('upgrade_clicked', { domain, trigger: 'enterprise_cta' })
+              }
+              className="font-medium text-amber-400 hover:text-amber-300"
+            >
+              Talk to a security expert
+            </Link>
+          </p>
         </div>
       </div>
     </div>

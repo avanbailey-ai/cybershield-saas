@@ -66,7 +66,7 @@ export default function EnterpriseUsersPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email="Team Management" />
+      <DashboardHeader email="Team Management" title="Team Management" showPlanUsage={false} />
 
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-6 flex items-center gap-3">
