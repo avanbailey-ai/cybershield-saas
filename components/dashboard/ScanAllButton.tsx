@@ -5,10 +5,15 @@ import { usePlan } from '@/lib/billing/usePlan';
 import { useConversion } from '@/components/conversion/ConversionProvider';
 import QueueDemandBanner from '@/components/dashboard/QueueDemandBanner';
 
+function createIdempotencyKey(): string {
+  return crypto.randomUUID();
+}
+
 export default function ScanAllButton() {
   const { scansToday, scansRemaining, effectiveScansLimit, loading: planLoading } = usePlan();
   const { openUpgradeModal } = useConversion();
   const isScanningRef = useRef(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [queueWarning, setQueueWarning] = useState(false);
@@ -32,7 +37,13 @@ export default function ScanAllButton() {
     setQueueWarning(false);
 
     try {
-      const enqueueRes = await fetch('/api/scan/trigger-all', { method: 'POST' });
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = createIdempotencyKey();
+      }
+      const enqueueRes = await fetch('/api/scan/trigger-all', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKeyRef.current },
+      });
       const enqueueData = await enqueueRes.json();
 
       if (enqueueRes.status === 403) {
@@ -86,6 +97,7 @@ export default function ScanAllButton() {
       console.error('[ScanAll]', err);
     } finally {
       isScanningRef.current = false;
+      idempotencyKeyRef.current = null;
       setLoading(false);
     }
   }

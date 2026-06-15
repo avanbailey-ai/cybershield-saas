@@ -2,7 +2,7 @@
 
 
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
 
@@ -56,6 +56,8 @@ interface WebsiteRow {
 
   latestQueueJob: LatestQueueJob | null;
 
+  recentScores?: number[];
+
 }
 
 
@@ -93,6 +95,34 @@ function scoreBadgeClass(score: number): string {
 }
 
 
+
+function scoreTrendText(scores: number[] | undefined): string | null {
+  if (!scores || scores.length < 2) return null;
+  const delta = scores[0] - scores[1];
+  if (delta === 0) return 'No change vs last scan';
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta} vs last scan`;
+}
+
+function ScoreSparkline({ scores }: { scores: number[] }) {
+  const recent = scores.slice(0, 3).reverse();
+  if (recent.length < 2) return null;
+  const min = Math.min(...recent, 0);
+  const max = Math.max(...recent, 100);
+  const range = max - min || 1;
+  const points = recent
+    .map((s, i) => {
+      const x = (i / (recent.length - 1)) * 40;
+      const y = 12 - ((s - min) / range) * 10;
+      return `${x},${y}`;
+    })
+    .join(' ');
+  return (
+    <svg width="44" height="14" className="ml-1 inline-block opacity-70" aria-hidden>
+      <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points={points} />
+    </svg>
+  );
+}
 
 function queueStatusLabel(status: string): string {
 
@@ -158,6 +188,10 @@ export default function WebsiteList() {
 
   const [queueWarning, setQueueWarning] = useState(false);
 
+  const scanningRef = useRef<string | null>(null);
+
+  const scanIdempotencyRef = useRef<Map<string, string>>(new Map());
+
 
 
   const fetchWebsites = useCallback(async () => {
@@ -214,17 +248,37 @@ export default function WebsiteList() {
 
       setScanResult({ id: scanningId, score: job.result.score });
 
+      scanningRef.current = null;
+
       setScanningId(null);
+
+      scanIdempotencyRef.current.delete(scanningId);
 
     } else if (job.status === "failed") {
 
       setError(job.result?.error ?? job.error ?? "Scan failed");
 
+      scanningRef.current = null;
+
       setScanningId(null);
+
+      scanIdempotencyRef.current.delete(scanningId);
 
     }
 
   }, [scanningId, getWebsiteJob]);
+
+
+
+  function clearScanState(websiteId: string) {
+
+    scanningRef.current = null;
+
+    setScanningId(null);
+
+    scanIdempotencyRef.current.delete(websiteId);
+
+  }
 
 
 
@@ -296,7 +350,9 @@ export default function WebsiteList() {
 
   async function handleScan(websiteId: string) {
 
-    if (scanningId !== null) return;
+    if (scanningRef.current !== null || scanningId !== null) return;
+
+    scanningRef.current = websiteId;
 
     setScanningId(websiteId);
 
@@ -304,13 +360,29 @@ export default function WebsiteList() {
 
     setLimitError(null);
 
+    let idempotencyKey = scanIdempotencyRef.current.get(websiteId);
+
+    if (!idempotencyKey) {
+
+      idempotencyKey = crypto.randomUUID();
+
+      scanIdempotencyRef.current.set(websiteId, idempotencyKey);
+
+    }
+
     try {
 
       const res = await fetch("/api/scan", {
 
         method: "POST",
 
-        headers: { "Content-Type": "application/json" },
+        headers: {
+
+          "Content-Type": "application/json",
+
+          "Idempotency-Key": idempotencyKey,
+
+        },
 
         body: JSON.stringify({ websiteId }),
 
@@ -342,11 +414,11 @@ export default function WebsiteList() {
 
             : "Website limit reached for your plan."),
 
-          upgradeUrl: data.upgradeUrl ?? "/dashboard/settings",
+          upgradeUrl: data.upgradeUrl ?? "/app/settings",
 
         });
 
-        setScanningId(null);
+        clearScanState(websiteId);
 
         return;
 
@@ -366,7 +438,7 @@ export default function WebsiteList() {
 
         setError(data.message ?? "Scan queue is at capacity — try again shortly.");
 
-        setScanningId(null);
+        clearScanState(websiteId);
 
         return;
 
@@ -376,7 +448,7 @@ export default function WebsiteList() {
 
         setError(data.error ?? "Scan skipped — site was scanned recently or rate limit reached");
 
-        setScanningId(null);
+        clearScanState(websiteId);
 
         return;
 
@@ -386,7 +458,7 @@ export default function WebsiteList() {
 
         setError(data.error ?? "Already queued — a scan for this site is already in progress");
 
-        setScanningId(null);
+        clearScanState(websiteId);
 
         return;
 
@@ -414,7 +486,7 @@ export default function WebsiteList() {
 
         setScanResult({ id: websiteId, score: data.score });
 
-        setScanningId(null);
+        clearScanState(websiteId);
 
         return;
 
@@ -438,13 +510,17 @@ export default function WebsiteList() {
 
 
 
-      setScanningId(null);
+      clearScanState(websiteId);
 
     } catch (e) {
 
       setError(e instanceof Error ? e.message : "Scan failed");
 
+      scanningRef.current = null;
+
       setScanningId(null);
+
+      scanIdempotencyRef.current.delete(websiteId);
 
     }
 
@@ -928,11 +1004,43 @@ export default function WebsiteList() {
 
                     {score !== null ? (
 
-                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${scoreBadgeClass(score)}`}>
+                      <div className="flex flex-col gap-0.5">
 
-                        {score}/100
+                        <span className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${scoreBadgeClass(score)}`}>
 
-                      </span>
+                          {score}/100
+
+                          {site.recentScores && site.recentScores.length > 1 && (
+
+                            <ScoreSparkline scores={site.recentScores} />
+
+                          )}
+
+                        </span>
+
+                        {scoreTrendText(site.recentScores) && (
+
+                          <span className={`text-xs ${
+
+                            (site.recentScores![0] - site.recentScores![1]) > 0
+
+                              ? 'text-green-400'
+
+                              : (site.recentScores![0] - site.recentScores![1]) < 0
+
+                                ? 'text-red-400'
+
+                                : 'text-gray-500'
+
+                          }`}>
+
+                            {scoreTrendText(site.recentScores)}
+
+                          </span>
+
+                        )}
+
+                      </div>
 
                     ) : isScanning ? (
 

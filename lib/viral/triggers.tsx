@@ -9,6 +9,8 @@ import ShareResultModal from '@/components/conversion/ShareResultModal';
  */
 export const HIGH_RISK_SECURITY_SCORE_THRESHOLD = 40;
 
+const SHARE_MODAL_SHOWN_KEY = 'cybershield_share_modal_shown';
+
 interface ScanResultViralTriggersProps {
   domain: string;
   score: number;
@@ -27,10 +29,22 @@ export function useScanResultViralTriggers({
   const [highRiskPrompted, setHighRiskPrompted] = useState(false);
   const [timedPrompted, setTimedPrompted] = useState(false);
 
+  function markShareModalShown() {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(SHARE_MODAL_SHOWN_KEY, '1');
+    }
+  }
+
+  function wasShareModalShown(): boolean {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem(SHARE_MODAL_SHOWN_KEY) === '1';
+  }
+
   useEffect(() => {
-    if (!reportViewed || highRiskPrompted) return;
+    if (!reportViewed || highRiskPrompted || wasShareModalShown()) return;
     if (score < HIGH_RISK_SECURITY_SCORE_THRESHOLD) {
       const timer = setTimeout(() => {
+        markShareModalShown();
         setShareOpen(true);
         setHighRiskPrompted(true);
       }, 800);
@@ -39,8 +53,9 @@ export function useScanResultViralTriggers({
   }, [score, reportViewed, highRiskPrompted]);
 
   useEffect(() => {
-    if (!reportViewed || timedPrompted) return;
+    if (!reportViewed || timedPrompted || wasShareModalShown()) return;
     const timer = setTimeout(() => {
+      markShareModalShown();
       setShareOpen(true);
       setTimedPrompted(true);
     }, 5000);
@@ -55,8 +70,9 @@ export function useScanResultViralTriggers({
 
     function handleMouseLeave(e: MouseEvent) {
       if (e.clientY > 0) return;
-      if (sessionStorage.getItem(key)) return;
+      if (sessionStorage.getItem(key) || wasShareModalShown()) return;
       sessionStorage.setItem(key, '1');
+      markShareModalShown();
       setExitShareOpen(true);
     }
 
@@ -80,6 +96,11 @@ export function useScanResultViralTriggers({
         onClose={closeShare}
       />
     ),
-    openShare: () => setShareOpen(true),
+    openShare: () => {
+      if (!wasShareModalShown()) {
+        markShareModalShown();
+      }
+      setShareOpen(true);
+    },
   };
 }

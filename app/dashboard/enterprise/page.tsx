@@ -34,7 +34,7 @@ export default async function EnterpriseDashboardPage() {
   );
 
   if (!canAccessEnterprise({ email: user.email, plan: access.plan, subscription_status: access.status })) {
-    redirect("/dashboard");
+    redirect("/enterprise/portal");
   }
 
   const orgId = await getActiveOrgId(user.id);
@@ -110,7 +110,7 @@ export default async function EnterpriseDashboardPage() {
             </p>
           </div>
           <Link
-            href="/dashboard/enterprise/users"
+            href="/enterprise/portal/users"
             className="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white"
           >
             Manage Team

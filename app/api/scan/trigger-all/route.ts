@@ -65,7 +65,7 @@ export async function POST() {
       queueBusyBlocked = true;
       blockMessage = blockMessage ?? result.message;
       skipped++;
-    } else if (result.reason === 'scan_limit_reached' || result.reason === 'website_limit_reached') {
+    } else if (result.reason === 'scan_limit_reached' || result.reason === 'website_limit_reached' || result.reason === 'website_scan_limit') {
       blocked++;
       blockReason = blockReason ?? result.reason;
       blockMessage = blockMessage ?? result.message;

@@ -68,6 +68,52 @@ export async function GET() {
 
 
 
+  const websiteIds = (websites ?? []).map((w: { id: string }) => w.id)
+
+  const recentScoresByWebsite = new Map<string, number[]>()
+
+
+
+  if (websiteIds.length > 0) {
+
+    const { data: recentScans } = await supabase
+
+      .from('scans')
+
+      .select('website_id, security_score, completed_at')
+
+      .in('website_id', websiteIds)
+
+      .eq('status', 'completed')
+
+      .not('security_score', 'is', null)
+
+      .order('completed_at', { ascending: false })
+
+      .limit(websiteIds.length * 3)
+
+
+
+    for (const scan of recentScans ?? []) {
+
+      if (scan.security_score === null) continue
+
+      const list = recentScoresByWebsite.get(scan.website_id) ?? []
+
+      if (list.length < 3) {
+
+        list.push(scan.security_score)
+
+        recentScoresByWebsite.set(scan.website_id, list)
+
+      }
+
+    }
+
+  }
+
+
+
   const { data: queueJobs } = await supabase
 
     .from('scan_queue')
@@ -100,7 +146,9 @@ export async function GET() {
 
     const latestQueueJob = latestByWebsite.get(w.id as string) ?? null
 
-    return { ...w, latestQueueJob }
+    const recentScores = recentScoresByWebsite.get(w.id as string) ?? []
+
+    return { ...w, latestQueueJob, recentScores }
 
   })
 

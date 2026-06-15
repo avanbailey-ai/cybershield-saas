@@ -14,7 +14,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 
-import { getUserWithPlan, getPlanLimits } from '@/lib/billing/planService';
+import { getUserWithPlan, getPlanLimits, getUserProfile } from '@/lib/billing/planService';
 
 import { enforceScanLimit } from '@/lib/billing/enforceScan';
 
@@ -30,7 +30,7 @@ import { auditLog } from '@/lib/audit/log';
 
 import { domainFromUrl } from '@/lib/queue/domain';
 
-import { getPlanQueuePriority } from '@/lib/billing/plans';
+import { getPlanQueuePriority, PLAN_LIMITS } from '@/lib/billing/plans';
 
 import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
 
@@ -258,6 +258,8 @@ export async function enqueueScan(params: {
 
     .eq('website_id', websiteId)
 
+    .eq('user_id', userId)
+
     .in('status', ['pending', 'processing'])
 
     .limit(1);
@@ -268,7 +270,7 @@ export async function enqueueScan(params: {
 
     console.log(
 
-      `[ORCHESTRATOR] already_queued — websiteId=${websiteId} status=${existingJobs[0].status}`,
+      `[ORCHESTRATOR] already_queued — websiteId=${websiteId} userId=${userId} status=${existingJobs[0].status}`,
 
     );
 
@@ -283,6 +285,72 @@ export async function enqueueScan(params: {
       jobStatus: existingJobs[0].status as 'pending' | 'processing',
 
     };
+
+  }
+
+
+
+  // Free tier: one completed scan per website (lifetime) unless pro unlock is active
+
+  if (plan === 'free' && source !== 'cron') {
+
+    const profile = await getUserProfile(userId);
+
+    const proUnlockActive =
+
+      profile.pro_unlock_until !== null && new Date(profile.pro_unlock_until) > new Date();
+
+    if (!proUnlockActive) {
+
+      const { count: completedForWebsite } = await supabase
+
+        .from('scans')
+
+        .select('id', { count: 'exact', head: true })
+
+        .eq('website_id', websiteId)
+
+        .eq('user_id', userId)
+
+        .eq('status', 'completed');
+
+
+
+      const maxPerWebsite = PLAN_LIMITS.free.maxScansPerWebsite ?? 1;
+
+      if ((completedForWebsite ?? 0) >= maxPerWebsite) {
+
+        console.warn(
+
+          `[ORCHESTRATOR] BLOCK reason=website_scan_limit user=${userId} websiteId=${websiteId} completed=${completedForWebsite}`,
+
+        );
+
+        return {
+
+          queued: false,
+
+          reason: 'website_scan_limit',
+
+          error: 'USAGE_LIMIT_REACHED',
+
+          message:
+
+            'Free plan allows one scan per website. Upgrade to scan again or add continuous monitoring.',
+
+          upgradeUrl: '/onboarding',
+
+          plan,
+
+          scansUsed: billingGate.scansUsed,
+
+          scansLimit: billingGate.scansLimit,
+
+        };
+
+      }
+
+    }
 
   }
 

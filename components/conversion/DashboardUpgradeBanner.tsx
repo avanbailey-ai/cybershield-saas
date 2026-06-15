@@ -24,7 +24,7 @@ export default function DashboardUpgradeBanner() {
             </p>
           </div>
           <Link
-            href="/dashboard/websites"
+            href="/app/websites"
             className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-500"
           >
             Run New Scan →
@@ -108,7 +108,7 @@ export default function DashboardUpgradeBanner() {
           </button>
         ) : (
           <Link
-            href="/dashboard/settings"
+            href="/app/settings"
             className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
           >
             Upgrade Plan →

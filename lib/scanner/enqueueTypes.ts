@@ -13,6 +13,7 @@ export interface EnqueueResult {
     | 'website_not_found'
     | 'scan_limit_reached'
     | 'website_limit_reached'
+    | 'website_scan_limit'
     | 'queue_busy'
     | 'queue_error'
     | 'error';

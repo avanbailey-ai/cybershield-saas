@@ -20,6 +20,7 @@ import { triggerScanEmailFunnel } from '@/lib/email/funnel';
 import { emitEvent } from '@/lib/brain/eventBus';
 import type { ScanResult } from './runScan';
 import { getActiveOrgId } from '@/lib/org/context';
+import { buildRiskBreakdown } from './riskBreakdown';
 
 export async function postProcessScan(params: {
   scanId: string;
@@ -36,6 +37,7 @@ export async function postProcessScan(params: {
 
   const supabase = createAdminClient();
   const risk = assessRisk(scanResult);
+  const riskBreakdown = buildRiskBreakdown(scanResult);
   const now = new Date().toISOString();
   const newRiskScore = 100 - scanResult.score;
 
@@ -71,7 +73,7 @@ export async function postProcessScan(params: {
     passed: scanResult.passed,
     explanation: scanResult.explanation,
     findings: scanResult.issues,
-    breakdown: scanResult.issues,
+    breakdown: riskBreakdown,
     recommendations: risk.recommendations,
     vulnerabilities_count: scanResult.issues.length,
     error_message: scanResult.error ?? null,

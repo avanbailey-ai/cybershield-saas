@@ -9,7 +9,8 @@ export const PLAN_LIMITS = {
   free: {
     name: 'Free',
     websites: 0,
-    maxScansPerDay: 3,
+    maxScansPerDay: 1,
+    maxScansPerWebsite: 1,
     scanFrequency: 'manual' as const,
   },
   pro: {

@@ -14,7 +14,7 @@ import { isOwner } from "@/lib/auth/owner";
 
 
 
-const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard"];
+const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise"];
 
 const AUTH_PATHS = ["/login", "/signup"];
 
@@ -31,6 +31,8 @@ const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 
 function isPublicPath(pathname: string): boolean {
+
+  if (pathname.startsWith('/enterprise/portal')) return false;
 
   return PUBLIC_PATHS.some(
 
@@ -112,7 +114,21 @@ export async function updateSession(request: NextRequest) {
 
     const { pathname } = request.nextUrl;
 
-    const isProtected = pathname.startsWith("/dashboard");
+    // Legacy /dashboard → canonical /app (enterprise dashboard → portal)
+    if (pathname.startsWith('/dashboard/enterprise')) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace('/dashboard/enterprise', '/enterprise/portal');
+      return NextResponse.redirect(url, 308);
+    }
+
+    if (pathname.startsWith('/dashboard')) {
+      const url = request.nextUrl.clone();
+      url.pathname = pathname.replace(/^\/dashboard/, '/app');
+      return NextResponse.redirect(url, 308);
+    }
+
+    const isProtected =
+      pathname.startsWith('/app') || pathname.startsWith('/enterprise/portal');
 
     const isAuthPath = AUTH_PATHS.some((p) => pathname.startsWith(p));
 
@@ -212,7 +228,9 @@ export async function updateSession(request: NextRequest) {
         cookieOrgId,
       );
 
-      if (!isOwner(user.email) && !hasOrgMembership(orgCtx)) {
+      const isEnterprisePortal = pathname.startsWith('/enterprise/portal');
+
+      if (!isEnterprisePortal && !isOwner(user.email) && !hasOrgMembership(orgCtx)) {
 
         const url = request.nextUrl.clone();
 
@@ -226,7 +244,7 @@ export async function updateSession(request: NextRequest) {
 
 
 
-      if (!orgCtx.access.canAccessDashboard) {
+      if (!isEnterprisePortal && !orgCtx.access.canAccessDashboard) {
 
         const url = request.nextUrl.clone();
 
@@ -288,6 +306,19 @@ export async function updateSession(request: NextRequest) {
 
       return supabaseResponse;
 
+    }
+
+
+
+    // Serve /app/* from existing /dashboard/* route tree
+    if (pathname.startsWith('/app')) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = pathname.replace(/^\/app/, '/dashboard');
+      const rewriteResponse = NextResponse.rewrite(rewriteUrl, { request });
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        rewriteResponse.cookies.set(cookie.name, cookie.value);
+      });
+      return rewriteResponse;
     }
 
 

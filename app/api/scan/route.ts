@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
 
 
       case 'scan_limit_reached':
+      case 'website_scan_limit':
 
         return NextResponse.json(
 

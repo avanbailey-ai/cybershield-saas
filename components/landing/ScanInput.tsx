@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import ScanResultPaywall, { type PublicScanResult } from '@/components/conversion/ScanResultPaywall';
 import { ConversionProvider, useConversion } from '@/components/conversion/ConversionProvider';
 import {
@@ -22,9 +22,12 @@ function ScanInputInner(_props: ScanInputProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PublicScanResult | null>(null);
+  const submittingRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current || loading) return;
+
     setError(null);
     setResult(null);
 
@@ -44,13 +47,18 @@ function ScanInputInner(_props: ScanInputProps) {
       return;
     }
 
-    const { allowed, count } = canRunPublicScan();
+    const { allowed, domainAlreadyScanned } = canRunPublicScan(normalizedUrl);
     if (!allowed) {
+      if (domainAlreadyScanned) {
+        setError('You already scanned this website today. Upgrade for unlimited monitoring.');
+      } else {
+        setError(`Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). Upgrade for unlimited monitoring.`);
+      }
       openUpgradeModal({ trigger: 'second_scan', score: 50, domain: normalizedUrl });
-      setError(`Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY}/day). Upgrade for unlimited monitoring.`);
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
     trackEvent('scan_started', { domain: normalizedUrl });
 
@@ -67,7 +75,8 @@ function ScanInputInner(_props: ScanInputProps) {
 
       if (res.status === 429) {
         openUpgradeModal({ trigger: 'second_scan', domain: normalizedUrl });
-        throw new Error('Daily scan limit reached. Upgrade for unlimited monitoring.');
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? 'Daily scan limit reached. Upgrade for unlimited monitoring.');
       }
 
       if (!res.ok) {
@@ -92,6 +101,7 @@ function ScanInputInner(_props: ScanInputProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   }

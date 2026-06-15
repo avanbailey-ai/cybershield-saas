@@ -59,6 +59,16 @@ export async function attachReferralOnSignup(params: {
     return { attached: false, reason: 'already_attached' };
   }
 
+  const { data: existingForUser } = await supabase
+    .from('referrals')
+    .select('id')
+    .eq('referred_user_id', userId)
+    .limit(1);
+
+  if (existingForUser && existingForUser.length > 0) {
+    return { attached: false, reason: 'already_attached' };
+  }
+
   await supabase
     .from('profiles')
     .update({ referred_by_code: referralCode })
@@ -91,11 +101,21 @@ export async function attachReferralOnSignup(params: {
     });
   }
 
-  await supabase.from('viral_events').insert({
-    user_id: referrerProfile.id,
-    event_type: 'referral_signed_up',
-    metadata: { referralCode, referredEmail: email },
-  });
+  const { data: priorSignup } = await supabase
+    .from('viral_events')
+    .select('id')
+    .eq('user_id', referrerProfile.id)
+    .eq('event_type', 'referral_signed_up')
+    .contains('metadata', { referralCode, referredEmail: email.toLowerCase() })
+    .limit(1);
+
+  if (!priorSignup || priorSignup.length === 0) {
+    await supabase.from('viral_events').insert({
+      user_id: referrerProfile.id,
+      event_type: 'referral_signed_up',
+      metadata: { referralCode, referredEmail: email },
+    });
+  }
 
   return { attached: true };
 }
