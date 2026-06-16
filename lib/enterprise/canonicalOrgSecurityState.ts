@@ -4,7 +4,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { computeRollingRiskScore } from './rollingRiskScore';
 import { scoreToPostureState } from './postureState';
 import { generateOrgSecurityNarrative } from './orgNarrative';
-import { getLatestOrgScanNarrative } from './storeNarrative';
 import {
   diffScanFindings,
   normalizeIssues,
@@ -202,10 +201,8 @@ export async function buildCanonicalOrgSecurityState(
 
   const computedRolling = computeRollingRiskScore(scans);
   const storedRolling = orgIntelRes.data?.rolling_risk_score ?? null;
-  const rollingRiskScore = storedRolling ?? computedRolling;
-  const postureState =
-    (orgIntelRes.data?.posture_state as CanonicalOrgSecurityState['postureState']) ??
-    scoreToPostureState(rollingRiskScore);
+  const rollingRiskScore = computedRolling ?? storedRolling;
+  const postureState = scoreToPostureState(rollingRiskScore);
 
   const org_anomalies: OrgAnomalyFeedItem[] = (anomalyRowsRes.data ?? []).map((row) => ({
     id: row.id,
@@ -264,15 +261,7 @@ export async function buildCanonicalOrgSecurityState(
 
   let latestScanNarrative = null;
   let latestScanNarrativeAt: string | null = null;
-  try {
-    const stored = await getLatestOrgScanNarrative(orgId);
-    if (stored) {
-      latestScanNarrative = stored.narrative;
-      latestScanNarrativeAt = stored.generated_at;
-    }
-  } catch (err) {
-    console.warn('[buildCanonicalOrgSecurityState] latest narrative fetch failed', err);
-  }
+  // Runtime-only narratives: org overview is generated above; scan-level narratives are not read from DB here.
 
   const state: CanonicalOrgSecurityState = {
     org_id: orgId,
@@ -349,25 +338,31 @@ export async function validateCanonicalState(
   }));
   const recomputedRolling = computeRollingRiskScore(scoreRows);
 
-  const mismatches: string[] = [];
-
-  if (storedRolling !== null && storedRolling !== state.rollingRiskScore) {
-    mismatches.push(
-      `rollingRiskScore stored=${storedRolling} canonical=${state.rollingRiskScore}`,
-    );
-  }
-  if (storedPosture !== null && storedPosture !== state.postureState) {
-    mismatches.push(`postureState stored=${storedPosture} canonical=${state.postureState}`);
-  }
   if (recomputedRolling !== null && recomputedRolling !== state.rollingRiskScore) {
-    mismatches.push(
-      `rollingRiskScore recomputed=${recomputedRolling} canonical=${state.rollingRiskScore}`,
+    console.log('[canonical_state_mismatch_detected]', {
+      orgId,
+      mismatches: [
+        `rollingRiskScore recomputed=${recomputedRolling} canonical=${state.rollingRiskScore}`,
+      ],
+    });
+    throw new Error(
+      `Canonical state validation failed: rollingRiskScore recomputed=${recomputedRolling} canonical=${state.rollingRiskScore}`,
     );
   }
 
-  if (mismatches.length > 0) {
-    console.log('[canonical_state_mismatch_detected]', { orgId, mismatches });
-    throw new Error(`Canonical state validation failed: ${mismatches.join('; ')}`);
+  if (
+    storedRolling !== state.rollingRiskScore ||
+    storedPosture !== state.postureState
+  ) {
+    await admin
+      .from('organizations')
+      .update({
+        rolling_risk_score: state.rollingRiskScore,
+        posture_state: state.postureState,
+        intelligence_updated_at: new Date().toISOString(),
+      })
+      .eq('id', orgId);
+    console.log('[pdf_validation_healed_stored_intelligence]', { orgId });
   }
 
   console.log('[pdf_validation_passed]', { orgId, computed_at: state.computed_at });

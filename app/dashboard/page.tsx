@@ -1,3 +1,5 @@
+import { getActiveOrgId } from "@/lib/org/context";
+import { getUnifiedOrgMetrics } from "@/lib/enterprise/unifiedOrgMetrics";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -61,6 +63,197 @@ export default async function DashboardPage() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  const orgId = await getActiveOrgId(user.id);
+
+  if (orgId) {
+    const metrics = await getUnifiedOrgMetrics(orgId);
+
+    const [websitesRes, scansRes] = await Promise.all([
+      supabase.from("websites").select("id").or(`user_id.eq.${user.id},org_id.eq.${orgId}`),
+      supabase
+        .from("scans")
+        .select(
+          "id, website_id, security_score, risk_score, risk_level, status, completed_at, started_at, headers, explanation, websites(url, label)",
+        )
+        .eq("org_id", orgId)
+        .order("started_at", { ascending: false })
+        .limit(50),
+    ]);
+
+    const websiteCount = metrics.totalSitesMonitored;
+    const allScans = scansRes.data ?? [];
+    const avgScore = metrics.avgScore;
+    const criticalAlertCount = metrics.criticalAlertsCount;
+    const activeAlertCount = metrics.openAlertsCount;
+    const totalScansRun = allScans.filter((s) => s.status === "completed").length;
+
+    const latestScan = allScans[0] ?? null;
+    const latestSiteRaw = latestScan?.websites as unknown;
+    const latestSite = (Array.isArray(latestSiteRaw) ? latestSiteRaw[0] : latestSiteRaw) as {
+      url: string;
+      label: string | null;
+    } | null;
+
+    const lastScanSummary = latestScan
+      ? {
+          websiteLabel: latestSite?.label ?? latestSite?.url ?? "Website",
+          status: latestScan.status,
+          score: latestScan.security_score,
+          completedAt: latestScan.completed_at,
+          scanId: latestScan.id,
+        }
+      : null;
+
+    const recentScans = allScans.slice(0, 5).map((s) => {
+      const siteRaw = s.websites as unknown;
+      const site = (Array.isArray(siteRaw) ? siteRaw[0] : siteRaw) as { url: string; label: string | null } | null;
+      return {
+        id: s.id,
+        website_url: site?.url ?? "",
+        website_label: site?.label ?? null,
+        security_score: s.security_score,
+        risk_score: s.risk_score as number | null,
+        risk_level: s.risk_level as RiskLevel | null,
+        status: s.status,
+        completed_at: s.completed_at,
+        started_at: s.started_at,
+        explanation: s.explanation as string | null,
+      };
+    });
+
+    const headerCheckDefs: DashboardStats["securityOverview"] = [
+      { key: "content-security-policy", label: "Content-Security-Policy", pass: 0, fail: 0, total: 0 },
+      { key: "strict-transport-security", label: "Strict-Transport-Security (HSTS)", pass: 0, fail: 0, total: 0 },
+      { key: "x-frame-options", label: "X-Frame-Options", pass: 0, fail: 0, total: 0 },
+      { key: "x-content-type-options", label: "X-Content-Type-Options", pass: 0, fail: 0, total: 0 },
+      { key: "referrer-policy", label: "Referrer-Policy", pass: 0, fail: 0, total: 0 },
+      { key: "permissions-policy", label: "Permissions-Policy", pass: 0, fail: 0, total: 0 },
+    ];
+
+    for (const scan of allScans) {
+      if (scan.status !== "completed") continue;
+      const headers = scan.headers as HeaderChecks | null;
+      for (const item of headerCheckDefs) {
+        item.total++;
+        if (headerCheckPassed(headers, item.key)) item.pass++;
+        else item.fail++;
+      }
+    }
+
+    return (
+      <div className="flex flex-1 flex-col overflow-auto">
+        <DashboardHeader email={user.email ?? "User"} />
+
+        <main className="flex-1 overflow-auto p-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">
+              Welcome back,{" "}
+              <span className="text-blue-400">{user.email?.split("@")[0] ?? "User"}</span>
+            </h2>
+          </div>
+
+          <DashboardOverview
+            websiteCount={websiteCount}
+            lastScan={lastScanSummary}
+            criticalAlertCount={criticalAlertCount}
+          />
+
+          {totalScansRun > 0 && (
+            <div className="mb-8 grid gap-4 sm:grid-cols-2">
+              <StatCard
+                title="Avg Security Score"
+                value={avgScore !== null ? `${avgScore}/100` : "—"}
+                description={`Across ${totalScansRun} completed scan${totalScansRun !== 1 ? "s" : ""}`}
+                icon={
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                }
+              />
+              <StatCard
+                title="Websites Monitored"
+                value={String(websiteCount)}
+                description={`${websiteCount} site${websiteCount !== 1 ? "s" : ""} tracked`}
+                icon={
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+            </div>
+          )}
+
+          {/* Bottom panels — org-scoped canonical metrics */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Recent Activity</h3>
+                {recentScans.length > 0 && (
+                  <Link href="/app/scans" className="text-xs text-blue-400 hover:text-blue-300">
+                    View all
+                  </Link>
+                )}
+              </div>
+
+              {recentScans.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-gray-800 bg-gray-800/60 text-gray-500">
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-400">No scans yet. Add a website to get started.</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {recentScans.map((scan) => (
+                    <li
+                      key={scan.id}
+                      className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-800/40 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
+                          {scan.website_label || scan.website_url}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {scan.completed_at ? timeAgo(scan.completed_at) : "In progress"}
+                        </p>
+                      </div>
+                      {scan.security_score !== null && (
+                        <span
+                          className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${scoreBadgeClass(scan.security_score)}`}
+                        >
+                          {scan.security_score}/100
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+              <h3 className="mb-5 text-sm font-semibold text-white">Security Headers</h3>
+              <div className="space-y-3">
+                {headerCheckDefs.map((item) => (
+                  <div key={item.key} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">{item.label}</span>
+                    <span className="text-gray-500">
+                      {item.pass}/{item.total} pass
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs text-gray-600">
+                Open alerts (org): {activeAlertCount} · Critical (score &lt;50): {criticalAlertCount}
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   const [websitesRes, scansRes] = await Promise.all([

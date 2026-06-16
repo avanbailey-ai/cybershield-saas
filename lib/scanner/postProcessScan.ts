@@ -425,6 +425,7 @@ async function postProcessScanCore(params: {
   scanId: string;
   websiteId: string;
   userId: string;
+  url: string;
   scanResult: ScanResult;
   websiteRow: {
     org_id: string | null;
@@ -434,7 +435,7 @@ async function postProcessScanCore(params: {
   orgId: string | null;
   currentSnapshot: ReturnType<typeof buildSnapshotFromScanResult>;
 }): Promise<void> {
-  const { scanId, websiteId, userId, scanResult, websiteRow, orgId, currentSnapshot } = params;
+  const { scanId, websiteId, userId, url, scanResult, websiteRow, orgId, currentSnapshot } = params;
 
   console.log(
     `[POST-PROCESS] ${new Date().toISOString()} — scanId=${scanId} websiteId=${websiteId} score=${scanResult.score} riskLevel=${scanResult.riskLevel}`,
@@ -449,6 +450,7 @@ async function postProcessScanCore(params: {
   const { error: scanUpdateErr } = await supabase.from('scans').update({
     status: scanResult.error ? 'failed' : 'completed',
     completed_at: now,
+    url,
     ...(orgId ? { org_id: orgId } : {}),
     security_score: scanResult.score,
     risk_score: newRiskScore,
@@ -552,6 +554,7 @@ export async function postProcessScan(params: {
       scanId,
       websiteId,
       userId,
+      url,
       scanResult,
       websiteRow,
       orgId,
