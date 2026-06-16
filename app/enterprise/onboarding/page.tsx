@@ -118,7 +118,7 @@ export default async function EnterpriseOnboardingPage({
             Enter enterprise dashboard
           </Link>
           <Link
-            href="/app/websites"
+            href="/enterprise/portal/websites"
             className="inline-flex items-center justify-center rounded-lg border border-gray-700 px-6 py-3 text-sm font-semibold text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
           >
             Add websites first

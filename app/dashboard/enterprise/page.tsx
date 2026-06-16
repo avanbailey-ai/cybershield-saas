@@ -171,7 +171,7 @@ export default async function EnterpriseDashboardPage() {
             {(orgRole === "owner" || orgRole === "admin") && orgId && (
               <>
                 <Link
-                  href="/app/websites"
+                  href="/enterprise/portal/websites"
                   className="rounded-lg border border-blue-700/50 bg-blue-600/10 px-4 py-2 text-sm font-medium text-blue-300 hover:text-white"
                 >
                   Manage Websites & Scan
@@ -185,7 +185,7 @@ export default async function EnterpriseDashboardPage() {
             </Link>
             {(orgRole === "owner" || orgRole === "admin") && (
               <Link
-                href="/app/settings"
+                href="/enterprise/portal/settings"
                 className="rounded-lg border border-indigo-700/50 bg-indigo-600/10 px-4 py-2 text-sm font-medium text-indigo-300 hover:text-white"
               >
                 Billing & Settings
@@ -298,7 +298,7 @@ export default async function EnterpriseDashboardPage() {
               Assign websites to your organization and run scans to populate risk distribution, alerts, and executive summaries here.
             </p>
             <Link
-              href="/app/websites"
+              href="/enterprise/portal/websites"
               className="mt-4 inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
             >
               Add websites →
@@ -441,7 +441,7 @@ export default async function EnterpriseDashboardPage() {
             <h3 className="text-sm font-semibold text-white">Recent Org Scans</h3>
             {(orgRole === "owner" || orgRole === "admin") && (
               <Link
-                href="/app/websites"
+                href="/enterprise/portal/websites"
                 className="text-xs font-medium text-blue-400 hover:text-blue-300"
               >
                 Add site or run scan →
@@ -455,7 +455,7 @@ export default async function EnterpriseDashboardPage() {
                 Add websites under your organization and run scans from the main dashboard. Completed scans appear here with scores and report links.
               </p>
               <Link
-                href="/app/websites"
+                href="/enterprise/portal/websites"
                 className="mt-4 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
               >
                 Go to Websites →
