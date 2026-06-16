@@ -11,6 +11,7 @@ import {
 } from '@/lib/conversion/limits';
 import { trackEvent } from '@/lib/conversion/track';
 import { getUrgencyMessage } from '@/lib/conversion/urgency';
+import { readAndRecordDomainScore } from '@/lib/funnel/client';
 
 interface ScanInputProps {
   showUpgradeCta?: boolean;
@@ -22,6 +23,7 @@ function ScanInputInner(_props: ScanInputProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PublicScanResult | null>(null);
+  const [priorScore, setPriorScore] = useState<number | null>(null);
   const [isSecondScan, setIsSecondScan] = useState(false);
   const submittingRef = useRef(false);
 
@@ -31,6 +33,7 @@ function ScanInputInner(_props: ScanInputProps) {
 
     setError(null);
     setResult(null);
+    setPriorScore(null);
     setIsSecondScan(false);
 
     let normalizedUrl = url.trim();
@@ -90,6 +93,8 @@ function ScanInputInner(_props: ScanInputProps) {
       }
 
       const data = (await res.json()) as PublicScanResult;
+      const previousScore = readAndRecordDomainScore(normalizedUrl, data.score);
+      setPriorScore(previousScore);
       setResult(data);
 
       const { isSecondScan: second } = recordPublicScan(normalizedUrl);
@@ -176,6 +181,7 @@ function ScanInputInner(_props: ScanInputProps) {
           <ScanResultPaywall
             result={result}
             isSecondScan={isSecondScan}
+            priorScore={priorScore}
             onUpgradeClick={() =>
               openUpgradeModal({
                 score: result.score,

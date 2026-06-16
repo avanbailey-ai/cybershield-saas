@@ -22,6 +22,8 @@ interface LeadBody {
   security_needs?: string[];
   message?: string;
   session_id?: string;
+  last_scan_score?: number;
+  risk_level?: string;
 }
 
 function isValidEmail(email: string): boolean {
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, email, company, domain, company_size, security_needs, message, session_id } = body;
+  const { name, email, company, domain, company_size, security_needs, message, session_id, last_scan_score, risk_level } = body;
 
   if (!name?.trim() || !email?.trim()) {
     return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
@@ -76,9 +78,11 @@ export async function POST(req: NextRequest) {
       lead_score: leadScore,
       scan_id: scanContext?.scanId ?? null,
       risk_score: scanContext?.riskScore ?? null,
+      last_scan_score: last_scan_score ?? scanContext?.securityScore ?? null,
+      risk_level: risk_level ?? scanContext?.riskLevel ?? null,
       status: 'received',
     })
-    .select('id, name, email, company, domain, company_size, security_needs, message, lead_score, status, scan_id, risk_score')
+    .select('id, name, email, company, domain, company_size, security_needs, message, lead_score, status, scan_id, risk_score, last_scan_score, risk_level')
     .single();
 
   if (insertError || !lead) {

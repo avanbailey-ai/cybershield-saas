@@ -6,7 +6,9 @@ export type AnalyticsEventType =
   | 'scan_failed'
   | 'report_viewed'
   | 'paywall_viewed'
+  | 'pricing_viewed'
   | 'upgrade_clicked'
+  | 'enterprise_form_submitted'
   | 'checkout_started'
   | 'checkout_completed'
   | 'bounce_pricing'
@@ -58,7 +60,9 @@ const BRAIN_EVENT_TYPES = new Set([
   'scan_failed',
   'report_viewed',
   'paywall_viewed',
+  'pricing_viewed',
   'upgrade_clicked',
+  'enterprise_form_submitted',
   'checkout_started',
   'checkout_completed',
 ]);
