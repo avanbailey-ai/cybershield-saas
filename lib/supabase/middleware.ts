@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 import { NextResponse, type NextRequest } from "next/server";
 
+import { mapSessionAuthCookies } from "@/lib/supabase/authCookies";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
 import { getRedirectPath, type SessionSupabaseClient } from "@/lib/auth/redirect";
@@ -87,21 +88,17 @@ export async function updateSession(request: NextRequest) {
           },
 
           setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+            const sessionCookies = mapSessionAuthCookies(cookiesToSet);
 
-            cookiesToSet.forEach(({ name, value }) =>
-
-              request.cookies.set(name, value)
-
+            sessionCookies.forEach(({ name, value }) =>
+              request.cookies.set(name, value),
             );
 
             supabaseResponse = NextResponse.next({ request });
 
-            cookiesToSet.forEach(({ name, value, options }) =>
-
-              supabaseResponse.cookies.set(name, value, options)
-
+            sessionCookies.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options),
             );
-
           },
 
         },

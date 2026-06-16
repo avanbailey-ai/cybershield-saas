@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+import { mapSessionAuthCookies } from "./authCookies";
 import { requireSupabasePublicEnv } from "./env";
 
 export async function createClient() {
@@ -14,7 +15,7 @@ export async function createClient() {
       },
       setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) => {
+          mapSessionAuthCookies(cookiesToSet).forEach(({ name, value, options }) => {
             cookieStore.set(name, value, options);
           });
         } catch {
