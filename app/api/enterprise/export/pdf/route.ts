@@ -6,6 +6,8 @@ import { generateEnterpriseReportPDFForOrg } from '@/lib/enterprise/pdf/generate
 import { parseDateRange } from '@/lib/enterprise/reportBuilder';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 
+export const maxDuration = 60;
+
 type ExportPdfBody = {
   org_id?: string;
   date_range?: { start?: string; end?: string };
