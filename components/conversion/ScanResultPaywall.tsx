@@ -212,10 +212,11 @@ export default function ScanResultPaywall({
       {showEnterpriseCta && paywallVisible && (
         <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
           <p className="text-sm font-semibold text-amber-200">
-            Enterprise-grade vulnerabilities detected
+            Security review recommended
           </p>
           <p className="mt-1 text-xs text-amber-200/70">
-            Complex infrastructure may need a dedicated security review — not just a plan upgrade.
+            Critical findings may require coordinated remediation and enterprise coverage — escalate
+            to our security team for a structured review.
           </p>
           <div className="mt-4 flex flex-col gap-2">
             <Link
@@ -225,7 +226,7 @@ export default function ScanResultPaywall({
               }
               className="rounded-lg bg-amber-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-amber-500"
             >
-              Talk to Security Expert
+              Request Security Review
             </Link>
             <button
               type="button"

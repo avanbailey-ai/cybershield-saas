@@ -3,8 +3,9 @@ import { Suspense } from 'react';
 import EnterpriseLeadForm from './EnterpriseLeadForm';
 
 export const metadata: Metadata = {
-  title: 'Contact Enterprise Sales',
-  description: 'Talk to the CyberShield security team about enterprise monitoring, compliance, and custom deployments.',
+  title: 'Enterprise Security Review',
+  description:
+    'Escalate scan findings to the CyberShield security team for remediation planning, compliance alignment, and continuous coverage.',
 };
 
 export default function EnterpriseLeadPage() {
