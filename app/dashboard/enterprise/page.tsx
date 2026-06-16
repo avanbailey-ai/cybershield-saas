@@ -281,6 +281,21 @@ export default async function EnterpriseDashboardPage() {
           </div>
         )}
 
+        {totalSitesMonitored === 0 && (
+          <div className="mb-8 rounded-xl border border-dashed border-indigo-700/40 bg-indigo-950/20 px-5 py-6 text-center">
+            <p className="text-sm font-medium text-indigo-200">No monitored sites yet</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Assign websites to your organization and run scans to populate risk distribution, alerts, and executive summaries here.
+            </p>
+            <Link
+              href="/app/websites"
+              className="mt-4 inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            >
+              Add websites →
+            </Link>
+          </div>
+        )}
+
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Sites Monitored</p>
@@ -414,7 +429,18 @@ export default async function EnterpriseDashboardPage() {
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
           <h3 className="mb-4 text-sm font-semibold text-white">Recent Org Scans</h3>
           {recentScans.length === 0 ? (
-            <p className="text-sm text-gray-500">No org-scoped scans yet.</p>
+            <div className="rounded-lg border border-dashed border-gray-700 bg-gray-800/20 px-4 py-8 text-center">
+              <p className="text-sm font-medium text-gray-300">No org-scoped scans yet</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Add websites under your organization and run scans from the main dashboard. Completed scans appear here with scores and report links.
+              </p>
+              <Link
+                href="/app/websites"
+                className="mt-4 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+              >
+                Go to Websites →
+              </Link>
+            </div>
           ) : (
             <ul className="space-y-2">
               {recentScans.slice(0, 10).map((scan) => {

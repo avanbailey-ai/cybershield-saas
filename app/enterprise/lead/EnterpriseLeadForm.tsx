@@ -73,6 +73,21 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
     setLoading(true);
     setError(null);
 
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setError('Please enter your full name.');
+      setLoading(false);
+      return;
+    }
+
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid work email address.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/enterprise/leads', {
         method: 'POST',
@@ -346,7 +361,9 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
           </div>
 
           {error && (
-            <p className="text-sm text-red-400">{error}</p>
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400" role="alert">
+              {error}
+            </div>
           )}
 
           <button

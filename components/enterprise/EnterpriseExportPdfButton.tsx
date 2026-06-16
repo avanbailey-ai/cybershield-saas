@@ -13,10 +13,12 @@ export default function EnterpriseExportPdfButton({
 }: EnterpriseExportPdfButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function handleExport() {
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
     try {
       const end = new Date();
@@ -53,8 +55,13 @@ export default function EnterpriseExportPdfButton({
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
+      setSuccess(`Downloaded ${filename} — last 30 days of org scan data.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed');
+      setError(
+        err instanceof Error
+          ? `${err.message}. Try again or contact support if the issue persists.`
+          : 'Export failed — try again or contact support.',
+      );
     } finally {
       setLoading(false);
     }
@@ -70,6 +77,7 @@ export default function EnterpriseExportPdfButton({
       >
         {loading ? 'Generating PDF…' : 'Export SOC2 Report (PDF)'}
       </button>
+      {success && <p className="max-w-xs text-right text-xs text-emerald-400">{success}</p>}
       {error && <p className="max-w-xs text-right text-xs text-red-400">{error}</p>}
     </div>
   );
