@@ -12,7 +12,7 @@ import { PLAN_LIMITS } from '@/lib/billing/plans';
  * | Growth | daily_scan, weekly_deep_scan       | 12h          | 7d            | —      |
  * | Agency | daily_scan, weekly_deep_scan, hourly_monitor | 24h | 7d     | 1h     |
  *
- * Production cron: `/api/scan/enqueue-or-process-batch` runs every 6 hours (`0 */6 * * *`). Agency `hourly_monitor` schedules hourly `next_scan_at`; actual enqueue cadence follows the cron interval.
+ * Production cron: `/api/scan/enqueue-or-process-batch` runs every 6 hours (cron schedule: every 6 hours at minute 0). Agency `hourly_monitor` schedules hourly `next_scan_at`; actual enqueue cadence follows the cron interval.
  */
 
 export type ScanScheduleMode = 'daily_scan' | 'weekly_deep_scan' | 'hourly_monitor';
