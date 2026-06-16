@@ -7,7 +7,7 @@ export type ScanRecordStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export type ScanDisplayStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
-export const SCAN_UI_TIMEOUT_MS = 120_000;
+export const SCAN_UI_TIMEOUT_MS = 180_000;
 export const SCAN_LOCK_EXPIRE_MINUTES = 3;
 export const STALE_RECLAIM_MINUTES = 10;
 
