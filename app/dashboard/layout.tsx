@@ -74,22 +74,14 @@ export default async function DashboardLayout({
 
   }
 
-
-
-  if (canAccessEnterprise(
+  const showEnterprise = canAccessEnterprise(
     {
       email: user.email,
       plan: access.plan,
       subscription_status: access.status,
     },
     orgCtx.role,
-  )) {
-
-    redirect('/enterprise/portal');
-
-  }
-
-
+  );
 
   void ensureUserOrg(user.id, user.email ?? null).catch(() => {});
 
@@ -101,7 +93,7 @@ export default async function DashboardLayout({
 
       <div className="flex h-screen overflow-hidden bg-[#0a0f1e]">
 
-        <DashboardSidebar showAdmin={owner} />
+        <DashboardSidebar showAdmin={owner} showEnterprise={showEnterprise} />
 
         <div className="flex flex-1 flex-col overflow-hidden">
 
