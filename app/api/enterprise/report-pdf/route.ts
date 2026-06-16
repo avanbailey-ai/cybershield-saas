@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { getPublicReportByToken } from '@/lib/share/reportShare';
+import { getUserOrgRole } from '@/lib/auth/rbac';
 
 function escapeHtml(str: string): string {
   return str
@@ -103,6 +105,15 @@ export async function GET(req: NextRequest) {
  * POST — generate share link for a scan report (uses existing share_token pattern).
  */
 export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let body: { reportId?: string };
 
   try {
@@ -118,12 +129,23 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const { data: report } = await admin
     .from('scan_reports')
-    .select('id, share_token, is_public, domain')
+    .select('id, user_id, org_id, share_token, is_public, domain')
     .eq('id', body.reportId)
     .single();
 
   if (!report) {
     return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+  }
+
+  const ownsReport = report.user_id === user.id;
+  let orgMember = false;
+  if (report.org_id) {
+    const role = await getUserOrgRole(user.id, report.org_id);
+    orgMember = role !== null;
+  }
+
+  if (!ownsReport && !orgMember) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   let shareToken = report.share_token;

@@ -6,20 +6,12 @@
 import '@/services/bootstrap';
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 import { logApiTiming } from '@/lib/observability/log';
-import { getUser } from '@/services/supabaseService';
 import { processScanBatch } from '@/services/scanQueueService';
-
 export async function POST(req: Request) {
   if (!isWorkerAuthorized(req)) {
-    const supabase = await createClient();
-    const { user } = await getUser(supabase);
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const result = await processScanBatch();

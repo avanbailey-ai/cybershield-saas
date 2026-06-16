@@ -64,18 +64,23 @@ function buildDashboardAggregates(
     websiteRisk.set(site.id, bucket);
   }
 
-  const criticalAlertsCount = scoredScans.filter((s) => (s.security_score as number) < 50).length;
-
+  let criticalAlertsCount = 0;
   let openAlertsCount = 0;
+  const latestScored: CompletedScanRow[] = [];
+
   for (const scan of latestScanByWebsite.values()) {
+    if (scan.security_score !== null) {
+      latestScored.push(scan);
+      if ((scan.security_score as number) < 50) criticalAlertsCount++;
+    }
     if (scanHasOpenFindings(scan)) openAlertsCount++;
   }
 
   const avgScore =
-    scoredScans.length > 0
+    latestScored.length > 0
       ? Math.round(
-          scoredScans.reduce((sum, scan) => sum + (scan.security_score as number), 0) /
-            scoredScans.length,
+          latestScored.reduce((sum, scan) => sum + (scan.security_score as number), 0) /
+            latestScored.length,
         )
       : null;
 
@@ -91,15 +96,19 @@ function buildDashboardAggregates(
     .map(([clientGroup, sites]) => {
       const dist = emptyRiskDistribution();
       let groupCriticalAlerts = 0;
-      const siteIds = new Set(sites.map((s) => s.id));
 
       for (const site of sites) {
         const bucket = websiteRisk.get(site.id) ?? 'unknown';
         dist[bucket]++;
       }
 
-      for (const scan of scoredScans) {
-        if (siteIds.has(scan.website_id) && (scan.security_score as number) < 50) {
+      for (const site of sites) {
+        const latest = latestScanByWebsite.get(site.id);
+        if (
+          latest &&
+          latest.security_score !== null &&
+          (latest.security_score as number) < 50
+        ) {
           groupCriticalAlerts++;
         }
       }

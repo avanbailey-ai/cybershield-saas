@@ -261,7 +261,7 @@ export async function POST(req: Request) {
 
     console.error(`[webhook] ${missingEnv} is not set`);
 
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ error: 'Webhook configuration error' }, { status: 500 });
 
   }
 
@@ -277,7 +277,7 @@ export async function POST(req: Request) {
 
     console.error('[webhook] Missing stripe-signature header');
 
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
 
   }
 
@@ -287,7 +287,7 @@ export async function POST(req: Request) {
   if (!webhookSecret) {
     console.error('[webhook] STRIPE_WEBHOOK_SECRET is not set');
 
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ error: 'Webhook configuration error' }, { status: 500 });
 
   }
 

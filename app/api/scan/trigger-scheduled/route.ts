@@ -1,25 +1,26 @@
-/**
- * POST /api/scan/trigger-scheduled
- * Manually enqueues due scheduled scans (enqueue-only; does not process the queue).
- *
- * Production scheduling runs via Vercel Cron at /api/scan/enqueue-or-process-batch.
- * Requires an authenticated user session.
- */
-
+import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isOwner } from '@/lib/auth/owner';
+import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 import { runScheduledScans } from '@/lib/jobs/scanWebsites';
 
-export async function POST() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/**
+ * POST /api/scan/trigger-scheduled
+ * Enqueues due scheduled scans (enqueue-only). CRON_SECRET or platform owner only.
+ */
+export async function POST(req: Request) {
+  if (!isWorkerAuthorized(req)) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user || !isOwner(user.email)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
-  await runScheduledScans();
+  const result = await runScheduledScans();
 
-  return Response.json({ ok: true });
+  return NextResponse.json({ ok: true, ...result });
 }

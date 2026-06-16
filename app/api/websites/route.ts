@@ -22,6 +22,7 @@ import {
   insertWebsite,
 } from '@/services/supabaseService';
 import { enqueueScan } from '@/services/scanQueueService';
+import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
 import { decrementScanUsage } from '@/lib/billing/usageService';
@@ -73,7 +74,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
   }
 
-  const websiteCount = await getWebsiteCountForUser(supabase, user.id);
+  const websiteCount = orgId
+    ? (
+        await supabase
+          .from('websites')
+          .select('*', { count: 'exact', head: true })
+          .eq('org_id', orgId)
+      ).count ?? 0
+    : await getWebsiteCountForUser(supabase, user.id);
   const userWithPlan = await getUserWithPlan(user.id);
   const plan = getEffectivePlan(userWithPlan);
   const { websiteLimit } = getPlanLimits(plan);
@@ -161,6 +169,9 @@ export async function POST(req: NextRequest) {
         userId: user.id,
       },
     });
+    void handleScanBatch().catch((err) =>
+      console.error('[websites] Background worker kick failed (non-fatal):', err),
+    );
   }
 
   return NextResponse.json(

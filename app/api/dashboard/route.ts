@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { requireDashboardAccess } from '@/lib/auth/requireDashboardAccess'
+import { getActiveOrgId } from '@/lib/org/context'
+import { getOrgDashboardSummary } from '@/lib/enterprise/orgDashboardSummary'
 
 export async function GET() {
   const supabase = await createClient()
@@ -11,17 +13,32 @@ export async function GET() {
   if (!access.allowed) return access.response
 
   const uid = user.id
+  const orgId = await getActiveOrgId(uid)
+
+  const websitesQuery = orgId
+    ? supabase.from('websites').select('id').or(`user_id.eq.${uid},org_id.eq.${orgId}`)
+    : supabase.from('websites').select('id').eq('user_id', uid)
+
+  const scansQuery = orgId
+    ? supabase
+        .from('scans')
+        .select('id, website_id, security_score, status, completed_at, started_at, websites(url, label)')
+        .eq('org_id', orgId)
+        .order('started_at', { ascending: false })
+        .limit(50)
+    : supabase
+        .from('scans')
+        .select('id, website_id, security_score, status, completed_at, started_at, websites(url, label)')
+        .eq('user_id', uid)
+        .order('started_at', { ascending: false })
+        .limit(50)
 
   // Parallel data fetching
-  const [websitesRes, alertsRes, scansRes] = await Promise.all([
-    supabase.from('websites').select('id').eq('user_id', uid),
+  const [websitesRes, alertsRes, scansRes, orgSummary] = await Promise.all([
+    websitesQuery,
     supabase.from('alerts').select('id').eq('user_id', uid).eq('is_read', false),
-    supabase
-      .from('scans')
-      .select('id, website_id, security_score, status, completed_at, started_at, websites(url, label)')
-      .eq('user_id', uid)
-      .order('started_at', { ascending: false })
-      .limit(50),
+    scansQuery,
+    orgId ? getOrgDashboardSummary(orgId).catch(() => null) : Promise.resolve(null),
   ])
 
   const websiteCount = websitesRes.data?.length ?? 0
@@ -40,9 +57,9 @@ export async function GET() {
     .map((s) => s.security_score)
     .filter((s): s is number => s !== null)
 
-  const latestScore = scores.length > 0
-    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-    : null
+  const latestScore =
+    orgSummary?.avgScore ??
+    (scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null)
 
   // Last scan timestamp
   const completedScans = allScans.filter((s) => s.completed_at)
@@ -113,11 +130,15 @@ export async function GET() {
   void latestScansWithHeaders
 
   return NextResponse.json({
-    websiteCount,
+    websiteCount: orgSummary?.totalSitesMonitored ?? websiteCount,
     latestScore,
-    activeAlertCount,
+    activeAlertCount: orgSummary?.openAlertsCount ?? activeAlertCount,
+    criticalAlertsCount: orgSummary?.criticalAlertsCount ?? null,
+    rollingRiskScore: orgSummary?.rollingRiskScore ?? null,
+    postureState: orgSummary?.postureState ?? null,
     lastScanAt,
     recentScans,
     securityOverview,
+    orgScoped: Boolean(orgId),
   })
 }

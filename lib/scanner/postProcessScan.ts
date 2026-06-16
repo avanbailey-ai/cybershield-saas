@@ -449,6 +449,7 @@ async function postProcessScanCore(params: {
   const { error: scanUpdateErr } = await supabase.from('scans').update({
     status: scanResult.error ? 'failed' : 'completed',
     completed_at: now,
+    ...(orgId ? { org_id: orgId } : {}),
     security_score: scanResult.score,
     risk_score: newRiskScore,
     risk_level: scanResult.riskLevel,

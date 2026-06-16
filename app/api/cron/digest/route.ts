@@ -1,18 +1,24 @@
-// Weekly digest — triggered manually (authenticated). Not on Vercel Cron schedule.
+// Weekly digest — cron or platform owner only. Not on Vercel Cron schedule.
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { isOwner } from '@/lib/auth/owner';
 import { sendEmail } from '@/lib/email';
 import { weeklyDigestEmail } from '@/lib/emailTemplates';
+import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cronAuthorized = isWorkerAuthorized(request);
 
-  if (!user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!cronAuthorized) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user || !isOwner(user.email)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const adminSupabase = createAdminClient();
@@ -59,7 +65,9 @@ export async function POST(request: Request) {
     );
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas.vercel.app';
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      'https://cybershield-saas-1o19.vercel.app';
 
     await sendEmail({
       to: recipient.email as string,
