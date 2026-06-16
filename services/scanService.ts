@@ -28,13 +28,17 @@ export async function saveScanResults(
     return { success: false, errors: validation.errors };
   }
 
-  await postProcessScan({
+  const postResult = await postProcessScan({
     scanId,
     websiteId,
     userId,
     url,
     scanResult: result,
   });
+
+  if (!postResult.success) {
+    return { success: false, errors: [postResult.error ?? 'post_process_failed'] };
+  }
 
   await emit({
     type: 'scanCompleted',

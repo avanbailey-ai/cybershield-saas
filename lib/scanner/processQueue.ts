@@ -70,7 +70,7 @@ async function markScanJobFailed(
 
   if (attempts < maxAttempts) {
     const scheduledFor = new Date(Date.now() + retryDelayMs(attempts)).toISOString();
-    await supabase
+    const { error: retryErr } = await supabase
       .from('scan_queue')
       .update({
         status: 'pending',
@@ -82,6 +82,12 @@ async function markScanJobFailed(
         scheduled_for: scheduledFor,
       })
       .eq('id', jobId);
+
+    if (retryErr) {
+      console.error(`[scanWorker] scan_queue retry update FAILED job=${jobId}:`, retryErr);
+    } else {
+      console.log(`[scanWorker] scan_queue retry scheduled job=${jobId} attempts=${attempts}`);
+    }
 
     void logEvent({
       type: 'queue_retry_triggered',
@@ -99,7 +105,7 @@ async function markScanJobFailed(
 
     return 'retry';
   } else {
-    await supabase
+    const { error: failErr } = await supabase
       .from('scan_queue')
       .update({
         status: 'failed',
@@ -111,6 +117,12 @@ async function markScanJobFailed(
         scheduled_for: null,
       })
       .eq('id', jobId);
+
+    if (failErr) {
+      console.error(`[scanWorker] scan_queue failed update FAILED job=${jobId}:`, failErr);
+    } else {
+      console.log(`[scanWorker] scan_queue marked failed job=${jobId}`);
+    }
 
     if (context?.userId) {
       void trackServerEvent(
@@ -130,8 +142,8 @@ async function markScanJobFailed(
   }
 }
 
-/** Release a stuck processing lock if the job never reached a terminal state. */
-async function releaseStuckProcessingLock(jobId: string, errorMessage: string): Promise<void> {
+/** Confirm scan_queue left processing — force-fail if still stuck. */
+async function ensureScanJobTerminal(jobId: string, reason: string): Promise<void> {
   const supabase = createAdminClient();
   const { data: row } = await supabase
     .from('scan_queue')
@@ -141,12 +153,43 @@ async function releaseStuckProcessingLock(jobId: string, errorMessage: string): 
 
   if (!row || row.status !== 'processing') return;
 
+  console.warn(`[scanWorker] forcing terminal state job=${jobId} reason=${reason}`);
   await markScanJobFailed(
     jobId,
     row.attempts ?? 0,
     row.max_attempts ?? DEFAULT_MAX_ATTEMPTS,
-    errorMessage,
+    reason,
   );
+}
+
+async function markScanJobCompleted(
+  jobId: string,
+  jobResult: { scanId: string; score: number; riskLevel: string },
+): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('scan_queue')
+    .update({
+      status: 'completed',
+      result: jobResult,
+      completed_at: new Date().toISOString(),
+      locked_at: null,
+      scheduled_for: null,
+      error: null,
+    })
+    .eq('id', jobId);
+
+  if (error) {
+    console.error(`[scanWorker] scan_queue completed update FAILED job=${jobId}:`, error);
+    return false;
+  }
+
+  console.log(`[scanWorker] scan_queue marked completed job=${jobId} scanId=${jobResult.scanId}`);
+  return true;
+}
+/** Release a stuck processing lock if the job never reached a terminal state. */
+async function releaseStuckProcessingLock(jobId: string, errorMessage: string): Promise<void> {
+  await ensureScanJobTerminal(jobId, errorMessage);
 }
 
 async function processScanJob(job: QueueJob): Promise<ProcessResult> {
@@ -229,11 +272,12 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
 
     if (fresh.result && typeof fresh.result === 'object' && 'scanId' in (fresh.result as object)) {
       log('has stored result — skipping re-run');
-      await supabase
-        .from('scan_queue')
-        .update({ status: 'completed', completed_at: new Date().toISOString(), locked_at: null })
-        .eq('id', job.id);
-      const stored = fresh.result as { score?: number; riskLevel?: string };
+      const stored = fresh.result as { score?: number; riskLevel?: string; scanId?: string };
+      await markScanJobCompleted(job.id, {
+        scanId: stored.scanId ?? '',
+        score: stored.score ?? 0,
+        riskLevel: stored.riskLevel ?? 'low',
+      });
       terminalUpdated = true;
       result = { ...base, success: true, skipped: true, score: stored.score, riskLevel: stored.riskLevel };
       return result;
@@ -319,14 +363,11 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
         riskLevel: storedResult.riskLevel,
       };
       if (fresh.status !== 'completed') {
-        await supabase
-          .from('scan_queue')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            locked_at: null,
-          })
-          .eq('id', job.id);
+        await markScanJobCompleted(job.id, {
+          scanId: storedResult.scanId,
+          score: storedResult.score ?? 0,
+          riskLevel: storedResult.riskLevel ?? 'low',
+        });
       }
       return result;
     }
@@ -411,33 +452,35 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
     }
 
     try {
-      await postProcessScan({
+      const postResult = await postProcessScan({
         scanId: scanRecordId,
         websiteId: website.id,
         userId: website.user_id,
         url: website.url,
         scanResult,
+        jobId: job.id,
       });
       await addTraceStep(traceId ?? 'unknown', 'db_save', 'worker', { scanId: scanRecordId });
+
+      if (!postResult.success) {
+        logError('postProcessScan failed', postResult.error);
+        await logEvent({
+          type: 'scan_failed',
+          layer: 'worker',
+          userId: website.user_id,
+          traceId,
+          metadata: { jobId: job.id, scanId: scanRecordId, error: postResult.error },
+        });
+        if (traceId) {
+          await completeTrace(traceId, 'failed', { scanId: scanRecordId, error: postResult.error });
+        }
+        terminalUpdated = true;
+        result = { ...base, success: false, error: postResult.error };
+        return result;
+      }
     } catch (err) {
-      logError('postProcessScan failed', err);
-      await logEvent({
-        type: 'scan_failed',
-        layer: 'worker',
-        userId: website.user_id,
-        traceId,
-        metadata: { jobId: job.id, scanId: scanRecordId, error: String(err) },
-      });
-      if (traceId) await completeTrace(traceId, 'failed', { scanId: scanRecordId, error: String(err) });
-      await supabase
-        .from('scans')
-        .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
-        .eq('id', scanRecordId);
-      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
-        userId: website.user_id,
-        websiteId: job.website_id,
-        source: job.source,
-      });
+      logError('postProcessScan unexpected error', err);
+      await ensureScanJobTerminal(job.id, String(err));
       terminalUpdated = true;
       result = { ...base, success: false, error: String(err) };
       return result;
@@ -448,18 +491,6 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       score: scanResult.score,
       riskLevel: scanResult.riskLevel,
     };
-
-    await supabase
-      .from('scan_queue')
-      .update({
-        status: 'completed',
-        result: jobResult,
-        completed_at: new Date().toISOString(),
-        locked_at: null,
-        scheduled_for: null,
-        error: null,
-      })
-      .eq('id', job.id);
 
     void trackServerEvent(
       'scan_completed',

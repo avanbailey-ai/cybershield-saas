@@ -491,6 +491,68 @@ async function postProcessScanCore(params: {
   console.log(`[POST-PROCESS] Scan record and website updated for scanId=${scanId}`);
 }
 
+type ScanQueueFinalizeResult = {
+  scanId?: string;
+  score?: number;
+  riskLevel?: string;
+  error?: string;
+};
+
+/** Guarantee scan_queue reaches a terminal state (completed/failed). */
+async function finalizeScanQueueJob(
+  jobId: string,
+  status: 'completed' | 'failed',
+  result: ScanQueueFinalizeResult,
+  errorMessage?: string | null,
+): Promise<void> {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: row } = await supabase
+    .from('scan_queue')
+    .select('status')
+    .eq('id', jobId)
+    .maybeSingle();
+
+  if (row?.status === 'completed' || row?.status === 'failed') {
+    console.log(`[POST-PROCESS] scan_queue already terminal job=${jobId} status=${row.status}`);
+    return;
+  }
+
+  const payload =
+    status === 'completed'
+      ? {
+          status: 'completed' as const,
+          result,
+          completed_at: now,
+          locked_at: null,
+          scheduled_for: null,
+          error: null,
+        }
+      : {
+          status: 'failed' as const,
+          result,
+          error: errorMessage ?? result.error ?? 'post_process_failed',
+          completed_at: now,
+          locked_at: null,
+          scheduled_for: null,
+        };
+
+  const { error } = await supabase.from('scan_queue').update(payload).eq('id', jobId);
+
+  if (error) {
+    console.error(`[POST-PROCESS] scan_queue finalize FAILED job=${jobId}:`, error);
+    throw error;
+  }
+
+  console.log(`[POST-PROCESS] scan_queue finalized job=${jobId} status=${status}`);
+}
+
+export interface PostProcessScanResult {
+  success: boolean;
+  error?: string;
+}
+
 /** Persist scan results synchronously; side effects run async without blocking the worker. */
 export async function postProcessScan(params: {
   scanId: string;
@@ -498,58 +560,102 @@ export async function postProcessScan(params: {
   userId: string;
   url: string;
   scanResult: ScanResult;
-}): Promise<void> {
-  const { scanId, websiteId, userId, url, scanResult } = params;
+  jobId?: string;
+}): Promise<PostProcessScanResult> {
+  const { scanId, websiteId, userId, url, scanResult, jobId } = params;
+
+  console.log(
+    `[POST-PROCESS] scan start scanId=${scanId} jobId=${jobId ?? 'none'} hasError=${!!scanResult.error}`,
+  );
 
   const supabase = createAdminClient();
   const newRiskScore = 100 - scanResult.score;
+  let queueStatus: 'completed' | 'failed' = scanResult.error ? 'failed' : 'completed';
+  let queueResult: ScanQueueFinalizeResult = scanResult.error
+    ? { scanId, error: scanResult.error }
+    : { scanId, score: scanResult.score, riskLevel: scanResult.riskLevel };
+  let outcome: PostProcessScanResult = { success: true };
 
-  const { data: websiteRow } = await supabase
-    .from('websites')
-    .select('org_id, scan_frequency, is_active')
-    .eq('id', websiteId)
-    .single();
-  const orgId = websiteRow?.org_id ?? (await getActiveOrgId(userId));
+  try {
+    const { data: websiteRow } = await supabase
+      .from('websites')
+      .select('org_id, scan_frequency, is_active')
+      .eq('id', websiteId)
+      .single();
+    const orgId = websiteRow?.org_id ?? (await getActiveOrgId(userId));
 
-  const { data: prevScans } = await supabase
-    .from('scans')
-    .select('id, risk_score, security_score, ssl_valid, headers, issues, scan_snapshot')
-    .eq('website_id', websiteId)
-    .eq('status', 'completed')
-    .neq('id', scanId)
-    .order('completed_at', { ascending: false })
-    .limit(1);
+    const { data: prevScans } = await supabase
+      .from('scans')
+      .select('id, risk_score, security_score, ssl_valid, headers, issues, scan_snapshot')
+      .eq('website_id', websiteId)
+      .eq('status', 'completed')
+      .neq('id', scanId)
+      .order('completed_at', { ascending: false })
+      .limit(1);
 
-  const previousScanRow = prevScans?.[0] ?? null;
-  const previousRiskScore: number | null = previousScanRow?.risk_score ?? null;
-  const previousSecurityScore: number | null = previousScanRow?.security_score ?? null;
-  const currentSnapshot = buildSnapshotFromScanResult({
-    ssl: scanResult.ssl,
-    rawHeaders: scanResult.rawHeaders,
-    pageSnapshot: scanResult.pageSnapshot,
-  });
+    const previousScanRow = prevScans?.[0] ?? null;
+    const previousRiskScore: number | null = previousScanRow?.risk_score ?? null;
+    const previousSecurityScore: number | null = previousScanRow?.security_score ?? null;
+    const currentSnapshot = buildSnapshotFromScanResult({
+      ssl: scanResult.ssl,
+      rawHeaders: scanResult.rawHeaders,
+      pageSnapshot: scanResult.pageSnapshot,
+    });
 
-  await postProcessScanCore({
-    scanId,
-    websiteId,
-    userId,
-    scanResult,
-    websiteRow,
-    orgId,
-    currentSnapshot,
-  });
+    await postProcessScanCore({
+      scanId,
+      websiteId,
+      userId,
+      scanResult,
+      websiteRow,
+      orgId,
+      currentSnapshot,
+    });
 
-  postProcessScanSideEffects({
-    scanId,
-    websiteId,
-    userId,
-    url,
-    scanResult,
-    orgId,
-    previousScanRow,
-    previousRiskScore,
-    previousSecurityScore,
-    currentSnapshot,
-    newRiskScore,
-  });
+    postProcessScanSideEffects({
+      scanId,
+      websiteId,
+      userId,
+      url,
+      scanResult,
+      orgId,
+      previousScanRow,
+      previousRiskScore,
+      previousSecurityScore,
+      currentSnapshot,
+      newRiskScore,
+    });
+
+    console.log(`[POST-PROCESS] scan completion scanId=${scanId} status=${queueStatus}`);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    queueStatus = 'failed';
+    queueResult = { scanId, error: errMsg };
+    outcome = { success: false, error: errMsg };
+    console.error(`[POST-PROCESS] scan failed scanId=${scanId}:`, err);
+
+    const { error: scanFailErr } = await supabase
+      .from('scans')
+      .update({
+        status: 'failed',
+        error_message: errMsg,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', scanId);
+
+    if (scanFailErr) {
+      console.error('[POST-PROCESS] Failed to mark scan record failed:', scanFailErr);
+    }
+  } finally {
+    if (jobId) {
+      try {
+        await finalizeScanQueueJob(jobId, queueStatus, queueResult, queueResult.error);
+      } catch (finalizeErr) {
+        console.error(`[POST-PROCESS] scan_queue finalize in finally failed job=${jobId}:`, finalizeErr);
+        outcome = { success: false, error: 'queue_finalize_failed' };
+      }
+    }
+  }
+
+  return outcome;
 }

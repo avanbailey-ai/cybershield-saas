@@ -4,6 +4,19 @@ import Link from 'next/link';
 import { useUser } from '@/lib/auth/useUser';
 import { useScanQueueRealtime, type ScanQueueJob } from '@/lib/scanner/useScanQueueRealtime';
 
+const SCAN_STALE_MS = 120_000;
+
+function effectiveJobStatus(job: ScanQueueJob): ScanQueueJob['status'] | 'failed' {
+  const startedAt = job.started_at ?? job.created_at;
+  if (
+    (job.status === 'pending' || job.status === 'processing') &&
+    Date.now() - new Date(startedAt).getTime() > SCAN_STALE_MS
+  ) {
+    return 'failed';
+  }
+  return job.status;
+}
+
 function scoreBadgeClass(score: number): string {
   if (score >= 90) return 'bg-green-500/10 text-green-400 border border-green-500/20';
   if (score >= 70) return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
@@ -37,9 +50,11 @@ function timeAgo(dateStr: string): string {
 }
 
 function JobRow({ job }: { job: ScanQueueJob }) {
+  const status = effectiveJobStatus(job);
   const score = job.result?.score;
   const errorMsg = job.result?.error ?? job.error;
   const label = job.domain ?? 'Unknown';
+  const timedOut = status === 'failed' && (job.status === 'pending' || job.status === 'processing');
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/20 p-5 transition-colors hover:bg-gray-800/30">
@@ -57,23 +72,25 @@ function JobRow({ job }: { job: ScanQueueJob }) {
               {score}/100
             </span>
           )}
-          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusBadgeClass(job.status)}`}>
-            {job.status === 'processing' && (
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusBadgeClass(status)}`}>
+            {status === 'processing' && (
               <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400" />
             )}
-            {job.status}
+            {status}
           </span>
-          {job.status === 'completed' && job.result?.scanId && (
+          {status === 'completed' && job.result?.scanId && (
             <Link href={`/report/${job.result.scanId}`} className="text-xs text-blue-400 hover:text-blue-300">
               View report →
             </Link>
           )}
         </div>
       </div>
-      {errorMsg && job.status === 'failed' && (
-        <p className="mt-2 text-xs text-red-400">Error: {errorMsg}</p>
+      {errorMsg && status === 'failed' && (
+        <p className="mt-2 text-xs text-red-400">
+          Error: {timedOut ? 'Scan timed out — please try again' : errorMsg}
+        </p>
       )}
-      {(job.status === 'pending' || job.status === 'processing') && (
+      {(status === 'pending' || status === 'processing') && (
         <p className="mt-2 text-xs text-gray-500">Updates live — no refresh needed</p>
       )}
     </div>

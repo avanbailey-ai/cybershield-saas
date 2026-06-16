@@ -9,6 +9,17 @@ import { getWebsiteUsageMessage } from "@/lib/auth/permissions";
 import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
 import QueueDemandBanner from "@/components/dashboard/QueueDemandBanner";
 
+const SCAN_UI_TIMEOUT_MS = 120_000;
+
+function isActiveQueueStatus(status: string): boolean {
+  return status === "pending" || status === "processing";
+}
+
+function isQueueJobStale(job: ScanQueueJob): boolean {
+  const startedAt = job.started_at ?? job.created_at;
+  return isActiveQueueStatus(job.status) && Date.now() - new Date(startedAt).getTime() > SCAN_UI_TIMEOUT_MS;
+}
+
 
 
 interface LatestQueueJob {
@@ -228,7 +239,7 @@ export default function WebsiteList() {
 
 
 
-    if (job.status === "completed" && typeof job.result?.score === "number") {
+    if (job.status === "completed") {
 
       scanningRef.current = null;
 
@@ -243,9 +254,13 @@ export default function WebsiteList() {
       router.refresh();
       void refreshPlan();
 
-    } else if (job.status === "failed") {
+    } else if (job.status === "failed" || isQueueJobStale(job)) {
 
-      setError(job.result?.error ?? job.error ?? "Scan failed");
+      setError(
+        job.status === "failed"
+          ? (job.result?.error ?? job.error ?? "Scan failed")
+          : "Scan timed out — please try again",
+      );
 
       scanningRef.current = null;
 
@@ -256,6 +271,36 @@ export default function WebsiteList() {
     }
 
   }, [scanningId, getWebsiteJob, router, refreshPlan]);
+
+
+
+  // Fallback: clear stuck scanning UI after 2 minutes
+
+  useEffect(() => {
+
+    if (!scanningId) return;
+
+    const timer = setTimeout(() => {
+
+      const job = getWebsiteJob(scanningId);
+
+      if (!job || isActiveQueueStatus(job.status)) {
+
+        setError("Scan timed out — please try again");
+
+        scanningRef.current = null;
+
+        setScanningId(null);
+
+        scanIdempotencyRef.current.delete(scanningId);
+
+      }
+
+    }, SCAN_UI_TIMEOUT_MS);
+
+    return () => clearTimeout(timer);
+
+  }, [scanningId, getWebsiteJob]);
 
 
 
@@ -561,7 +606,9 @@ export default function WebsiteList() {
 
     const activeJob = getActiveJob(site.id);
 
-    const isScanning = scanningId === site.id || !!activeJob;
+    const staleJob = liveJob && isQueueJobStale(liveJob as ScanQueueJob);
+
+    const isScanning = (scanningId === site.id || !!activeJob) && !staleJob;
 
     const score =
 
