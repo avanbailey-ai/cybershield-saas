@@ -12,6 +12,9 @@ import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { logApiTiming } from '@/lib/observability/log';
 
+/** Allow scan worker to finish (must match lib/queue/routeConfig.ts). */
+export const maxDuration = 180;
+
 async function handleWorker(req: Request) {
   if (!isWorkerAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
