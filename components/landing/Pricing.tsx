@@ -173,6 +173,10 @@ export default function Pricing() {
   const { prices } = useDisplayPrices();
 
   useEffect(() => {
+    trackEvent('pricing_viewed', { path: '/pricing', trigger: 'page_load' });
+  }, []);
+
+  useEffect(() => {
     fetch('/api/analytics/config')
       .then((r) => (r.ok ? r.json() : null))
       .then((cfg) => {
