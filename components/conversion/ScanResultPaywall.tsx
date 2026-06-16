@@ -149,7 +149,7 @@ export default function ScanResultPaywall({
     <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-5 text-left sm:p-8">
       {repeatScanToday && (
         <p className="mb-4 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-200">
-          Showing your latest scan from today.
+          You already scanned this site today — showing your most recent result. Rescan again tomorrow or upgrade for continuous monitoring.
         </p>
       )}
       <SecurityCoverageBar percent={coveragePercent} className="mb-8" />
@@ -167,7 +167,9 @@ export default function ScanResultPaywall({
           >
             {severity.label} Risk — {severity.description}
           </span>
-          <p className="mt-3 text-base font-medium text-white">{result.url || 'Unknown site'}</p>
+          <p className="mt-3 text-base font-medium text-white">
+            {result.url && result.url !== 'undefined' ? result.url : 'Your scanned site'}
+          </p>
           <p className="mt-2 text-sm text-gray-400">{urgency.subtext}</p>
         </div>
       </div>
