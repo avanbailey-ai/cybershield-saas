@@ -59,6 +59,7 @@ import { emit } from '@/core/events/emit';
 import { getUser, getWebsiteCountForUser } from '@/services/supabaseService';
 
 import { enqueueScan } from '@/services/scanQueueService';
+import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
 import { decrementScanUsage } from '@/lib/billing/usageService';
@@ -616,6 +617,10 @@ export async function POST(req: NextRequest) {
           },
 
         });
+
+        void handleScanBatch().catch((err) =>
+          console.error('[scan] Background worker kick failed (non-fatal):', err),
+        );
 
       }
 

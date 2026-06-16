@@ -14,7 +14,11 @@ import { runScan } from '@/lib/scanner/runScan';
 
 import { checkPublicScanLimit, recordPublicScanLimit } from '@/lib/conversion/serverLimits';
 
-import { generateAndStoreReport, extractDomain } from '@/lib/ai/storeReport';
+import {
+  storeTemplateReport,
+  enhanceStoredReportAsync,
+  extractDomain,
+} from '@/lib/ai/storeReport';
 
 import { updateLeaderboard } from '@/lib/leaderboard/update';
 
@@ -231,37 +235,27 @@ export async function POST(req: NextRequest) {
 
 
       let shareToken: string | null = null;
-
-      let aiReportStatus: 'used' | 'skipped' | 'cached' = 'skipped';
+      const aiReportStatus: 'used' | 'skipped' | 'cached' = 'skipped';
+      const reportParams = {
+        scanId: null,
+        domain: extractDomain(url),
+        userId: null,
+        scanResult: result,
+        autoShare: true,
+        websiteId: null,
+        plan: 'free' as const,
+      };
 
       try {
-
-        const stored = await generateAndStoreReport({
-
-          scanId: null,
-
-          domain: extractDomain(url),
-
-          userId: null,
-
-          scanResult: result,
-
-          autoShare: true,
-
-          websiteId: null,
-
-          plan: 'free',
-
-        });
-
+        const stored = await storeTemplateReport(reportParams);
         shareToken = stored?.shareToken ?? null;
-
-        if (stored?.aiStatus) aiReportStatus = stored.aiStatus;
-
+        if (stored) {
+          void enhanceStoredReportAsync(stored.id, reportParams).catch((err) =>
+            console.error('[public-scan] AI report enhancement failed (non-fatal):', err),
+          );
+        }
       } catch (err) {
-
-        console.error('[public-scan] Report generation failed:', err);
-
+        console.error('[public-scan] Template report storage failed:', err);
       }
 
 
