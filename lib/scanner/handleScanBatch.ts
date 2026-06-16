@@ -44,11 +44,14 @@ export interface ScanBatchResponse {
 
 
 
-export async function handleScanBatch(): Promise<ScanBatchResponse> {
+export async function handleScanBatch(batchLimitOverride?: number): Promise<ScanBatchResponse> {
 
   const started = Date.now();
 
-  const batchLimit = getScanBatchLimit();
+  const batchLimit =
+    batchLimitOverride !== undefined
+      ? Math.min(Math.max(1, batchLimitOverride), getScanBatchLimit())
+      : getScanBatchLimit();
 
 
 

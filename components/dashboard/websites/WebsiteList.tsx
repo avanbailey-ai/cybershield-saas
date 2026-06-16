@@ -182,6 +182,8 @@ export default function WebsiteList() {
 
   const [completedScanIds, setCompletedScanIds] = useState<Map<string, string>>(new Map());
 
+  const [delayedRetryWebsiteId, setDelayedRetryWebsiteId] = useState<string | null>(null);
+
   const scanningRef = useRef<string | null>(null);
 
   const scanIdempotencyRef = useRef<Map<string, string>>(new Map());
@@ -267,7 +269,7 @@ export default function WebsiteList() {
       setError(
         job.scanStatus === "failed" || job.status === "failed"
           ? (job.result?.error ?? job.error ?? "Scan failed")
-          : "Scan timed out — please try again",
+          : "Scan delayed — retry",
       );
 
       scanningRef.current = null;
@@ -294,7 +296,9 @@ export default function WebsiteList() {
 
       if (!job || isActiveScanStatus(job.scanStatus)) {
 
-        setError("Scan timed out — please try again");
+        setError("Scan delayed — retry");
+
+        setDelayedRetryWebsiteId(scanningId);
 
         scanningRef.current = null;
 
@@ -355,7 +359,31 @@ export default function WebsiteList() {
 
     setScanningId(null);
 
+    setDelayedRetryWebsiteId(null);
+
     scanIdempotencyRef.current.delete(websiteId);
+
+  }
+
+
+
+  async function retryDelayedScan(websiteId: string) {
+
+    setError(null);
+
+    setDelayedRetryWebsiteId(null);
+
+    try {
+
+      await fetch("/api/scan/process-pending", { method: "POST" });
+
+    } catch {
+
+      /* non-fatal — handleScan will enqueue/process again */
+
+    }
+
+    await handleScan(websiteId);
 
   }
 
@@ -859,7 +887,27 @@ export default function WebsiteList() {
 
           {error}
 
-          <button onClick={() => setError(null)} className="ml-3 text-red-300 underline">Dismiss</button>
+          {error === "Scan delayed — retry" && delayedRetryWebsiteId && (
+
+            <button
+              type="button"
+              onClick={() => void retryDelayedScan(delayedRetryWebsiteId)}
+              className="ml-3 font-semibold text-red-300 underline"
+            >
+              Retry scan
+            </button>
+
+          )}
+
+          <button
+            onClick={() => {
+              setError(null);
+              setDelayedRetryWebsiteId(null);
+            }}
+            className="ml-3 text-red-300 underline"
+          >
+            Dismiss
+          </button>
 
         </div>
 

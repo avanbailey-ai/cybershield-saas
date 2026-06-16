@@ -33,7 +33,7 @@ export function isActiveScanStatus(status: string): boolean {
 export function scanStatusLabel(status: string, timedOut = false): string {
   const display = mapScanStatusToDisplay(status);
   if (timedOut && (status === 'pending' || status === 'running')) {
-    return 'Scan is taking longer than expected…';
+    return 'Scan delayed — retry';
   }
   switch (display) {
     case 'queued':

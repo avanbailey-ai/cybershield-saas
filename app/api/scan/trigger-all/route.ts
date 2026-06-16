@@ -1,8 +1,7 @@
 /**
  * POST /api/scan/trigger-all
- * Enqueues active websites up to the user's remaining daily scan budget.
- * Does NOT execute scans — /api/scan/enqueue-or-process-batch processes the queue.
- */
+ * Enqueues active websites up to the user's remaining daily scan budget,
+ * then processes a bounded batch server-side (no cron required). */
 
 import '@/services/bootstrap';
 
@@ -20,6 +19,8 @@ import { decrementScanUsage } from '@/lib/billing/usageService';
 import { getUserPlan } from '@/lib/billing/planService';
 import { generateTraceId, logEvent, startTrace } from '@/lib/observability';
 import { recordApiLatency } from '@/lib/observability/metrics';
+import { processQueuedScansForUser } from '@/lib/scanner/processUserScanQueue';
+import { getScanBatchLimit } from '@/lib/queue/constants';
 
 function scanLimitMessage(scansUsed: number, scansLimit: number): string {
   return `You've reached your daily scan limit (${scansLimit}). Used ${scansUsed} of ${scansLimit} today.`;
@@ -288,6 +289,16 @@ export async function POST() {
       },
       { status: 429 },
     );
+  }
+
+  if (queued > 0) {
+    try {
+      await processQueuedScansForUser({
+        batchLimit: Math.min(queued, getScanBatchLimit()),
+      });
+    } catch (err) {
+      console.error('[trigger-all] Scan worker kick failed (non-fatal):', err);
+    }
   }
 
   return Response.json({
