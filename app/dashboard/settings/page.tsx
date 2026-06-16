@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
+import NotificationPreferencesCard from "@/components/dashboard/NotificationPreferencesCard";
 import SettingsUpgradeBanner from "@/components/dashboard/SettingsUpgradeBanner";
 import { normalizePlan } from "@/lib/auth/permissions";
+import { canAccessFeature } from "@/lib/auth/featureGate";
 import { getUserWithPlan } from "@/lib/billing/planService";
 import { getActiveOrgId } from "@/lib/org/context";
+import { getNotificationPreferences } from "@/lib/notifications/preferences";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +42,15 @@ export default async function SettingsPage({
   const subscriptionStatus = userWithPlan.subscription_status ?? null;
   const params = await searchParams;
   const upgradeFeature = params.upgrade ?? null;
+  const notificationPreferences = await getNotificationPreferences(user.id);
+  const emailAlertsAvailable = canAccessFeature(
+    {
+      email: user.email,
+      plan: currentPlan,
+      subscription_status: subscriptionStatus,
+    },
+    'alerts',
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
@@ -82,38 +94,13 @@ export default async function SettingsPage({
           {/* Notification Preferences */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>Notification Preferences</CardTitle>
-                <span className="inline-flex items-center rounded-full border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
-                  Coming soon
-                </span>
-              </div>
+              <CardTitle>Notification Preferences</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-4 text-xs text-gray-500">
-                Email notification controls are not available yet. Alerts use your account defaults until preferences can be saved here.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  {
-                    label: "Email alerts for new vulnerabilities",
-                    description: "Will be configurable in a future update.",
-                  },
-                  {
-                    label: "Weekly security digest",
-                    description: "Scheduled digest emails will be configurable in a future update.",
-                  },
-                  {
-                    label: "Critical threat notifications",
-                    description: "Real-time critical alerts will be configurable in a future update.",
-                  },
-                ].map((pref) => (
-                  <li key={pref.label} className="rounded-lg border border-gray-800 bg-gray-800/30 px-4 py-3">
-                    <p className="text-sm font-medium text-gray-400">{pref.label}</p>
-                    <p className="mt-0.5 text-xs text-gray-600">{pref.description}</p>
-                  </li>
-                ))}
-              </ul>
+              <NotificationPreferencesCard
+                initialPreferences={notificationPreferences}
+                emailAlertsAvailable={emailAlertsAvailable}
+              />
             </CardContent>
           </Card>
 

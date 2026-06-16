@@ -25,13 +25,15 @@ export async function POST(request: Request) {
 
   const { data: users } = await adminSupabase
     .from('profiles')
-    .select('id, email');
+    .select('id, email, notify_weekly_digest');
 
   if (!users) return Response.json({ ok: true, sent: 0 });
 
   let sent = 0;
 
   for (const recipient of users) {
+    if (recipient.notify_weekly_digest === false) continue;
+
     const { data: websites } = await adminSupabase
       .from('websites')
       .select('id, url, risk_score, last_scanned_at')
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
       html: weeklyDigestEmail({
         userEmail: recipient.email as string,
         websites: websiteData,
-        digestUrl: `${siteUrl}/dashboard`,
+        digestUrl: `${siteUrl}/enterprise/portal/settings`,
       }),
     });
 

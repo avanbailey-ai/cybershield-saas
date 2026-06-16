@@ -6,6 +6,10 @@ import { canAccessFeature } from '@/lib/auth/featureGate';
 import { getUserWithPlan } from '@/lib/billing/planService';
 import { getActiveOrgId } from '@/lib/org/context';
 import {
+  getNotificationPreferences,
+  shouldSendMonitoringEmail,
+} from '@/lib/notifications/preferences';
+import {
   getRecommendedFixForAlertType,
   mapAlertTypeToMonitoring,
   type MonitoringAlertType,
@@ -161,6 +165,14 @@ export async function sendMonitoringAlert(
       `[sendMonitoringAlert] Skipping email for alert=${alertId} — plan ${userWithPlan.plan} does not include email alerts`,
     );
     return { sent: false, skipped: true, reason: 'plan_gated' };
+  }
+
+  const notificationPrefs = await getNotificationPreferences(alert.user_id);
+  if (!shouldSendMonitoringEmail(notificationPrefs, alert.severity)) {
+    console.log(
+      `[sendMonitoringAlert] Skipping email for alert=${alertId} — user notification preference disabled`,
+    );
+    return { sent: false, skipped: true, reason: 'preference_disabled' };
   }
 
   const scanQuery = alert.scan_id
