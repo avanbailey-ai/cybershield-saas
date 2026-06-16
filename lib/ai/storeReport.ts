@@ -3,7 +3,6 @@ import type { ScanResult } from '@/lib/scanner/runScan';
 import type { ScanSnapshot } from '@/lib/scanner/pageSnapshot';
 import type { Plan } from '@/lib/billing/plans';
 import { buildReport, type AiReportStatus } from './buildReport';
-import { buildTemplateReport } from './generateSecurityReport';
 import { generateShareToken } from '@/lib/share/token';
 
 export function extractDomain(url: string): string {
@@ -19,7 +18,6 @@ export interface StoredReport {
   id: string;
   shareToken: string | null;
   aiStatus: AiReportStatus;
-  aiSkipReason?: string;
 }
 
 export interface StoreReportParams {
@@ -37,18 +35,29 @@ export interface StoreReportParams {
   } | null;
 }
 
-/** Persist template report immediately — no AI, no cache lookups. */
-export async function storeTemplateReport(params: StoreReportParams): Promise<StoredReport | null> {
+/** Persist deterministic report — Security Intelligence Engine only, no OpenAI. */
+export async function storeReport(params: StoreReportParams): Promise<StoredReport | null> {
   const {
     scanId,
     domain,
     userId,
     scanResult,
     autoShare = userId === null,
+    websiteId = null,
+    plan = 'free',
+    previousScan = null,
   } = params;
 
-  const report = buildTemplateReport(scanResult);
-  const riskScore = 100 - scanResult.score;
+  const built = await buildReport({
+    scanResult,
+    websiteId,
+    userId,
+    plan,
+    previousScan,
+  });
+
+  const report = built.report;
+  const riskScore = 100 - built.intelligence.securityScore;
   const shareToken = autoShare ? generateShareToken() : null;
 
   const supabase = createAdminClient();
@@ -72,88 +81,35 @@ export async function storeTemplateReport(params: StoreReportParams): Promise<St
     .single();
 
   if (error) {
-    console.error('[storeReport] Failed to insert template scan_report:', error);
+    console.error('[storeReport] Failed to insert scan_report:', error);
     throw error;
   }
 
   console.log(
-    `[storeReport] Template report stored id=${data.id} domain=${domain} scanId=${scanId ?? 'none'}`,
+    `[storeReport] Deterministic report stored id=${data.id} domain=${domain} scanId=${scanId ?? 'none'} score=${built.intelligence.securityScore}`,
   );
 
   return {
     id: data.id,
     shareToken: data.share_token,
-    aiStatus: 'skipped',
-    aiSkipReason: 'template_fallback',
+    aiStatus: 'deterministic',
   };
 }
 
-/** AI enhancement — async only; updates existing report row when gate allows. */
-export async function enhanceStoredReportAsync(
-  reportId: string,
-  params: StoreReportParams,
-): Promise<void> {
-  const {
-    scanId,
-    domain,
-    userId,
-    scanResult,
-    websiteId = null,
-    plan = 'free',
-    previousScan = null,
-  } = params;
-
-  try {
-    const built = await buildReport({
-      scanResult,
-      websiteId,
-      userId,
-      plan,
-      previousScan,
-    });
-
-    if (built.aiStatus === 'skipped') {
-      console.log(
-        `[storeReport] AI skipped for report=${reportId} scanId=${scanId ?? 'none'} reason=${built.aiSkipReason}`,
-      );
-      return;
-    }
-
-    const supabase = createAdminClient();
-    const { error } = await supabase
-      .from('scan_reports')
-      .update({
-        summary: built.report.summary,
-        vulnerabilities: built.report.vulnerabilities,
-        recommendations: built.report.recommendations,
-        business_impact: built.report.businessImpact,
-        urgency_statement: built.report.urgencyStatement ?? null,
-      })
-      .eq('id', reportId);
-
-    if (error) {
-      console.error('[storeReport] Failed to update report with AI content:', error);
-      return;
-    }
-
-    console.log(
-      `[storeReport] Report enhanced id=${reportId} domain=${domain} scanId=${scanId ?? 'none'} aiStatus=${built.aiStatus}`,
-    );
-  } catch (err) {
-    console.error('[storeReport] AI enhancement failed (non-fatal):', err);
-  }
+/** @deprecated Use storeReport — async AI enhancement removed. */
+export async function storeTemplateReport(params: StoreReportParams): Promise<StoredReport | null> {
+  return storeReport(params);
 }
 
-/**
- * Store template report synchronously, then enhance with gated AI async.
- * Callers on the scan hot path get an immediate fallback report.
- */
+/** @deprecated AI enhancement removed — no-op. */
+export async function enhanceStoredReportAsync(
+  _reportId: string,
+  _params: StoreReportParams,
+): Promise<void> {
+  // Deterministic engine only — no async OpenAI enhancement.
+}
+
+/** Store deterministic report synchronously. */
 export async function generateAndStoreReport(params: StoreReportParams): Promise<StoredReport | null> {
-  const stored = await storeTemplateReport(params);
-  if (stored) {
-    void enhanceStoredReportAsync(stored.id, params).catch((err) =>
-      console.error('[storeReport] Async AI enhancement failed:', err),
-    );
-  }
-  return stored;
+  return storeReport(params);
 }

@@ -14,11 +14,7 @@ import { runScan } from '@/lib/scanner/runScan';
 
 import { checkPublicScanLimit, recordPublicScanLimit } from '@/lib/conversion/serverLimits';
 
-import {
-  storeTemplateReport,
-  enhanceStoredReportAsync,
-  extractDomain,
-} from '@/lib/ai/storeReport';
+import { storeReport, extractDomain } from '@/lib/ai/storeReport';
 
 import { updateLeaderboard } from '@/lib/leaderboard/update';
 
@@ -64,7 +60,7 @@ interface PublicScanResponse {
 
   cached?: boolean;
 
-  aiReportStatus?: 'used' | 'skipped' | 'cached';
+  aiReportStatus?: 'deterministic' | 'skipped' | 'cached';
 
 }
 
@@ -76,7 +72,7 @@ function buildPublicResponse(
 
   shareToken: string | null,
 
-  aiReportStatus?: 'used' | 'skipped' | 'cached',
+  aiReportStatus?: 'deterministic' | 'skipped' | 'cached',
 
 ): PublicScanResponse {
 
@@ -235,7 +231,7 @@ export async function POST(req: NextRequest) {
 
 
       let shareToken: string | null = null;
-      const aiReportStatus: 'used' | 'skipped' | 'cached' = 'skipped';
+      const aiReportStatus: 'deterministic' = 'deterministic';
       const reportParams = {
         scanId: null,
         domain: extractDomain(url),
@@ -247,15 +243,10 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        const stored = await storeTemplateReport(reportParams);
+        const stored = await storeReport(reportParams);
         shareToken = stored?.shareToken ?? null;
-        if (stored) {
-          void enhanceStoredReportAsync(stored.id, reportParams).catch((err) =>
-            console.error('[public-scan] AI report enhancement failed (non-fatal):', err),
-          );
-        }
       } catch (err) {
-        console.error('[public-scan] Template report storage failed:', err);
+        console.error('[public-scan] Report storage failed:', err);
       }
 
 
@@ -343,5 +334,4 @@ export async function POST(req: NextRequest) {
   }
 
 }
-
 

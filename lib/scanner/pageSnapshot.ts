@@ -10,11 +10,21 @@ export interface ScanSnapshot {
   endpoints: string[];
 }
 
+export interface TechFingerprint {
+  frameworks: string[];
+  cdn: string[];
+  analytics: string[];
+}
+
 export interface PageSnapshotPartial {
   metaTags: Record<string, string>;
   scripts: string[];
   loginFormDetected: boolean;
   endpoints: string[];
+  formsDetected: number;
+  thirdPartyScripts: string[];
+  externalApiCalls: string[];
+  techFingerprint: TechFingerprint;
 }
 
 const SECURITY_HEADER_KEYS = [
@@ -37,6 +47,57 @@ const HEADER_CHECK_MAP: Record<string, keyof HeaderChecks> = {
 
 const INTERESTING_ENDPOINT =
   /\/api\b|\/admin\b|\/login\b|\/auth\b|\/graphql\b|\/webhook|\/v\d+\/|\.json$/i;
+
+const THIRD_PARTY_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /google-analytics|googletagmanager|gtag\/js/i, label: 'Google Analytics' },
+  { pattern: /facebook\.net|fbevents|connect\.facebook/i, label: 'Facebook Pixel' },
+  { pattern: /hotjar|clarity\.ms|segment\.com|mixpanel/i, label: 'Analytics' },
+  { pattern: /cdn\.jsdelivr|unpkg\.com|cdnjs\.cloudflare/i, label: 'Public CDN' },
+  { pattern: /cdn\.shopify\.com|shopify/i, label: 'Shopify' },
+  { pattern: /wp-content|wp-includes|wordpress/i, label: 'WordPress' },
+];
+
+const FRAMEWORK_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /__NEXT_DATA__|_next\/static/i, label: 'Next.js' },
+  { pattern: /react(?:\.production)?\.min\.js|data-reactroot|__REACT_DEVTOOLS/i, label: 'React' },
+  { pattern: /wp-content|wp-includes/i, label: 'WordPress' },
+  { pattern: /cdn\.shopify\.com/i, label: 'Shopify' },
+];
+
+const CDN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /cloudflare|cf-ray/i, label: 'Cloudflare' },
+  { pattern: /fastly|akamai|cloudfront|azureedge/i, label: 'CDN' },
+];
+
+function matchLabels(text: string, patterns: Array<{ pattern: RegExp; label: string }>): string[] {
+  const labels = new Set<string>();
+  for (const { pattern, label } of patterns) {
+    if (pattern.test(text)) labels.add(label);
+  }
+  return [...labels];
+}
+
+function extractExternalOrigins(scripts: string[], baseUrl: string): string[] {
+  const origins = new Set<string>();
+  try {
+    const base = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`);
+    for (const script of scripts) {
+      if (script.startsWith('inline:')) continue;
+      try {
+        const src = script.startsWith('http') ? script : `https://${script.replace(/^\/\//, '')}`;
+        const parsed = new URL(src);
+        if (parsed.hostname !== base.hostname) {
+          origins.add(parsed.origin);
+        }
+      } catch {
+        // skip unparseable
+      }
+    }
+  } catch {
+    // skip
+  }
+  return [...origins].sort();
+}
 
 /** Extract security-relevant response headers for diffing. */
 export function extractSecurityHeaders(rawHeaders: Record<string, string>): Record<string, string> {
@@ -116,6 +177,19 @@ export function parseHtmlSnapshot(html: string, baseUrl: string): PageSnapshotPa
   const loginFormDetected =
     /<form\b/i.test(html) && /<input[^>]+type=["']password["']/i.test(html);
 
+  const formMatches = html.match(/<form\b/gi);
+  const formsDetected = formMatches ? formMatches.length : 0;
+
+  const scriptList = [...scripts];
+  const combinedText = html + scriptList.join(' ');
+  const thirdPartyScripts = matchLabels(combinedText, THIRD_PARTY_PATTERNS);
+  const frameworks = matchLabels(combinedText, FRAMEWORK_PATTERNS);
+  const cdn = matchLabels(combinedText, CDN_PATTERNS);
+  const analytics = thirdPartyScripts.filter((s) =>
+    /Analytics|Google Analytics|Facebook Pixel/i.test(s),
+  );
+  const externalApiCalls = extractExternalOrigins(scriptList, baseUrl);
+
   const endpoints = new Set<string>();
   const linkPattern = /(?:href|action)=["']([^"']+)["']/gi;
   let linkMatch: RegExpExecArray | null;
@@ -128,9 +202,13 @@ export function parseHtmlSnapshot(html: string, baseUrl: string): PageSnapshotPa
 
   return {
     metaTags,
-    scripts: [...scripts].sort(),
+    scripts: scriptList.sort(),
     loginFormDetected,
     endpoints: [...endpoints].sort(),
+    formsDetected,
+    thirdPartyScripts,
+    externalApiCalls,
+    techFingerprint: { frameworks, cdn, analytics },
   };
 }
 
@@ -144,6 +222,10 @@ export function buildSnapshotFromScanResult(params: {
     scripts: [],
     loginFormDetected: false,
     endpoints: [],
+    formsDetected: 0,
+    thirdPartyScripts: [],
+    externalApiCalls: [],
+    techFingerprint: { frameworks: [], cdn: [], analytics: [] },
   };
 
   return {

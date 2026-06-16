@@ -1,4 +1,5 @@
 import { parseHtmlSnapshot, type PageSnapshotPartial } from './pageSnapshot';
+import { applyIntelligenceToScanResult } from '@/lib/securityIntelligence/engine';
 
 export interface HeaderChecks {
   csp: boolean;
@@ -23,10 +24,18 @@ export interface ScanResult {
   error?: string;
 }
 
+const EMPTY_SNAPSHOT: PageSnapshotPartial = {
+  metaTags: {},
+  scripts: [],
+  loginFormDetected: false,
+  endpoints: [],
+  formsDetected: 0,
+  thirdPartyScripts: [],
+  externalApiCalls: [],
+  techFingerprint: { frameworks: [], cdn: [], analytics: [] },
+};
+
 export async function runScan(url: string): Promise<ScanResult> {
-  // Safety guard: runScan should only be called by the queue worker (processQueue.ts).
-  // We log a warning (not an error) if it appears to be called from outside that context,
-  // so misuse is visible in logs without breaking anything.
   const stack = new Error().stack ?? '';
   if (!stack.includes('processQueue')) {
     console.warn(
@@ -37,15 +46,8 @@ export async function runScan(url: string): Promise<ScanResult> {
 
   console.log(`[SCAN ENTRY] ${new Date().toISOString()} — starting scan for ${url}`);
 
-  const issues: string[] = [];
-  const passed: string[] = [];
   let rawHeaders: Record<string, string> = {};
-  let pageSnapshot: PageSnapshotPartial = {
-    metaTags: {},
-    scripts: [],
-    loginFormDetected: false,
-    endpoints: [],
-  };
+  let pageSnapshot: PageSnapshotPartial = { ...EMPTY_SNAPSHOT };
 
   const ssl = url.toLowerCase().startsWith('https://');
 
@@ -71,7 +73,7 @@ export async function runScan(url: string): Promise<ScanResult> {
         permissionsPolicy: false,
       },
       rawHeaders: {},
-      pageSnapshot,
+      pageSnapshot: EMPTY_SNAPSHOT,
       score: 0,
       riskLevel: 'critical',
       issues: [`Could not reach website: ${message}`],
@@ -96,15 +98,6 @@ export async function runScan(url: string): Promise<ScanResult> {
     // HTML fetch is best-effort; header-based scan still succeeds.
   }
 
-  let score = 100;
-
-  if (!ssl) {
-    score -= 25;
-    issues.push('No HTTPS — traffic is transmitted in plaintext');
-  } else {
-    passed.push('HTTPS/SSL enabled');
-  }
-
   const h = rawHeaders;
   const hasCsp = !!h['content-security-policy'];
   const hasHsts = !!h['strict-transport-security'];
@@ -113,77 +106,7 @@ export async function runScan(url: string): Promise<ScanResult> {
   const hasReferrer = !!h['referrer-policy'];
   const hasPermissions = !!h['permissions-policy'];
 
-  if (!hasCsp) {
-    score -= 15;
-    issues.push('Missing Content-Security-Policy header — increases XSS risk');
-  } else {
-    passed.push('Content-Security-Policy header present');
-  }
-
-  if (!hasHsts) {
-    score -= 15;
-    issues.push('Missing Strict-Transport-Security (HSTS) header — connections can be downgraded');
-  } else {
-    passed.push('Strict-Transport-Security (HSTS) header present');
-  }
-
-  if (!hasXFrame) {
-    score -= 10;
-    issues.push('Missing X-Frame-Options header — site may be vulnerable to clickjacking');
-  } else {
-    passed.push('X-Frame-Options header present');
-  }
-
-  if (!hasXContentType) {
-    score -= 10;
-    issues.push('Missing X-Content-Type-Options header — MIME-sniffing possible');
-  } else {
-    passed.push('X-Content-Type-Options header present');
-  }
-
-  if (!hasReferrer) {
-    score -= 10;
-    issues.push('Missing Referrer-Policy header — may leak sensitive URL information');
-  } else {
-    passed.push('Referrer-Policy header present');
-  }
-
-  if (!hasPermissions) {
-    score -= 10;
-    issues.push('Missing Permissions-Policy header — browser features unrestricted');
-  } else {
-    passed.push('Permissions-Policy header present');
-  }
-
-  score = Math.max(0, score);
-
-  const riskLevel: ScanResult['riskLevel'] =
-    score >= 80 ? 'low' :
-    score >= 60 ? 'medium' :
-    score >= 40 ? 'high' : 'critical';
-
-  const missingHeaders = [
-    !hasCsp && 'CSP',
-    !hasHsts && 'HSTS',
-    !hasXFrame && 'X-Frame-Options',
-    !hasXContentType && 'X-Content-Type-Options',
-    !hasReferrer && 'Referrer-Policy',
-    !hasPermissions && 'Permissions-Policy',
-  ].filter(Boolean) as string[];
-
-  let explanation = `Score is ${score}/100. `;
-  explanation += ssl ? 'SSL is enabled. ' : 'SSL is not enabled. ';
-  if (missingHeaders.length > 0) {
-    explanation += `Missing headers: ${missingHeaders.join(', ')} — these increase XSS and MITM risk.`;
-  } else {
-    explanation += 'All major security headers are present.';
-  }
-
-  if (pageSnapshot.loginFormDetected) {
-    passed.push('Login form detected on page');
-  }
-
-  return {
+  const rawResult: ScanResult = {
     url,
     ssl,
     headers: {
@@ -196,10 +119,12 @@ export async function runScan(url: string): Promise<ScanResult> {
     },
     rawHeaders,
     pageSnapshot,
-    score,
-    riskLevel,
-    issues,
-    passed,
-    explanation,
+    score: 100,
+    riskLevel: 'low',
+    issues: [],
+    passed: [],
+    explanation: '',
   };
+
+  return applyIntelligenceToScanResult(rawResult);
 }
