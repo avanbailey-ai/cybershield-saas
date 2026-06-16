@@ -1,6 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { computeRollingRiskScore } from './rollingRiskScore';
 import { scoreToPostureState, type PostureState } from './postureState';
+import { generateOrgSecurityNarrative } from './orgNarrative';
+import { getLatestOrgScanNarrative } from './storeNarrative';
+import type { OrgSecurityNarrative, SecurityNarrative } from './narrativeTypes';
 
 export type RiskBucket = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
 
@@ -34,6 +37,9 @@ export interface OrgDashboardSummary {
   postureState: PostureState | null;
   anomalies: OrgAnomalyFeedItem[];
   sitesByClientGroup: ClientGroupSummary[];
+  orgSecurityNarrative: OrgSecurityNarrative | null;
+  latestScanNarrative: SecurityNarrative | null;
+  latestScanNarrativeAt: string | null;
 }
 
 /** Unified risk bucket thresholds — backend + frontend SSOT */
@@ -231,6 +237,28 @@ export async function getOrgDashboardSummary(orgId: string): Promise<OrgDashboar
     })
     .sort((a, b) => b.siteCount - a.siteCount);
 
+  const orgSecurityNarrative = generateOrgSecurityNarrative({
+    orgId,
+    rollingRiskScore,
+    postureState,
+    scans,
+    anomalies,
+    totalSitesMonitored: activeWebsites.length,
+    criticalAlertsCount,
+  });
+
+  let latestScanNarrative: SecurityNarrative | null = null;
+  let latestScanNarrativeAt: string | null = null;
+  try {
+    const stored = await getLatestOrgScanNarrative(orgId);
+    if (stored) {
+      latestScanNarrative = stored.narrative;
+      latestScanNarrativeAt = stored.generated_at;
+    }
+  } catch (err) {
+    console.warn('[orgDashboardSummary] latest narrative fetch failed', err);
+  }
+
   return {
     orgId,
     totalSitesMonitored: activeWebsites.length,
@@ -242,5 +270,8 @@ export async function getOrgDashboardSummary(orgId: string): Promise<OrgDashboar
     postureState,
     anomalies,
     sitesByClientGroup,
+    orgSecurityNarrative,
+    latestScanNarrative,
+    latestScanNarrativeAt,
   };
 }

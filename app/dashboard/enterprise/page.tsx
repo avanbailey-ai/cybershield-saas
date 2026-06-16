@@ -12,7 +12,7 @@ import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from "@/lib/o
 import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
-import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY } from "@/lib/enterprise/orgDashboardSummary";
+import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY, type OrgDashboardSummary } from "@/lib/enterprise/orgDashboardSummary";
 import { POSTURE_DISPLAY } from "@/lib/enterprise/postureState";
 
 export const metadata: Metadata = {
@@ -63,32 +63,23 @@ export default async function EnterpriseDashboardPage() {
     websites: { url: string; label: string | null } | null;
   }> = [];
 
-  const emptySummary = {
+  const emptySummary: OrgDashboardSummary = {
+    orgId: "",
     totalSitesMonitored: 0,
     riskDistribution: { critical: 0, high: 0, medium: 0, low: 0, unknown: 0 },
     criticalAlertsCount: 0,
     openAlertsCount: 0,
-    avgScore: null as number | null,
-    rollingRiskScore: null as number | null,
-    postureState: null as keyof typeof POSTURE_DISPLAY | null,
-    anomalies: [] as Array<{
-      id: string;
-      type: string;
-      severity: string;
-      message: string;
-      websiteId: string | null;
-      createdAt: string;
-      resolved: boolean;
-    }>,
-    sitesByClientGroup: [] as Array<{
-      clientGroup: string;
-      siteCount: number;
-      criticalAlertsCount: number;
-      riskDistribution: { critical: number; high: number; medium: number; low: number; unknown: number };
-    }>,
+    avgScore: null,
+    rollingRiskScore: null,
+    postureState: null,
+    anomalies: [],
+    sitesByClientGroup: [],
+    orgSecurityNarrative: null,
+    latestScanNarrative: null,
+    latestScanNarrativeAt: null,
   };
 
-  let summary = emptySummary;
+  let summary: OrgDashboardSummary = emptySummary;
 
   if (orgId) {
     const [membersRes, scansRes, orgSummary] = await Promise.all([
@@ -124,9 +115,19 @@ export default async function EnterpriseDashboardPage() {
     postureState,
     anomalies,
     sitesByClientGroup,
+    orgSecurityNarrative,
+    latestScanNarrative,
+    latestScanNarrativeAt,
   } = summary;
   const postureMeta = postureState ? POSTURE_DISPLAY[postureState] : null;
   const scoreBuckets = riskDistribution;
+  const displayNarrative = latestScanNarrative;
+  const urgencyStyles: Record<string, string> = {
+    critical: "border-red-500/40 bg-red-500/10 text-red-400",
+    high: "border-orange-500/40 bg-orange-500/10 text-orange-400",
+    medium: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400",
+    low: "border-green-500/40 bg-green-500/10 text-green-400",
+  };
 
   const orgRole = orgCtx.role ?? (orgId ? await getUserOrgRole(user.id, orgId) : null);
   const resolvedPlan = normalizePlan(orgCtx.access.plan);
@@ -185,6 +186,87 @@ export default async function EnterpriseDashboardPage() {
             </span>
           )}
         </div>
+
+        {(orgSecurityNarrative || displayNarrative) && (
+          <div className="mb-8 space-y-4">
+            {orgSecurityNarrative && (
+              <div className="rounded-xl border border-indigo-800/40 bg-indigo-950/20 p-6">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-white">Organization Risk Overview</h3>
+                  {orgSecurityNarrative.trend_direction !== "stable" && (
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${
+                        orgSecurityNarrative.trend_direction === "improving"
+                          ? "border-green-500/40 text-green-400"
+                          : "border-orange-500/40 text-orange-400"
+                      }`}
+                    >
+                      {orgSecurityNarrative.trend_direction}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm leading-relaxed text-gray-300">{orgSecurityNarrative.org_risk_overview}</p>
+                <p className="mt-3 text-sm leading-relaxed text-gray-400">{orgSecurityNarrative.trend_summary}</p>
+                <p className="mt-3 text-xs text-gray-500">{orgSecurityNarrative.posture_explanation}</p>
+                <p className="mt-2 text-xs text-orange-300/80">{orgSecurityNarrative.active_threats_summary}</p>
+              </div>
+            )}
+
+            {displayNarrative && (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6 lg:col-span-2">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-white">Executive Summary</h3>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-xs font-semibold uppercase ${urgencyStyles[displayNarrative.urgency_level] ?? urgencyStyles.low}`}
+                    >
+                      {displayNarrative.urgency_level} urgency
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-gray-200">{displayNarrative.executive_summary}</p>
+                  {latestScanNarrativeAt && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      From latest scan · {new Date(latestScanNarrativeAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+                  <h3 className="mb-3 text-sm font-semibold text-white">Risk Story</h3>
+                  <p className="text-sm leading-relaxed text-gray-300">{displayNarrative.risk_story}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-gray-400">{displayNarrative.business_impact}</p>
+                </div>
+
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
+                  <h3 className="mb-3 text-sm font-semibold text-white">Key Events</h3>
+                  <ul className="space-y-2">
+                    {displayNarrative.key_events.map((event) => (
+                      <li key={event} className="flex items-start gap-2 text-sm text-gray-300">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                        {event}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6 lg:col-span-2">
+                  <h3 className="mb-3 text-sm font-semibold text-white">Recommended Actions</h3>
+                  {displayNarrative.recommended_actions.length === 0 ? (
+                    <p className="text-sm text-gray-500">No remediation actions required at this time.</p>
+                  ) : (
+                    <ol className="list-decimal space-y-2 pl-5">
+                      {displayNarrative.recommended_actions.map((action) => (
+                        <li key={action} className="text-sm text-gray-300">
+                          {action}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">

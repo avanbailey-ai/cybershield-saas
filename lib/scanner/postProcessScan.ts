@@ -559,7 +559,7 @@ export async function postProcessScan(params: {
 
     if (orgId && !scanResult.error) {
       try {
-        await updateOrgIntelligence(orgId);
+        await updateOrgIntelligence(orgId, scanId);
       } catch (intelErr) {
         console.error(
           `[POST-PROCESS] Org intelligence update failed (non-fatal) orgId=${orgId}:`,

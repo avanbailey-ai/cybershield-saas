@@ -6,6 +6,7 @@ import {
   type CompletedScanScoreRow,
 } from './rollingRiskScore';
 import type { ScanFindingRow } from './scanDiff';
+import { generateAndStoreScanNarrative } from './storeNarrative';
 
 export interface OrgIntelligenceSnapshot {
   orgId: string;
@@ -20,7 +21,10 @@ type OrgRow = {
 };
 
 /** Recompute rolling risk, posture, and persist anomalies after a completed scan. */
-export async function updateOrgIntelligence(orgId: string): Promise<OrgIntelligenceSnapshot> {
+export async function updateOrgIntelligence(
+  orgId: string,
+  completedScanId?: string,
+): Promise<OrgIntelligenceSnapshot> {
   const admin = createAdminClient();
 
   const [orgRes, scansRes] = await Promise.all([
@@ -133,6 +137,22 @@ export async function updateOrgIntelligence(orgId: string): Promise<OrgIntellige
           message: anomaly.message,
         });
       }
+    }
+  }
+
+  if (completedScanId) {
+    try {
+      await generateAndStoreScanNarrative({
+        scanId: completedScanId,
+        orgId,
+        rollingRiskScore,
+        postureState,
+      });
+    } catch (narrativeErr) {
+      console.error(
+        `[updateOrgIntelligence] Narrative generation failed (non-fatal) scanId=${completedScanId}:`,
+        narrativeErr,
+      );
     }
   }
 
