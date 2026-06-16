@@ -14,7 +14,7 @@
  *          -H "Content-Type: application/json" \
  *          -H "Cookie: <your-session-cookie>" \
  *          -d '{"websiteId":"<website-uuid>"}'
- *   3. Wait for the queue worker to process (cron or POST /api/scan/process-queue).
+ *   3. Wait for Vercel Cron or POST /api/scan/enqueue-or-process-batch (with CRON_SECRET).
  *   4. Check server logs for:
  *        [sendSecurityAlert] Email sent for alert=...
  *   5. Verify in Resend dashboard (https://resend.com/emails) and your inbox.
@@ -32,7 +32,7 @@ CyberShield — Alert Email Test Guide (dev only)
 1. Ensure RESEND_API_KEY is set in .env.local
 2. Run: npm run dev
 3. Scan a low-score site (http://example.com is ideal — missing security headers)
-4. Process queue: POST /api/scan/process-queue (with worker auth or logged-in session)
+4. Process queue: POST /api/scan/enqueue-or-process-batch (Bearer CRON_SECRET)
 5. Look for [sendSecurityAlert] Email sent in server logs
 6. Confirm delivery in Resend dashboard + inbox
 

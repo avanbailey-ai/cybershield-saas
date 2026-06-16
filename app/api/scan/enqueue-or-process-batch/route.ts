@@ -1,14 +1,11 @@
 /**
  * POST/GET /api/scan/enqueue-or-process-batch
  *
- * Production cron endpoint — reclaims stale locks, claims pending scan jobs,
- * processes a bounded batch (default 10). Idempotent and multi-instance safe.
+ * Primary Vercel Cron endpoint — reclaims stale locks, enqueues due scheduled
+ * scans, claims pending jobs, and processes a bounded batch (default 10).
+ * Idempotent and multi-instance safe.
  *
- * Auth: Authorization: Bearer CRON_SECRET
- *
- * Recommended cron-job.org URL (every 5 min):
- *   GET https://your-app.vercel.app/api/scan/enqueue-or-process-batch
- *   Header: Authorization: Bearer YOUR_CRON_SECRET
+ * Scheduled via vercel.json (daily). Auth: CRON_SECRET bearer or x-cron-secret.
  */
 
 import { NextResponse } from 'next/server';

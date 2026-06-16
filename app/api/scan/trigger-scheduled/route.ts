@@ -1,10 +1,9 @@
 /**
  * POST /api/scan/trigger-scheduled
- * Manually triggers a full-site scan pass across ALL active websites for ALL users.
- * This replaces the former Vercel Cron job at /api/cron/scan (removed).
+ * Manually enqueues due scheduled scans (enqueue-only; does not process the queue).
  *
- * Requires an authenticated user session. Intended for admin use.
- * Scan execution is handled by /api/scan/enqueue-or-process-batch (cron-job.org every 5 min).
+ * Production scheduling runs via Vercel Cron at /api/scan/enqueue-or-process-batch.
+ * Requires an authenticated user session.
  */
 
 import { createClient } from '@/lib/supabase/server';

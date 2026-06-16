@@ -1,6 +1,6 @@
 /**
- * @deprecated Use /api/workers/process-emails instead.
- * Thin delegation shim — kept for backward-compatible cron URLs.
+ * @deprecated Use /api/workers/process-emails instead (Vercel Cron).
+ * Legacy shim — not scheduled externally.
  */
 
 import { NextResponse } from 'next/server';

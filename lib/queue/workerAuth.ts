@@ -1,5 +1,9 @@
 /**
- * Worker endpoint auth — CRON_SECRET bearer token (Vercel cron / external schedulers).
+ * Worker endpoint auth — CRON_SECRET (Vercel Cron only).
+ *
+ * Accepts:
+ *   Authorization: Bearer <CRON_SECRET>  (sent automatically by Vercel Cron)
+ *   x-cron-secret: <CRON_SECRET>         (manual/local invocation)
  */
 
 export function isWorkerAuthorized(req: Request): boolean {
@@ -7,7 +11,10 @@ export function isWorkerAuthorized(req: Request): boolean {
   if (!cronSecret) return false;
 
   const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
+  if (authHeader?.startsWith('Bearer ') && authHeader.slice(7) === cronSecret) {
+    return true;
+  }
 
-  return authHeader.slice(7) === cronSecret;
+  const headerSecret = req.headers.get('x-cron-secret');
+  return headerSecret === cronSecret;
 }

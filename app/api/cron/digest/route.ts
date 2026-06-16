@@ -1,4 +1,4 @@
-// Previously ran as weekly cron. Now triggered manually or via future event-driven trigger.
+// Weekly digest — triggered manually (authenticated). Not on Vercel Cron schedule.
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';

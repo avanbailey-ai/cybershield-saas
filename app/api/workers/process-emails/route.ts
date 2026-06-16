@@ -1,8 +1,8 @@
 /**
  * POST/GET /api/workers/process-emails
  *
- * Production email queue worker — atomic claim, retry, idempotent send.
- * Auth: CRON_SECRET bearer (Vercel cron / cron-job.org / GitHub Actions).
+ * Vercel Cron email worker — atomic claim, retry, idempotent send.
+ * Scheduled via vercel.json (daily). Auth: CRON_SECRET bearer or x-cron-secret.
  *
  * Also runs abandoned checkout recovery and enterprise sequences (non-queued side effects).
  */

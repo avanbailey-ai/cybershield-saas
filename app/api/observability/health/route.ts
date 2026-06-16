@@ -1,6 +1,6 @@
 /**
  * GET /api/observability/health
- * Recent metrics summary — auth required or CRON_SECRET bearer.
+ * Recent metrics summary — auth required or CRON_SECRET (bearer / x-cron-secret).
  */
 
 import { createClient } from '@/lib/supabase/server';

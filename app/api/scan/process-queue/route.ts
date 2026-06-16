@@ -1,6 +1,6 @@
 /**
- * @deprecated Use /api/scan/enqueue-or-process-batch instead.
- * Thin delegation shim — kept for backward-compatible cron URLs.
+ * @deprecated Use /api/scan/enqueue-or-process-batch instead (Vercel Cron).
+ * Legacy shim — not scheduled externally.
  */
 
 import '@/services/bootstrap';

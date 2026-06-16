@@ -2,9 +2,9 @@
  * POST/GET /api/workers/process-scans
  *
  * Legacy alias — delegates to the shared scan batch handler.
- * Prefer /api/scan/enqueue-or-process-batch for cron-job.org (every 5 min).
+ * Production scheduling uses /api/scan/enqueue-or-process-batch (Vercel Cron).
  *
- * Auth: CRON_SECRET bearer (Vercel cron / cron-job.org / GitHub Actions).
+ * Auth: CRON_SECRET bearer or x-cron-secret header.
  */
 
 import { NextResponse } from 'next/server';
