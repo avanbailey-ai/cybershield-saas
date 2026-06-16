@@ -16,7 +16,8 @@ export const DEFAULT_MAX_ATTEMPTS = 3;
 
 /** Default per-job scan timeout (ms). Override via SCAN_JOB_TIMEOUT_MS. */
 
-export const DEFAULT_SCAN_JOB_TIMEOUT_MS = 120_000;
+/** Keep below Vercel maxDuration minus post-process buffer (~30s). */
+export const DEFAULT_SCAN_JOB_TIMEOUT_MS = 90_000;
 
 
 

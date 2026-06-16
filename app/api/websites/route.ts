@@ -29,6 +29,9 @@ import { decrementScanUsage } from '@/lib/billing/usageService';
 import { findDuplicateWebsiteInOrg } from '@/lib/websites/findDuplicateWebsite';
 import { normalizeWebsiteUrlForStorage } from '@/lib/websites/normalizeWebsiteUrl';
 
+/** Allow scan worker to finish (must match lib/queue/routeConfig.ts). */
+export const maxDuration = 180;
+
 export async function GET() {
   const supabase = await createClient();
   const { user } = await getUser(supabase);

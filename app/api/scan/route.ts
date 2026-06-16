@@ -64,7 +64,8 @@ import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
 import { decrementScanUsage } from '@/lib/billing/usageService';
 
-
+/** Allow scan worker to finish (must match lib/queue/routeConfig.ts). */
+export const maxDuration = 180;
 
 export async function GET(req: NextRequest) {
 

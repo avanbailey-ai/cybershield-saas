@@ -15,6 +15,9 @@ import { processQueuedScansForUser } from '@/lib/scanner/processUserScanQueue';
 import { requirePermission } from '@/lib/auth/rbac';
 import { getActiveOrgId } from '@/lib/org/context';
 
+/** Allow scan worker to finish (must match lib/queue/routeConfig.ts). */
+export const maxDuration = 180;
+
 export async function POST() {
   const supabase = await createClient();
   const { user } = await getUser(supabase);

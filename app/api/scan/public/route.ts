@@ -24,6 +24,9 @@ import { getCachedScan, setCachedScan, dedupeScan, normalizeDomain } from '@/lib
 
 import { rateLimitScan, rateLimitHeaders } from '@/lib/rateLimit/limiter';
 
+/** Allow public scan to finish (must match lib/queue/routeConfig.ts). */
+export const maxDuration = 180;
+
 import { emitEvent } from '@/lib/brain/eventBus';
 
 import { logApiTiming, recordPerformanceEvent } from '@/lib/observability/log';

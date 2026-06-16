@@ -22,6 +22,9 @@ import { recordApiLatency } from '@/lib/observability/metrics';
 import { processQueuedScansForUser } from '@/lib/scanner/processUserScanQueue';
 import { getScanBatchLimit } from '@/lib/queue/constants';
 
+/** Allow scan worker to finish (must match lib/queue/routeConfig.ts). */
+export const maxDuration = 180;
+
 function scanLimitMessage(scansUsed: number, scansLimit: number): string {
   return `You've reached your daily scan limit (${scansLimit}). Used ${scansUsed} of ${scansLimit} today.`;
 }
