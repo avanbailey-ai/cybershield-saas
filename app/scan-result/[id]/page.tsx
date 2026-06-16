@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPublicReportByToken } from '@/lib/share/reportShare';
+import SecurityFindingCard from '@/components/report/SecurityFindingCard';
+import SecurityOverviewPanel from '@/components/report/SecurityOverviewPanel';
+import SecurityReportEmptyState from '@/components/report/SecurityReportEmptyState';
+import { formatRiskLevel, riskBadgeClass } from '@/components/report/severityStyles';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -13,26 +17,6 @@ function scoreColor(score: number): string {
   return 'text-red-400 border-red-500/40';
 }
 
-function scoreLabel(score: number): string {
-  if (score >= 80) return 'Low Risk';
-  if (score >= 60) return 'Moderate Risk';
-  if (score >= 40) return 'High Risk';
-  return 'Critical Risk';
-}
-
-function severityClass(severity: string): string {
-  switch (severity) {
-    case 'critical':
-      return 'bg-red-500/15 text-red-300 border-red-500/30';
-    case 'high':
-      return 'bg-orange-500/15 text-orange-300 border-orange-500/30';
-    case 'medium':
-      return 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30';
-    default:
-      return 'bg-gray-500/15 text-gray-300 border-gray-500/30';
-  }
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const report = await getPublicReportByToken(id);
@@ -42,14 +26,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `${report.domain} scored ${report.securityScore}/100 on CyberShield`;
-  const riskLabel =
-    report.securityScore >= 80
-      ? 'Low Risk'
-      : report.securityScore >= 60
-        ? 'Moderate Risk'
-        : report.securityScore >= 40
-          ? 'High Risk'
-          : 'Critical Risk';
+  const riskLabel = formatRiskLevel(report.riskLevel);
 
   return {
     title,
@@ -76,6 +53,19 @@ export default async function SharedScanResultPage({ params }: PageProps) {
     notFound();
   }
 
+  const overviewReport = {
+    summary: report.summary,
+    securityScore: report.securityScore,
+    riskLevel: report.riskLevel as 'low' | 'medium' | 'high' | 'critical',
+    attackSurfaceScore: report.attackSurfaceScore,
+    attackSurfaceLevel: report.attackSurfaceLevel as 'Low' | 'Medium' | 'High' | 'Critical',
+    changeSummary: {
+      posture: 'no_change' as const,
+      scoreDelta: null,
+      highlights: ['Shared report preview'],
+    },
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0f1e]">
       <header className="border-b border-gray-800/60 bg-[#0a0f1e]/80 backdrop-blur-md">
@@ -96,8 +86,13 @@ export default async function SharedScanResultPage({ params }: PageProps) {
 
       <main className="mx-auto max-w-3xl px-4 py-12">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">Security Scan Results</h1>
+          <h1 className="text-2xl font-bold text-white sm:text-3xl">Security Intelligence Report</h1>
           <p className="mt-2 text-gray-400">{report.domain}</p>
+          <span
+            className={`mt-3 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${riskBadgeClass(report.riskLevel)}`}
+          >
+            {formatRiskLevel(report.riskLevel)} Risk
+          </span>
         </div>
 
         <div className="mt-8 flex flex-col items-center">
@@ -107,43 +102,30 @@ export default async function SharedScanResultPage({ params }: PageProps) {
             <span className="text-4xl font-bold">{report.securityScore}</span>
             <span className="text-xs text-gray-400">/ 100</span>
           </div>
-          <p className="mt-4 text-sm font-medium text-gray-300">{scoreLabel(report.securityScore)}</p>
           <p className="mt-1 text-xs text-gray-500">Higher score = better security</p>
         </div>
 
-        {report.executiveSummary && (
-          <div className="mt-8 rounded-xl border border-gray-800 bg-gray-900/60 p-6 text-left">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Executive Summary
-            </h2>
-            <p className="text-sm leading-relaxed text-gray-300">{report.executiveSummary}</p>
-          </div>
-        )}
+        <div className="mt-8">
+          <SecurityOverviewPanel report={overviewReport} />
+        </div>
 
-        {report.vulnerabilityPreviews.length > 0 && (
-          <div className="mt-6 rounded-xl border border-gray-800 bg-gray-900/60 p-6 text-left">
+        {report.findingPreviews.length === 0 ? (
+          <SecurityReportEmptyState report={overviewReport} />
+        ) : (
+          <section className="mt-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-              Top Vulnerabilities (preview)
+              Top Findings (preview)
             </h2>
-            <ul className="space-y-3">
-              {report.vulnerabilityPreviews.map((vuln, i) => (
-                <li
-                  key={`${vuln.title}-${i}`}
-                  className="flex items-center justify-between rounded-lg bg-gray-800/50 px-4 py-3"
-                >
-                  <span className="text-sm text-gray-300">{vuln.title}</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${severityClass(vuln.severity)}`}
-                  >
-                    {vuln.severity}
-                  </span>
-                </li>
+            <div className="space-y-4">
+              {report.findingPreviews.map((finding) => (
+                <SecurityFindingCard key={finding.title} finding={finding} compact />
               ))}
-            </ul>
+            </div>
             <p className="mt-4 text-xs text-gray-500">
-              Full vulnerability details are hidden for privacy. Run your own scan for a complete report.
+              Full exploit scenarios and remediation steps are hidden for privacy. Run your own scan
+              for a complete intelligence report.
             </p>
-          </div>
+          </section>
         )}
 
         <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">

@@ -14,7 +14,7 @@ function buildExecutiveSummaryHtml(report: {
   domain: string;
   securityScore: number;
   summary: string;
-  vulnerabilityPreviews: Array<{ title: string; severity: string }>;
+  findingPreviews: Array<{ title: string; severity: string }>;
   executiveSummary: string | null;
   shareToken: string;
 }): string {
@@ -24,7 +24,7 @@ function buildExecutiveSummaryHtml(report: {
     day: 'numeric',
   });
 
-  const vulnRows = report.vulnerabilityPreviews
+  const vulnRows = report.findingPreviews
     .map(
       (v) =>
         `<tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;">${escapeHtml(v.title)}</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;text-transform:capitalize;">${escapeHtml(v.severity)}</td></tr>`,

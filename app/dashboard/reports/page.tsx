@@ -1,27 +1,30 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import { canAccessFeature } from "@/lib/auth/featureGate";
-import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
-import type { HeaderChecks } from "@/types";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import { canAccessFeature } from '@/lib/auth/featureGate';
+import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
+import type { HeaderChecks, RiskLevel } from '@/types';
+import SecurityFindingCard from '@/components/report/SecurityFindingCard';
+import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
+import { formatRiskLevel, riskBadgeClass } from '@/components/report/severityStyles';
 
 export const metadata: Metadata = {
-  title: "Reports — CyberShield",
+  title: 'Reports — CyberShield',
 };
 
 function scoreBadgeClass(score: number): string {
-  if (score >= 90) return "bg-green-500/10 text-green-400 border border-green-500/20";
-  if (score >= 70) return "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20";
-  if (score >= 50) return "bg-orange-500/10 text-orange-400 border border-orange-500/20";
-  return "bg-red-500/10 text-red-400 border border-red-500/20";
+  if (score >= 90) return 'bg-green-500/10 text-green-400 border border-green-500/20';
+  if (score >= 70) return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
+  if (score >= 50) return 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+  return 'bg-red-500/10 text-red-400 border border-red-500/20';
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
+  if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
@@ -32,6 +35,7 @@ function timeAgo(dateStr: string): string {
 interface ScanReport {
   id: string;
   security_score: number | null;
+  risk_level: RiskLevel | null;
   ssl_valid: boolean | null;
   issues: string[] | null;
   passed: string[] | null;
@@ -39,6 +43,7 @@ interface ScanReport {
   completed_at: string | null;
   started_at: string;
   headers: HeaderChecks | null;
+  scan_snapshot: unknown;
   websites: { url: string; label: string | null } | null;
 }
 
@@ -48,7 +53,7 @@ export default async function ReportsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect('/login');
 
   const access = await getSubscriptionAccessFromSession(
     supabase as unknown as SessionSubscriptionClient,
@@ -61,24 +66,26 @@ export default async function ReportsPage() {
   }
 
   const { data: rawScans } = await supabase
-    .from("scans")
-    .select("id, security_score, ssl_valid, issues, passed, explanation, completed_at, started_at, headers, websites(url, label)")
-    .eq("user_id", user.id)
-    .eq("status", "completed")
-    .order("completed_at", { ascending: false })
+    .from('scans')
+    .select(
+      'id, security_score, risk_level, ssl_valid, issues, passed, explanation, completed_at, started_at, headers, scan_snapshot, websites(url, label)',
+    )
+    .eq('user_id', user.id)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
     .limit(10);
 
   const scans = (rawScans ?? []) as unknown as ScanReport[];
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email={user.email ?? ""} title="Reports" />
+      <DashboardHeader email={user.email ?? ''} title="Reports" />
 
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white">Security Reports</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Detailed security reports generated from your website scans.
+            Enterprise security intelligence reports from your website scans.
           </p>
         </div>
 
@@ -116,32 +123,50 @@ export default async function ReportsPage() {
           <div className="space-y-4">
             {scans.map((scan) => {
               const site = scan.websites;
-              const issues = scan.issues ?? [];
-              const passed = scan.passed ?? [];
+              const siteUrl = site?.url ?? '';
+              const intelligence = buildIntelligenceReport(siteUrl, scan);
+              const previewFindings = intelligence.findings.slice(0, 2);
 
               return (
                 <div
                   key={scan.id}
                   className="rounded-xl border border-gray-800 bg-gray-900/50 p-5"
                 >
-                  {/* Header row */}
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-medium text-white">
-                        {site?.label ?? (site?.url ? (() => { try { return new URL(site.url).hostname } catch { return site.url } })() : "Unknown")}
+                        {site?.label ??
+                          (site?.url
+                            ? (() => {
+                                try {
+                                  return new URL(site.url).hostname;
+                                } catch {
+                                  return site.url;
+                                }
+                              })()
+                            : 'Unknown')}
                       </p>
                       {site?.label && site?.url && (
                         <p className="mt-0.5 truncate text-xs text-gray-500">{site.url}</p>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {scan.security_score !== null && (
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${scoreBadgeClass(scan.security_score)}`}>
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${scoreBadgeClass(scan.security_score)}`}
+                        >
                           {scan.security_score}/100
                         </span>
                       )}
-                      <span className={`inline-flex items-center gap-1 text-xs ${scan.ssl_valid ? "text-green-400" : "text-red-400"}`}>
-                        {scan.ssl_valid ? "✓" : "✗"} SSL
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${riskBadgeClass(intelligence.riskLevel)}`}
+                      >
+                        {formatRiskLevel(intelligence.riskLevel)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs ${scan.ssl_valid ? 'text-green-400' : 'text-red-400'}`}
+                      >
+                        {scan.ssl_valid ? '✓' : '✗'} SSL
                       </span>
                       <span className="text-xs text-gray-500">
                         {scan.completed_at ? timeAgo(scan.completed_at) : timeAgo(scan.started_at)}
@@ -149,54 +174,37 @@ export default async function ReportsPage() {
                     </div>
                   </div>
 
-                  {/* Explanation */}
-                  {scan.explanation && (
-                    <p className="mt-3 text-sm text-gray-400">{scan.explanation}</p>
-                  )}
+                  <p className="mt-3 text-sm text-gray-400">{intelligence.summary}</p>
 
-                  {/* Stats row */}
                   <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
                     <span>
-                      <span className="text-green-400 font-medium">{passed.length}</span> passed
+                      <span className="font-medium text-gray-300">{intelligence.findings.length}</span>{' '}
+                      finding{intelligence.findings.length !== 1 ? 's' : ''}
                     </span>
                     <span>
-                      <span className="text-red-400 font-medium">{issues.length}</span> issues
+                      Attack surface:{' '}
+                      <span className="font-medium text-gray-300">
+                        {intelligence.attackSurfaceLevel}
+                      </span>
                     </span>
                   </div>
 
-                  {/* Expandable issues */}
-                  {issues.length > 0 && (
-                    <details className="mt-3">
-                      <summary className="cursor-pointer text-xs font-medium text-red-400 hover:text-red-300">
-                        Show {issues.length} issue{issues.length !== 1 ? "s" : ""}
-                      </summary>
-                      <ul className="mt-2 space-y-1">
-                        {issues.map((issue, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-gray-400">
-                            <span className="mt-0.5 shrink-0 text-red-500">✗</span>
-                            {issue}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
+                  {previewFindings.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {previewFindings.map((finding) => (
+                        <SecurityFindingCard key={finding.id} finding={finding} compact />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-green-400">No critical security issues detected</p>
                   )}
 
-                  {/* Expandable passed */}
-                  {passed.length > 0 && (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-xs font-medium text-green-400 hover:text-green-300">
-                        Show {passed.length} passed check{passed.length !== 1 ? "s" : ""}
-                      </summary>
-                      <ul className="mt-2 space-y-1">
-                        {passed.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-gray-400">
-                            <span className="mt-0.5 shrink-0 text-green-500">✓</span>
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
+                  <Link
+                    href={`/report/${scan.id}`}
+                    className="mt-4 inline-flex text-xs font-medium text-blue-400 hover:text-blue-300"
+                  >
+                    View full intelligence report →
+                  </Link>
                 </div>
               );
             })}
