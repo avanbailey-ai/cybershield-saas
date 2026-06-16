@@ -3,6 +3,20 @@ const DOMAINS_KEY = 'cybershield_scanned_domains';
 const SESSION_ID_KEY = 'cybershield_scan_session_id';
 const LAST_DOMAIN_KEY = 'cybershield_last_domain';
 const UPGRADE_MODAL_SHOWN_KEY = 'cybershield_upgrade_modal_shown';
+const PUBLIC_SCAN_RESULT_PREFIX = 'cybershield_public_scan_result_';
+
+/** Persisted public scan payload for same-day repeat views. */
+export interface StoredPublicScanResult {
+  url: string;
+  score: number;
+  riskLevel: string;
+  issues: string[];
+  vulnerabilitiesCount: number;
+  genericMessage: string;
+  riskDetected: boolean;
+  lockedIssuesCount?: number;
+  shareToken?: string | null;
+}
 
 /** Max distinct domains per session per UTC day (matches server). */
 export const MAX_PUBLIC_SCANS_PER_DAY = 3;
@@ -136,4 +150,24 @@ export function markUpgradeModalShown(): void {
 export function wasUpgradeModalShownThisSession(): boolean {
   if (typeof window === 'undefined') return false;
   return sessionStorage.getItem(UPGRADE_MODAL_SHOWN_KEY) === '1';
+}
+
+export function savePublicScanResult(url: string, result: StoredPublicScanResult): void {
+  if (typeof window === 'undefined') return;
+  const hostname = normalizeHostname(url);
+  const payload = { date: todayKey(), result };
+  sessionStorage.setItem(`${PUBLIC_SCAN_RESULT_PREFIX}${hostname}`, JSON.stringify(payload));
+}
+
+export function getCachedPublicScanResult(url: string): StoredPublicScanResult | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(`${PUBLIC_SCAN_RESULT_PREFIX}${normalizeHostname(url)}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { date: string; result: StoredPublicScanResult };
+    if (parsed.date !== todayKey() || !parsed.result) return null;
+    return parsed.result;
+  } catch {
+    return null;
+  }
 }

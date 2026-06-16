@@ -6,7 +6,9 @@ import { ConversionProvider } from '@/components/conversion/ConversionProvider';
 import {
   canRunPublicScan,
   getOrCreateScanSessionId,
+  getCachedPublicScanResult,
   recordPublicScan,
+  savePublicScanResult,
   MAX_PUBLIC_SCANS_PER_DAY,
 } from '@/lib/conversion/limits';
 import { trackEvent } from '@/lib/conversion/track';
@@ -29,6 +31,7 @@ function ScanInputInner(_props: ScanInputProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PublicScanResult | null>(null);
+  const [repeatScanToday, setRepeatScanToday] = useState(false);
   const [priorScore, setPriorScore] = useState<number | null>(null);
   const [isSecondScan, setIsSecondScan] = useState(false);
   const [scanStage, setScanStage] = useState(0);
@@ -88,12 +91,80 @@ function ScanInputInner(_props: ScanInputProps) {
     };
   }, [revealing]);
 
+  function mergePublicScanResult(data: PublicScanResult, normalizedUrl: string): PublicScanResult {
+    const displayUrl =
+      typeof data.url === 'string' && data.url.trim().length > 0 && !data.url.includes('undefined')
+        ? data.url.trim()
+        : normalizedUrl;
+    return {
+      ...data,
+      url: displayUrl,
+      score: typeof data.score === 'number' && Number.isFinite(data.score) ? data.score : 0,
+      issues: Array.isArray(data.issues)
+        ? data.issues.map((issue) => (typeof issue === 'string' ? issue : String(issue)))
+        : [],
+      riskLevel: data.riskLevel ?? 'medium',
+      vulnerabilitiesCount: data.vulnerabilitiesCount ?? data.issues?.length ?? 0,
+      genericMessage:
+        data.genericMessage ??
+        (data.score < 60 ? 'Risk Detected — upgrade to see full details' : 'Scan complete'),
+      riskDetected: data.riskDetected ?? data.score < 60,
+    };
+  }
+
+  async function showRepeatScanResult(normalizedUrl: string) {
+    const sessionCached = getCachedPublicScanResult(normalizedUrl);
+    if (sessionCached) {
+      const merged = mergePublicScanResult(sessionCached, normalizedUrl);
+      setRepeatScanToday(true);
+      setResult(merged);
+      return;
+    }
+
+    submittingRef.current = true;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const sessionId = getOrCreateScanSessionId();
+      const res = await fetch('/api/scan/public', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-scan-session-id': sessionId,
+        },
+        body: JSON.stringify({ url: normalizedUrl }),
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as PublicScanResult & { repeatScanToday?: boolean };
+        const merged = mergePublicScanResult(data, normalizedUrl);
+        savePublicScanResult(normalizedUrl, merged);
+        setRepeatScanToday(Boolean(data.repeatScanToday ?? data.cached));
+        setResult(merged);
+        return;
+      }
+
+      setError(
+        'You already scanned this website today. Enable continuous protection to monitor changes.',
+      );
+    } catch {
+      setError(
+        'You already scanned this website today. Enable continuous protection to monitor changes.',
+      );
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submittingRef.current || loading) return;
 
     setError(null);
     setResult(null);
+    setRepeatScanToday(false);
     setPriorScore(null);
     setIsSecondScan(false);
     setRevealedIssues(0);
@@ -118,7 +189,7 @@ function ScanInputInner(_props: ScanInputProps) {
     const { allowed, domainAlreadyScanned } = canRunPublicScan(normalizedUrl);
     if (!allowed) {
       if (domainAlreadyScanned) {
-        setError('You already scanned this website today. Enable continuous protection to monitor changes.');
+        await showRepeatScanResult(normalizedUrl);
       } else {
         setError(
           `Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). Enable continuous protection for unlimited monitoring.`,
@@ -155,30 +226,13 @@ function ScanInputInner(_props: ScanInputProps) {
         throw new Error((data as { error?: string }).error ?? 'Scan failed');
       }
 
-      const data = (await res.json()) as PublicScanResult;
-      const displayUrl =
-        typeof data.url === 'string' && data.url.trim().length > 0 && !data.url.includes('undefined')
-          ? data.url.trim()
-          : normalizedUrl;
-      const merged: PublicScanResult = {
-        ...data,
-        url: displayUrl,
-        score: typeof data.score === 'number' && Number.isFinite(data.score) ? data.score : 0,
-        issues: Array.isArray(data.issues)
-          ? data.issues.map((issue) => (typeof issue === 'string' ? issue : String(issue)))
-          : [],
-        riskLevel: data.riskLevel ?? 'medium',
-        vulnerabilitiesCount: data.vulnerabilitiesCount ?? data.issues?.length ?? 0,
-        genericMessage:
-          data.genericMessage ??
-          (data.score < 60 ? 'Risk Detected — upgrade to see full details' : 'Scan complete'),
-        riskDetected: data.riskDetected ?? data.score < 60,
-      };
+      const data = (await res.json()) as PublicScanResult & { repeatScanToday?: boolean; cached?: boolean };
+      const merged = mergePublicScanResult(data, normalizedUrl);
       const previousScore = readAndRecordDomainScore(normalizedUrl, merged.score);
       setPriorScore(previousScore);
 
       saveFunnelSession({
-        scanned_site: displayUrl,
+        scanned_site: merged.url,
         score: merged.score,
         risk_level: merged.riskLevel,
         issue_count: merged.vulnerabilitiesCount,
@@ -186,10 +240,12 @@ function ScanInputInner(_props: ScanInputProps) {
 
       const { isSecondScan: second } = recordPublicScan(normalizedUrl);
       setIsSecondScan(second);
+      savePublicScanResult(normalizedUrl, merged);
+      setRepeatScanToday(Boolean(data.repeatScanToday ?? data.cached));
 
       trackEvent('scan_completed', {
         score: merged.score,
-        domain: displayUrl,
+        domain: merged.url,
         vulnerabilitiesCount: merged.vulnerabilitiesCount,
       });
 
@@ -333,10 +389,12 @@ function ScanInputInner(_props: ScanInputProps) {
           <ScanResultPaywall
             result={result}
             isSecondScan={isSecondScan}
+            repeatScanToday={repeatScanToday}
             priorScore={priorScore}
             onUpgradeClick={handleUpgradeClick}
             onRescanClick={() => {
               setResult(null);
+              setRepeatScanToday(false);
               setIsSecondScan(false);
               setRevealedIssues(0);
               setRevealedScore(null);

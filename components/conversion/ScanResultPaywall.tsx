@@ -23,11 +23,14 @@ export interface PublicScanResult {
   riskDetected: boolean;
   lockedIssuesCount?: number;
   shareToken?: string | null;
+  cached?: boolean;
+  repeatScanToday?: boolean;
 }
 
 interface ScanResultPaywallProps {
   result: PublicScanResult;
   isSecondScan?: boolean;
+  repeatScanToday?: boolean;
   priorScore?: number | null;
   onUpgradeClick?: () => void;
   onRescanClick?: () => void;
@@ -60,6 +63,7 @@ function issueHeadline(issue: string): string {
 export default function ScanResultPaywall({
   result,
   isSecondScan = false,
+  repeatScanToday = false,
   priorScore = null,
   onUpgradeClick,
   onRescanClick,
@@ -143,6 +147,11 @@ export default function ScanResultPaywall({
 
   return (
     <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-5 text-left sm:p-8">
+      {repeatScanToday && (
+        <p className="mb-4 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-200">
+          Showing your latest scan from today.
+        </p>
+      )}
       <SecurityCoverageBar percent={coveragePercent} className="mb-8" />
 
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">

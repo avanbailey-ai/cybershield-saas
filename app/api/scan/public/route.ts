@@ -34,7 +34,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const FREE_ISSUE_LIMIT = 2;
 
-const CACHE_TTL_MS = 10 * 60 * 1000;
+/** Same-day repeat scans reuse cached payload (serverless best-effort). */
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 
 
@@ -59,6 +60,8 @@ interface PublicScanResponse {
   shareToken: string | null;
 
   cached?: boolean;
+
+  repeatScanToday?: boolean;
 
   aiReportStatus?: 'deterministic' | 'skipped' | 'cached';
 
@@ -171,47 +174,41 @@ export async function POST(req: NextRequest) {
 
 
 
-  const limitCheck = checkPublicScanLimit(sessionId, clientIp, url);
-
-  if (!limitCheck.allowed) {
-
-    logApiTiming('/api/scan/public', Date.now() - start, 429, { reason: limitCheck.reason });
-
-    return NextResponse.json(
-
-      { error: limitCheck.message ?? 'Daily scan limit reached.' },
-
-      { status: 429, headers: rateLimitHeaders(rateCheck) },
-
-    );
-
-  }
-
-
-
   const domain = normalizeDomain(url);
 
-  const cached = getCachedScan<PublicScanResponse>(domain);
+  const limitCheck = checkPublicScanLimit(sessionId, clientIp, url);
 
-  if (cached) {
-    const repaired: PublicScanResponse = {
+  function repairCachedPayload(cached: PublicScanResponse, repeatScanToday = false): PublicScanResponse {
+    const fallbackUrl = typeof url === 'string' ? url.trim() : '';
+    return {
       ...cached,
       url:
         typeof cached.url === 'string' && cached.url.trim().length > 0 && !cached.url.includes('undefined')
           ? cached.url
-          : url.trim(),
+          : fallbackUrl,
       score:
         typeof cached.score === 'number' && Number.isFinite(cached.score) ? cached.score : 0,
       issues: Array.isArray(cached.issues)
         ? cached.issues.map((issue) => (typeof issue === 'string' ? issue : String(issue)))
         : [],
+      cached: true,
+      repeatScanToday,
     };
+  }
 
-    logApiTiming('/api/scan/public', Date.now() - start, 200, { cached: true, domain });
+  const cached = getCachedScan<PublicScanResponse>(domain);
 
+  if (cached) {
+    const repaired = repairCachedPayload(cached, !limitCheck.allowed && limitCheck.reason === 'domain_limit');
+    logApiTiming('/api/scan/public', Date.now() - start, 200, { cached: true, domain, repeatScanToday: repaired.repeatScanToday });
+    return NextResponse.json(repaired, { headers: rateLimitHeaders(rateCheck) });
+  }
+
+  if (!limitCheck.allowed) {
+    logApiTiming('/api/scan/public', Date.now() - start, 429, { reason: limitCheck.reason });
     return NextResponse.json(
-      { ...repaired, cached: true },
-      { headers: rateLimitHeaders(rateCheck) },
+      { error: limitCheck.message ?? 'Daily scan limit reached.' },
+      { status: 429, headers: rateLimitHeaders(rateCheck) },
     );
   }
 
