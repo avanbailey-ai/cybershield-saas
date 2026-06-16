@@ -13,7 +13,7 @@ export default function PlanUsageWidget() {
 
   if (loading) {
     return (
-      <div className="hidden items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-1.5 text-xs text-gray-500 lg:flex">
+      <div className="hidden items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-1.5 text-xs text-gray-500 md:flex">
         Loading plan…
       </div>
     );
@@ -25,7 +25,9 @@ export default function PlanUsageWidget() {
     limits.maxScansPerDay === Infinity
       ? `${scansToday} scans today`
       : `${scansRemaining} of ${limits.maxScansPerDay} scans left today`;
-  const nearLimit = websitesRemaining === 0 || scansRemaining === 0;
+  const websiteLimitReached = websitesRemaining === 0;
+  const scanLimitReached = scansRemaining === 0;
+  const nearLimit = websiteLimitReached || scanLimitReached;
 
   function handleUpgrade() {
     conversion?.openUpgradeModal({
@@ -35,7 +37,7 @@ export default function PlanUsageWidget() {
   }
 
   return (
-    <div className="hidden items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-1.5 lg:flex">
+    <div className="hidden items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/50 px-3 py-1.5 md:flex">
       <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-semibold text-blue-400 ring-1 ring-blue-500/30">
         {planLabel}
       </span>
@@ -49,13 +51,22 @@ export default function PlanUsageWidget() {
           type="button"
           onClick={handleUpgrade}
           className="text-xs font-medium text-orange-400 hover:text-orange-300"
+          aria-label="Upgrade plan for higher limits"
         >
-          Upgrade for more scans
+          {websiteLimitReached && scanLimitReached
+            ? 'Upgrade for more sites & scans'
+            : websiteLimitReached
+              ? 'Upgrade for more websites'
+              : 'Upgrade for more scans'}
         </button>
       )}
       {nearLimit && !conversion && (
         <Link href="/app/settings" className="text-xs font-medium text-orange-400 hover:text-orange-300">
-          Upgrade for more scans
+          {websiteLimitReached && scanLimitReached
+            ? 'Upgrade for more sites & scans'
+            : websiteLimitReached
+              ? 'Upgrade for more websites'
+              : 'Upgrade for more scans'}
         </Link>
       )}
     </div>

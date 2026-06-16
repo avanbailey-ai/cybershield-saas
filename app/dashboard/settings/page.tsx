@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
+import SettingsUpgradeBanner from "@/components/dashboard/SettingsUpgradeBanner";
 import { normalizePlan } from "@/lib/auth/permissions";
 import { getUserWithPlan } from "@/lib/billing/planService";
 import { getActiveOrgId } from "@/lib/org/context";
@@ -14,7 +15,11 @@ export const metadata: Metadata = {
   title: "Settings — CyberShield",
 };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgrade?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -32,6 +37,8 @@ export default async function SettingsPage() {
   const userWithPlan = await getUserWithPlan(user.id, orgId, user.email);
   const currentPlan = normalizePlan(userWithPlan.plan);
   const subscriptionStatus = userWithPlan.subscription_status ?? null;
+  const params = await searchParams;
+  const upgradeFeature = params.upgrade ?? null;
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
@@ -39,6 +46,7 @@ export default async function SettingsPage() {
 
       <main className="flex-1 overflow-auto p-6">
         <div className="max-w-2xl space-y-8">
+          {upgradeFeature && <SettingsUpgradeBanner feature={upgradeFeature} />}
 
           {/* Profile Settings */}
           <Card>
@@ -110,11 +118,14 @@ export default async function SettingsPage() {
           </Card>
 
           {/* Billing & Plan */}
-          <Card>
+          <Card id="billing">
             <CardHeader>
               <CardTitle>Billing &amp; Plan</CardTitle>
             </CardHeader>
             <CardContent>
+              <p className="mb-4 text-xs text-gray-500">
+                Upgrade your plan, manage payment methods, and view daily scan usage limits.
+              </p>
               <BillingCard currentPlan={currentPlan} subscriptionStatus={subscriptionStatus} />
             </CardContent>
           </Card>
@@ -135,6 +146,12 @@ export default async function SettingsPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-200">Delete Account</p>
                       <p className="mt-0.5 text-xs text-gray-500">Permanently remove your account and all data.</p>
+                      <p className="mt-1 text-xs text-gray-600">
+                        Account deletion is handled by support — email{' '}
+                        <a href="mailto:support@cybershield.app" className="text-blue-400 underline hover:text-blue-300">
+                          support@cybershield.app
+                        </a>
+                      </p>
                     </div>
                     <div title="Contact support to delete your account">
                       <button

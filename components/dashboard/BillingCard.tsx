@@ -56,7 +56,7 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401) {
-          window.location.href = `/signup?redirectTo=${encodeURIComponent('/dashboard/settings')}`;
+          window.location.href = `/signup?redirectTo=${encodeURIComponent('/app/settings')}`;
           return;
         }
         if (res.status === 503) {
@@ -158,7 +158,7 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
           {atScanLimit && upgradePlans.length > 0 && (
             <p className="mt-2 text-xs text-orange-400">
               Daily scan limit reached — resets at UTC midnight.{' '}
-              <Link href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
+              <Link href="/app/settings" className="font-semibold underline hover:text-orange-300">
                 Upgrade your plan
               </Link>{' '}
               for more scans per day.
@@ -168,9 +168,25 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
-          {error}
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="mt-2 text-xs font-medium text-red-300 underline hover:text-red-200"
+          >
+            Dismiss
+          </button>
         </div>
+      )}
+
+      {currentPlanResolved === 'free' && (
+        <p className="text-xs text-gray-500">
+          <Link href="/pricing" className="text-blue-400 underline hover:text-blue-300">
+            Compare all plans
+          </Link>{' '}
+          before upgrading.
+        </p>
       )}
 
       {upgradePlans.length > 0 && (
@@ -195,13 +211,19 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
       )}
 
       {isSubscribed && (
-        <button
-          onClick={handlePortal}
-          disabled={loading === 'portal'}
-          className="w-full rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-60"
-        >
-          {loading === 'portal' ? 'Opening portal…' : 'Manage Subscription'}
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={handlePortal}
+            disabled={loading === 'portal'}
+            className="w-full rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-60"
+            aria-label="Manage subscription in Stripe customer portal"
+          >
+            {loading === 'portal' ? 'Opening portal…' : 'Manage Subscription'}
+          </button>
+          <p className="text-center text-xs text-gray-500">
+            Update payment method, cancel, or view invoices in the Stripe portal.
+          </p>
+        </div>
       )}
     </div>
   );
