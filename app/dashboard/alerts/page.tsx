@@ -25,7 +25,7 @@ export default async function AlertsPage() {
   );
 
   if (!canAccessFeature({ email: user.email, plan: access.plan, subscription_status: access.status }, 'alerts')) {
-    redirect('/app/settings');
+    redirect('/app/settings?upgrade=alerts');
   }
 
   const { data: alerts } = await supabase
@@ -36,7 +36,7 @@ export default async function AlertsPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email={user.email ?? 'User'} />
+      <DashboardHeader email={user.email ?? 'User'} title="Alerts" />
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white">Alerts</h2>

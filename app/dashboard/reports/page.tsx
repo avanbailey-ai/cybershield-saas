@@ -62,7 +62,7 @@ export default async function ReportsPage() {
   );
 
   if (!canAccessFeature({ email: user.email, plan: access.plan, subscription_status: access.status }, 'alerts')) {
-    redirect('/app/settings');
+    redirect('/app/settings?upgrade=reports');
   }
 
   const { data: rawScans } = await supabase
@@ -113,7 +113,7 @@ export default async function ReportsPage() {
               run your first scan to see your security report here.
             </p>
             <Link
-              href="/dashboard/websites"
+              href="/app/websites"
               className="mt-6 inline-flex items-center rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
             >
               Go to Websites

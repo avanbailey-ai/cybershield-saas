@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export interface AlertRow {
@@ -76,6 +77,20 @@ export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[
         <p className="mt-1 text-xs text-gray-500">
           Alerts are created automatically when scans detect security issues.
         </p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/app/websites"
+            className="inline-flex items-center rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+          >
+            Add a website
+          </Link>
+          <Link
+            href="/app/settings"
+            className="inline-flex items-center rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
+          >
+            Upgrade for email alerts
+          </Link>
+        </div>
       </div>
     );
   }
@@ -122,6 +137,14 @@ export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[
                   {alert.title}
                 </h3>
                 <p className="mt-1 text-xs text-gray-500">{alert.message}</p>
+                {alert.scan_id && (
+                  <Link
+                    href={`/report/${alert.scan_id}`}
+                    className="mt-2 inline-block text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    View report →
+                  </Link>
+                )}
                 {alert.websites && (() => {
                   const site = Array.isArray(alert.websites) ? alert.websites[0] : alert.websites;
                   return site ? (

@@ -96,7 +96,12 @@ function JobRow({ job }: { job: ScanQueueJob }) {
       </div>
       {errorMsg && status === 'failed' && (
         <p className="mt-2 text-xs text-red-400">
-          Error: {timedOut ? 'Scan timed out after 3 minutes — retry from Websites' : errorMsg}
+          Error: {timedOut ? 'Scan timed out after 3 minutes — ' : errorMsg}
+          {timedOut && (
+            <Link href="/app/websites" className="font-semibold text-red-300 underline hover:text-red-200">
+              retry from Websites
+            </Link>
+          )}
         </p>
       )}
       {(status === 'pending' || status === 'processing') && (
@@ -129,7 +134,7 @@ export default function ScanQueueList() {
           Add a website or click Scan Now — status updates appear here instantly. {SCAN_TIMEOUT_HINT}.
         </p>
         <Link
-          href="/dashboard/websites"
+          href="/app/websites"
           className="mt-5 inline-flex items-center rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
         >
           Go to Websites

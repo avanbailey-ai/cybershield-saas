@@ -68,20 +68,22 @@ export default function DashboardOverview({
   if (websiteCount === 0) {
     nextAction = { label: 'Add your first website', href: '/app/websites' };
   } else if (criticalAlertCount > 0) {
-    nextAction = { label: 'Review critical alerts', href: '/app/alerts' };
+    nextAction = {
+      label: `Review ${criticalAlertCount} critical alert${criticalAlertCount === 1 ? '' : 's'}`,
+      href: '/app/alerts',
+    };
   } else if (lastScan?.status === 'completed') {
     nextAction = { label: 'View latest report', href: lastScan.scanId ? `/report/${lastScan.scanId}` : '/app/scans' };
   } else if (!lastScan || lastScan.status === 'failed') {
-    if (limits.scanFrequency === 'manual') {
-      nextAction = { label: 'Run a security scan', showScanAll: true };
-    } else {
-      nextAction = { label: 'View scan status', href: '/app/scans' };
-    }
+    nextAction =
+      limits.scanFrequency === 'manual' || lastScan?.status === 'failed'
+        ? { label: lastScan?.status === 'failed' ? 'Run scan again' : 'Run a security scan', showScanAll: true }
+        : { label: 'View scan status', href: '/app/scans' };
   }
 
   return (
     <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 sm:grid-cols-2 ${criticalAlertCount > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Plan</p>
           <p className="mt-1 text-sm font-semibold text-white">{planLabel}</p>
@@ -98,7 +100,21 @@ export default function DashboardOverview({
           {lastScan?.websiteLabel && (
             <p className="mt-0.5 truncate text-xs text-gray-500">{lastScan.websiteLabel}</p>
           )}
+          {lastScan?.status === 'failed' && (
+            <Link href="/app/websites" className="mt-1 inline-block text-xs text-blue-400 hover:text-blue-300">
+              Retry from Websites →
+            </Link>
+          )}
         </div>
+        {criticalAlertCount > 0 && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Critical alerts</p>
+            <p className="mt-1 text-sm font-semibold text-red-400">{criticalAlertCount}</p>
+            <Link href="/app/alerts" className="mt-1 inline-block text-xs text-blue-400 hover:text-blue-300">
+              View alerts →
+            </Link>
+          </div>
+        )}
         <div className="flex flex-col justify-center sm:items-end">
           <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-500 sm:text-right">
             Next step

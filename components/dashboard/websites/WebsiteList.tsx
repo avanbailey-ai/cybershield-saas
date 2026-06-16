@@ -934,7 +934,7 @@ export default function WebsiteList() {
 
           <span className="flex-1">{limitError}</span>
 
-          <a href="/dashboard/settings" className="font-semibold underline hover:text-orange-300 whitespace-nowrap">
+          <a href="/app/settings" className="font-semibold underline hover:text-orange-300 whitespace-nowrap">
 
             Upgrade plan →
 
