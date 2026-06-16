@@ -5,19 +5,26 @@ import { useRouter } from "next/navigation";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
 import { useUser } from '@/lib/auth/useUser';
 import { useScanQueueRealtime, type ScanQueueJob } from "@/lib/scanner/useScanQueueRealtime";
+import {
+  isActiveScanStatus,
+  isScanStale,
+  scanStatusLabel,
+  SCAN_UI_TIMEOUT_MS,
+} from "@/lib/scanner/scanStatus";
 import { getWebsiteUsageMessage } from "@/lib/auth/permissions";
 import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
 import QueueDemandBanner from "@/components/dashboard/QueueDemandBanner";
 
-const SCAN_UI_TIMEOUT_MS = 120_000;
-
-function isActiveQueueStatus(status: string): boolean {
-  return status === "pending" || status === "processing";
-}
-
 function isQueueJobStale(job: ScanQueueJob): boolean {
   const startedAt = job.started_at ?? job.created_at;
-  return isActiveQueueStatus(job.status) && Date.now() - new Date(startedAt).getTime() > SCAN_UI_TIMEOUT_MS;
+  return isActiveScanStatus(job.scanStatus) && isScanStale(startedAt, SCAN_UI_TIMEOUT_MS);
+}
+
+function scanProgressMessage(job: ScanQueueJob | null | undefined): string {
+  if (!job || !isActiveScanStatus(job.scanStatus)) return "";
+  const startedAt = job.started_at ?? job.created_at;
+  const timedOut = isScanStale(startedAt, SCAN_UI_TIMEOUT_MS);
+  return scanStatusLabel(job.scanStatus, timedOut);
 }
 
 
@@ -239,7 +246,7 @@ export default function WebsiteList() {
 
 
 
-    if (job.status === "completed") {
+    if (job.status === "completed" || job.scanStatus === "completed") {
 
       scanningRef.current = null;
 
@@ -247,17 +254,18 @@ export default function WebsiteList() {
 
       scanIdempotencyRef.current.delete(scanningId);
 
-      if (job.result?.scanId) {
-        setCompletedScanIds((prev) => new Map(prev).set(scanningId, job.result!.scanId!));
+      const scanId = job.result?.scanId ?? job.id;
+      if (scanId) {
+        setCompletedScanIds((prev) => new Map(prev).set(scanningId, scanId));
       }
 
       router.refresh();
       void refreshPlan();
 
-    } else if (job.status === "failed" || isQueueJobStale(job)) {
+    } else if (job.status === "failed" || job.scanStatus === "failed" || isQueueJobStale(job)) {
 
       setError(
-        job.status === "failed"
+        job.scanStatus === "failed" || job.status === "failed"
           ? (job.result?.error ?? job.error ?? "Scan failed")
           : "Scan timed out — please try again",
       );
@@ -284,7 +292,7 @@ export default function WebsiteList() {
 
       const job = getWebsiteJob(scanningId);
 
-      if (!job || isActiveQueueStatus(job.status)) {
+      if (!job || isActiveScanStatus(job.scanStatus)) {
 
         setError("Scan timed out — please try again");
 
@@ -315,11 +323,9 @@ export default function WebsiteList() {
       const prev = prevJobsByWebsiteRef.current.get(websiteId);
 
       if (
-
-        job.status === 'completed' &&
-
-        (prev?.status === 'pending' || prev?.status === 'processing')
-
+        (job.status === 'completed' || job.scanStatus === 'completed') &&
+        (prev?.status === 'pending' || prev?.status === 'processing' ||
+          prev?.scanStatus === 'pending' || prev?.scanStatus === 'running')
       ) {
 
         shouldRefresh = true;
@@ -602,27 +608,28 @@ export default function WebsiteList() {
 
   function resolveWebsiteDisplay(site: WebsiteRow) {
 
-    const liveJob = getWebsiteJob(site.id) ?? site.latestQueueJob;
+    const scanJob = getWebsiteJob(site.id);
+    const liveJob = scanJob ?? site.latestQueueJob;
 
     const activeJob = getActiveJob(site.id);
 
-    const staleJob = liveJob && isQueueJobStale(liveJob as ScanQueueJob);
+    const staleJob = scanJob && isQueueJobStale(scanJob);
 
     const isScanning = (scanningId === site.id || !!activeJob) && !staleJob;
 
     const score =
-
-      liveJob?.status === "completed" && typeof liveJob.result?.score === "number"
-
-        ? liveJob.result.score
-
-        : null;
+      scanJob?.scanStatus === "completed" && typeof scanJob.result?.score === "number"
+        ? scanJob.result.score
+        : site.latestQueueJob?.status === "completed" &&
+            typeof site.latestQueueJob.result?.score === "number"
+          ? site.latestQueueJob.result.score
+          : null;
 
     const lastScannedAt =
 
       liveJob?.completed_at ?? site.last_scanned_at;
 
-    return { liveJob, isScanning, score, lastScannedAt };
+    return { scanJob, liveJob, isScanning, score, lastScannedAt };
 
   }
 
@@ -946,7 +953,7 @@ export default function WebsiteList() {
 
               {websites.map((site) => {
 
-                const { liveJob, isScanning, score, lastScannedAt } = resolveWebsiteDisplay(site);
+                const { scanJob, liveJob, isScanning, score, lastScannedAt } = resolveWebsiteDisplay(site);
 
                 return (
 
@@ -964,11 +971,21 @@ export default function WebsiteList() {
 
                       <p className="mt-0.5 truncate text-xs text-gray-500">{site.url}</p>
 
-                      {liveJob?.status === "failed" && (
+                      {scanJob && scanJob.scanStatus === "failed" && (
 
                         <p className="mt-1 text-xs text-red-400">
 
-                          {liveJob.result?.error ?? liveJob.error ?? "Scan failed"}
+                          {scanJob.result?.error ?? scanJob.error ?? "Scan failed"}
+
+                        </p>
+
+                      )}
+
+                      {scanJob && isActiveScanStatus(scanJob.scanStatus) && (
+
+                        <p className="mt-1 text-xs text-blue-400/80">
+
+                          {scanProgressMessage(scanJob)}
 
                         </p>
 
@@ -1035,7 +1052,7 @@ export default function WebsiteList() {
 
                         <span className="h-3 w-3 animate-spin rounded-full border border-blue-400 border-t-transparent" />
 
-                        Scanning…
+                        {scanProgressMessage(scanJob) || "Scanning…"}
 
                       </span>
 
@@ -1073,7 +1090,7 @@ export default function WebsiteList() {
 
                             <span className="h-3 w-3 animate-spin rounded-full border border-blue-400 border-t-transparent" />
 
-                            Scanning…
+                            {scanProgressMessage(scanJob) || "Scanning…"}
 
                           </>
 

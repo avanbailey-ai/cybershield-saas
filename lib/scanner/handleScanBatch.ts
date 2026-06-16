@@ -16,6 +16,7 @@ import {
 } from '@/lib/observability/scanMetrics';
 import { recordCronRunMetrics } from '@/lib/observability/systemHealth';
 import { runScanWorker } from './processQueue';
+import { recoverStuckScans } from './scanRecovery';
 
 
 
@@ -60,6 +61,13 @@ export async function handleScanBatch(): Promise<ScanBatchResponse> {
   try {
 
     queueDepth = await getScanQueueDepth();
+
+    const recovery = await recoverStuckScans();
+    if (recovery.expired > 0 || recovery.reclaimed > 0) {
+      console.log(
+        `[handleScanBatch] recovery expired=${recovery.expired} reclaimed=${recovery.reclaimed}`,
+      );
+    }
 
     result = await runScanWorker(batchLimit);
 

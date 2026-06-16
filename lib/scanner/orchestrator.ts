@@ -587,6 +587,72 @@ export async function enqueueScan(params: {
 
 
 
+    const { data: scanRow, error: scanInsertErr } = await supabase
+
+      .from('scans')
+
+      .insert({
+
+        website_id: websiteId,
+
+        user_id: userId,
+
+        org_id: orgId,
+
+        status: 'pending',
+
+        started_at: new Date().toISOString(),
+
+      })
+
+      .select('id')
+
+      .single();
+
+
+
+    if (scanInsertErr) {
+
+      console.error('[ORCHESTRATOR] scan SSOT record create failed', {
+
+        websiteId,
+
+        jobId: job.id,
+
+        err: scanInsertErr,
+
+      });
+
+    } else if (scanRow) {
+
+      const { error: linkErr } = await supabase
+
+        .from('scan_queue')
+
+        .update({ scan_id: scanRow.id })
+
+        .eq('id', job.id);
+
+
+
+      if (linkErr) {
+
+        console.error('[ORCHESTRATOR] scan_queue scan_id link failed', {
+
+          jobId: job.id,
+
+          scanId: scanRow.id,
+
+          err: linkErr,
+
+        });
+
+      }
+
+    }
+
+
+
     void trackServerEvent(
 
       'scan_created',

@@ -34,6 +34,7 @@ import {
   shouldAlertOnChanges,
   type MonitoringAlertType,
 } from './diffDetection';
+import { finalizeScanQueueJob, type ScanQueueFinalizeResult } from './finalizeScan';
 
 type PreviousScanRow = {
   id: string;
@@ -491,63 +492,6 @@ async function postProcessScanCore(params: {
   console.log(`[POST-PROCESS] Scan record and website updated for scanId=${scanId}`);
 }
 
-type ScanQueueFinalizeResult = {
-  scanId?: string;
-  score?: number;
-  riskLevel?: string;
-  error?: string;
-};
-
-/** Guarantee scan_queue reaches a terminal state (completed/failed). */
-async function finalizeScanQueueJob(
-  jobId: string,
-  status: 'completed' | 'failed',
-  result: ScanQueueFinalizeResult,
-  errorMessage?: string | null,
-): Promise<void> {
-  const supabase = createAdminClient();
-  const now = new Date().toISOString();
-
-  const { data: row } = await supabase
-    .from('scan_queue')
-    .select('status')
-    .eq('id', jobId)
-    .maybeSingle();
-
-  if (row?.status === 'completed' || row?.status === 'failed') {
-    console.log(`[POST-PROCESS] scan_queue already terminal job=${jobId} status=${row.status}`);
-    return;
-  }
-
-  const payload =
-    status === 'completed'
-      ? {
-          status: 'completed' as const,
-          result,
-          completed_at: now,
-          locked_at: null,
-          scheduled_for: null,
-          error: null,
-        }
-      : {
-          status: 'failed' as const,
-          result,
-          error: errorMessage ?? result.error ?? 'post_process_failed',
-          completed_at: now,
-          locked_at: null,
-          scheduled_for: null,
-        };
-
-  const { error } = await supabase.from('scan_queue').update(payload).eq('id', jobId);
-
-  if (error) {
-    console.error(`[POST-PROCESS] scan_queue finalize FAILED job=${jobId}:`, error);
-    throw error;
-  }
-
-  console.log(`[POST-PROCESS] scan_queue finalized job=${jobId} status=${status}`);
-}
-
 export interface PostProcessScanResult {
   success: boolean;
   error?: string;
@@ -648,10 +592,14 @@ export async function postProcessScan(params: {
     }
   } finally {
     if (jobId) {
-      try {
-        await finalizeScanQueueJob(jobId, queueStatus, queueResult, queueResult.error);
-      } catch (finalizeErr) {
-        console.error(`[POST-PROCESS] scan_queue finalize in finally failed job=${jobId}:`, finalizeErr);
+      const finalized = await finalizeScanQueueJob(
+        jobId,
+        queueStatus,
+        queueResult,
+        queueResult.error,
+        { websiteId, scanId, durationMs: undefined },
+      );
+      if (!finalized) {
         outcome = { success: false, error: 'queue_finalize_failed' };
       }
     }

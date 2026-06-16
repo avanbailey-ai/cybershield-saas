@@ -6,6 +6,7 @@ export interface QueueJob {
   website_id: string;
   domain?: string | null;
   org_id?: string | null;
+  scan_id?: string | null;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   source: string | null;
   attempts?: number;
@@ -14,6 +15,8 @@ export interface QueueJob {
   result?: Record<string, unknown> | null;
   created_at: string;
   locked_at?: string | null;
+  locked_by?: string | null;
+  expires_at?: string | null;
   started_at: string | null;
   completed_at: string | null;
   error: string | null;

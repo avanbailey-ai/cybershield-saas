@@ -3,15 +3,17 @@
 import Link from 'next/link';
 import { useUser } from '@/lib/auth/useUser';
 import { useScanQueueRealtime, type ScanQueueJob } from '@/lib/scanner/useScanQueueRealtime';
-
-const SCAN_STALE_MS = 120_000;
+import {
+  isActiveScanStatus,
+  isScanStale,
+  mapScanStatusToDisplay,
+  scanStatusLabel,
+  SCAN_UI_TIMEOUT_MS,
+} from '@/lib/scanner/scanStatus';
 
 function effectiveJobStatus(job: ScanQueueJob): ScanQueueJob['status'] | 'failed' {
   const startedAt = job.started_at ?? job.created_at;
-  if (
-    (job.status === 'pending' || job.status === 'processing') &&
-    Date.now() - new Date(startedAt).getTime() > SCAN_STALE_MS
-  ) {
+  if (isActiveScanStatus(job.scanStatus) && isScanStale(startedAt, SCAN_UI_TIMEOUT_MS)) {
     return 'failed';
   }
   return job.status;
@@ -53,8 +55,14 @@ function JobRow({ job }: { job: ScanQueueJob }) {
   const status = effectiveJobStatus(job);
   const score = job.result?.score;
   const errorMsg = job.result?.error ?? job.error;
-  const label = job.domain ?? 'Unknown';
-  const timedOut = status === 'failed' && (job.status === 'pending' || job.status === 'processing');
+  const label = job.domain ?? `Website ${job.website_id.slice(0, 8)}`;
+  const startedAt = job.started_at ?? job.created_at;
+  const timedOut =
+    status === 'failed' && isActiveScanStatus(job.scanStatus) && isScanStale(startedAt, SCAN_UI_TIMEOUT_MS);
+  const displayLabel = mapScanStatusToDisplay(job.scanStatus);
+  const progressLabel = isActiveScanStatus(job.scanStatus)
+    ? scanStatusLabel(job.scanStatus, isScanStale(startedAt, SCAN_UI_TIMEOUT_MS))
+    : displayLabel;
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/20 p-5 transition-colors hover:bg-gray-800/30">
@@ -62,7 +70,7 @@ function JobRow({ job }: { job: ScanQueueJob }) {
         <div className="min-w-0">
           <p className="font-medium text-white">{label}</p>
           <p className="mt-0.5 text-xs text-gray-500">
-            Queued {timeAgo(job.created_at)}
+            Started {timeAgo(job.started_at ?? job.created_at)}
             {job.completed_at ? ` · finished ${timeAgo(job.completed_at)}` : ''}
           </p>
         </div>
@@ -76,7 +84,7 @@ function JobRow({ job }: { job: ScanQueueJob }) {
             {status === 'processing' && (
               <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-blue-400" />
             )}
-            {status}
+            {displayLabel}
           </span>
           {status === 'completed' && job.result?.scanId && (
             <Link href={`/report/${job.result.scanId}`} className="text-xs text-blue-400 hover:text-blue-300">
@@ -91,7 +99,7 @@ function JobRow({ job }: { job: ScanQueueJob }) {
         </p>
       )}
       {(status === 'pending' || status === 'processing') && (
-        <p className="mt-2 text-xs text-gray-500">Updates live — no refresh needed</p>
+        <p className="mt-2 text-xs text-gray-500">{progressLabel}</p>
       )}
     </div>
   );
@@ -107,7 +115,7 @@ export default function ScanQueueList() {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-600 border-t-blue-400" />
-        <span className="ml-3 text-sm text-gray-500">Loading scan queue…</span>
+        <span className="ml-3 text-sm text-gray-500">Loading scans…</span>
       </div>
     );
   }

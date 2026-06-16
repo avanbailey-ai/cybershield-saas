@@ -20,6 +20,7 @@ import {
 import type { QueueJob } from '@/lib/queue/scanJobTypes';
 import { postProcessScan } from './postProcessScan';
 import { runScanWithTimeout } from './runScanWithTimeout';
+import { finalizeScanJob } from './finalizeScan';
 import { logScanTiming } from '@/lib/observability/log';
 import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
 import {
@@ -242,11 +243,16 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       userId: job.user_id,
       orgId: job.org_id,
       traceId,
-      metadata: { jobId: job.id, websiteId: job.website_id, source: job.source },
+      metadata: {
+        jobId: job.id,
+        websiteId: job.website_id,
+        scanId: job.scan_id,
+        source: job.source,
+      },
     });
     const { data: fresh } = await supabase
       .from('scan_queue')
-      .select('id, status, result, attempts, max_attempts')
+      .select('id, status, result, attempts, max_attempts, scan_id')
       .eq('id', job.id)
       .maybeSingle();
 
@@ -373,40 +379,60 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
     }
 
     let scanRecordId!: string;
+    const linkedScanId = job.scan_id ?? fresh.scan_id ?? null;
 
-    try {
-      const { data: scan, error: scanErr } = await supabase
+    if (linkedScanId) {
+      scanRecordId = linkedScanId;
+      const { error: runErr } = await supabase
         .from('scans')
-        .insert({
-          website_id: website.id,
-          user_id: website.user_id,
-          org_id: orgId,
+        .update({
           status: 'running',
           started_at: new Date().toISOString(),
+          completed_at: null,
+          error_message: null,
         })
-        .select('id')
-        .single();
-      if (scanErr) throw scanErr;
-      scanRecordId = scan.id;
-      log('scan record created', { scanId: scanRecordId });
-    } catch (err) {
-      logError('failed to create scan record', err);
-      await logEvent({
-        type: 'scan_failed',
-        layer: 'worker',
-        userId: website.user_id,
-        traceId,
-        metadata: { jobId: job.id, error: String(err) },
-      });
-      if (traceId) await completeTrace(traceId, 'failed', { error: String(err) });
-      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
-        userId: website.user_id,
-        websiteId: job.website_id,
-        source: job.source,
-      });
-      terminalUpdated = true;
-      result = { ...base, success: false, error: String(err) };
-      return result;
+        .eq('id', scanRecordId);
+      if (runErr) {
+        logError('failed to mark scan running', runErr);
+      } else {
+        log('scan record linked — marked running', { scanId: scanRecordId });
+      }
+    } else {
+      try {
+        const { data: scan, error: scanErr } = await supabase
+          .from('scans')
+          .insert({
+            website_id: website.id,
+            user_id: website.user_id,
+            org_id: orgId,
+            status: 'running',
+            started_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
+        if (scanErr) throw scanErr;
+        scanRecordId = scan.id;
+        await supabase.from('scan_queue').update({ scan_id: scanRecordId }).eq('id', job.id);
+        log('scan record created', { scanId: scanRecordId });
+      } catch (err) {
+        logError('failed to create scan record', err);
+        await logEvent({
+          type: 'scan_failed',
+          layer: 'worker',
+          userId: website.user_id,
+          traceId,
+          metadata: { jobId: job.id, error: String(err) },
+        });
+        if (traceId) await completeTrace(traceId, 'failed', { error: String(err) });
+        await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
+          userId: website.user_id,
+          websiteId: job.website_id,
+          source: job.source,
+        });
+        terminalUpdated = true;
+        result = { ...base, success: false, error: String(err) };
+        return result;
+      }
     }
 
     let scanResult: Awaited<ReturnType<typeof runScanWithTimeout>> | null = null;
@@ -427,27 +453,31 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       logScanTiming(scanRecordId, Date.now() - scanStart);
       log('scan complete', { score: scanResult.score, riskLevel: scanResult.riskLevel });
     } catch (err) {
+      const errMsg = String(err);
+      const durationMs = Date.now() - scanStart;
       logError('scan failed', err);
       await logEvent({
         type: 'scan_failed',
         layer: 'worker',
         userId: website.user_id,
         traceId,
-        metadata: { jobId: job.id, scanId: scanRecordId, error: String(err) },
+        metadata: { jobId: job.id, scanId: scanRecordId, error: errMsg, durationMs },
       });
-      if (traceId) await completeTrace(traceId, 'failed', { scanId: scanRecordId, error: String(err) });
-      await supabase
-        .from('scans')
-        .update({ status: 'failed', error_message: String(err), completed_at: new Date().toISOString() })
-        .eq('id', scanRecordId);
+      if (traceId) await completeTrace(traceId, 'failed', { scanId: scanRecordId, error: errMsg });
 
-      await markScanJobFailed(job.id, currentAttempts, maxAttempts, String(err), {
+      await finalizeScanJob({
+        scanId: scanRecordId,
+        websiteId: website.id,
+        jobId: job.id,
+        status: 'failed',
+        queueResult: { scanId: scanRecordId, error: errMsg },
+        errorMessage: errMsg,
+        durationMs,
         userId: website.user_id,
-        websiteId: job.website_id,
-        source: job.source,
       });
+
       terminalUpdated = true;
-      result = { ...base, success: false, error: String(err) };
+      result = { ...base, success: false, error: errMsg };
       return result;
     }
 

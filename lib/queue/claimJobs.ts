@@ -49,9 +49,16 @@ export async function reclaimStaleScanJobs(
   return reclaimed;
 }
 
+function getWorkerId(): string {
+  return process.env.SCAN_WORKER_ID ?? `worker-${process.pid}`;
+}
+
 export async function claimScanJobs(limit: number): Promise<QueueJob[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.rpc('claim_scan_jobs', { p_limit: limit });
+  const { data, error } = await supabase.rpc('claim_scan_jobs', {
+    p_limit: limit,
+    p_worker_id: getWorkerId(),
+  });
 
   if (error) {
     console.error('[claimJobs] claimScanJobs failed', error);
