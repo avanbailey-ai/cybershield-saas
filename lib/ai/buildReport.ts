@@ -33,6 +33,11 @@ export interface BuildReportOutput {
   scanHash: string;
 }
 
+/** Full enterprise intelligence payload for API consumers. */
+export function buildEnterpriseReport(input: BuildReportInput): SecurityIntelligenceReport {
+  return runSecurityIntelligence({ scanResult: input.scanResult, previousScan: input.previousScan });
+}
+
 /**
  * Orchestrator: Scan → Security Intelligence Engine → Structured Report
  * Deterministic only — no OpenAI in core path.
