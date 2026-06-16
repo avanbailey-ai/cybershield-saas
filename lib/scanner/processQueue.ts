@@ -7,6 +7,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   claimScanJobs,
+  claimScanJobById,
   reclaimStaleScanJobs,
 } from '@/lib/queue/claimJobs';
 import { runWithConcurrency, clampWorkerConcurrency } from '@/lib/queue/concurrency';
@@ -601,12 +602,30 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
 export async function runScanWorker(
   batchSize = getScanBatchLimit(),
   concurrency = getWorkerConcurrency(),
+  preferJobId?: string,
 ): Promise<ScanWorkerResult> {
   const cappedBatch = Math.min(Math.max(1, batchSize), MAX_SCAN_BATCH);
   const cappedConcurrency = clampWorkerConcurrency(concurrency);
 
   const reclaimed = await reclaimStaleScanJobs(STALE_LOCK_MINUTES);
-  const jobs = await claimScanJobs(cappedBatch);
+
+  const jobs: QueueJob[] = [];
+  if (preferJobId) {
+    try {
+      const targeted = await claimScanJobById(preferJobId);
+      if (targeted) jobs.push(targeted);
+    } catch (err) {
+      console.error(`[scanWorker] targeted claim failed jobId=${preferJobId}`, err);
+    }
+  }
+
+  const remaining = Math.max(0, cappedBatch - jobs.length);
+  if (remaining > 0) {
+    const batchJobs = await claimScanJobs(remaining);
+    for (const job of batchJobs) {
+      if (!jobs.some((j) => j.id === job.id)) jobs.push(job);
+    }
+  }
 
   console.log(
     `[scanWorker] ${new Date().toISOString()} — claimed ${jobs.length} job(s) (cap=${cappedBatch}, concurrency=${cappedConcurrency}, reclaimed=${reclaimed})`,

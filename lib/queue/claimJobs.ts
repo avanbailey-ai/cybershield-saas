@@ -4,6 +4,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { QueueJob } from '@/lib/queue/scanJobTypes';
+import { logEvent } from '@/lib/observability';
 import { STALE_LOCK_MINUTES } from './constants';
 
 export interface EmailQueueJob {
@@ -53,22 +54,69 @@ function getWorkerId(): string {
   return process.env.SCAN_WORKER_ID ?? `worker-${process.pid}`;
 }
 
-export async function claimScanJobs(limit: number): Promise<QueueJob[]> {
+export async function claimScanJobById(jobId: string): Promise<QueueJob | null> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.rpc('claim_scan_jobs', {
-    p_limit: limit,
-    p_worker_id: getWorkerId(),
+  const workerId = getWorkerId();
+  const { data, error } = await supabase.rpc('claim_scan_job_by_id', {
+    p_job_id: jobId,
+    p_worker_id: workerId,
   });
 
   if (error) {
-    console.error(
-      '[claimJobs] claimScanJobs failed — worker will process 0 jobs',
-      { limit, workerId: getWorkerId(), code: error.code, message: error.message, details: error.details },
-    );
-    return [];
+    console.error('[claimJobs] claimScanJobById failed', {
+      jobId,
+      workerId,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    });
+    throw new Error(`claim_scan_job_by_id failed: ${error.message}`);
   }
 
-  return (data ?? []) as QueueJob[];
+  const rows = (data ?? []) as QueueJob[];
+  const job = rows[0] ?? null;
+  if (job) {
+    console.log(`[claimJobs] job_claimed targeted jobId=${job.id} workerId=${workerId}`);
+    void logEvent({
+      type: 'job_claimed',
+      layer: 'queue',
+      userId: job.user_id,
+      metadata: { jobId: job.id, websiteId: job.website_id, workerId, targeted: true },
+    });
+  }
+  return job;
+}
+
+export async function claimScanJobs(limit: number): Promise<QueueJob[]> {
+  const supabase = createAdminClient();
+  const workerId = getWorkerId();
+  const { data, error } = await supabase.rpc('claim_scan_jobs', {
+    p_limit: limit,
+    p_worker_id: workerId,
+  });
+
+  if (error) {
+    console.error('[claimJobs] claimScanJobs failed', {
+      limit,
+      workerId,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    });
+    throw new Error(`claim_scan_jobs failed: ${error.message}`);
+  }
+
+  const jobs = (data ?? []) as QueueJob[];
+  for (const job of jobs) {
+    console.log(`[claimJobs] job_claimed jobId=${job.id} workerId=${workerId}`);
+    void logEvent({
+      type: 'job_claimed',
+      layer: 'queue',
+      userId: job.user_id,
+      metadata: { jobId: job.id, websiteId: job.website_id, workerId, targeted: false },
+    });
+  }
+  return jobs;
 }
 
 export async function reclaimStaleEmailJobs(

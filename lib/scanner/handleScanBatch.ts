@@ -44,7 +44,10 @@ export interface ScanBatchResponse {
 
 
 
-export async function handleScanBatch(batchLimitOverride?: number): Promise<ScanBatchResponse> {
+export async function handleScanBatch(
+  batchLimitOverride?: number,
+  preferJobId?: string,
+): Promise<ScanBatchResponse> {
 
   const started = Date.now();
 
@@ -72,7 +75,7 @@ export async function handleScanBatch(batchLimitOverride?: number): Promise<Scan
       );
     }
 
-    result = await runScanWorker(batchLimit);
+    result = await runScanWorker(batchLimit, undefined, preferJobId);
 
   } catch (err) {
 

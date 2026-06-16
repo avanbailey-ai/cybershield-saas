@@ -22,7 +22,7 @@ import {
   insertWebsite,
 } from '@/services/supabaseService';
 import { enqueueScan } from '@/services/scanQueueService';
-import { processQueuedScansForUser } from '@/lib/scanner/processUserScanQueue';
+import { kickScanWorker } from '@/lib/scanner/processUserScanQueue';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
 import { decrementScanUsage } from '@/lib/billing/usageService';
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
     return result;
   })();
 
-  if (enqueueResult.queued && enqueueResult.jobId) {
+  if (enqueueResult.jobId) {
     void emit({
       type: 'scanCreated',
       payload: {
@@ -202,7 +202,12 @@ export async function POST(req: NextRequest) {
       },
     });
     try {
-      await processQueuedScansForUser({ batchLimit: 1 });
+      await kickScanWorker({
+        batchLimit: 1,
+        jobId: enqueueResult.jobId,
+        source: 'websites',
+        userId: user.id,
+      });
     } catch (err) {
       console.error('[websites] Scan worker kick failed (non-fatal):', err);
     }

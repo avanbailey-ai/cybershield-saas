@@ -19,7 +19,7 @@ import { decrementScanUsage } from '@/lib/billing/usageService';
 import { getUserPlan } from '@/lib/billing/planService';
 import { generateTraceId, logEvent, startTrace } from '@/lib/observability';
 import { recordApiLatency } from '@/lib/observability/metrics';
-import { processQueuedScansForUser } from '@/lib/scanner/processUserScanQueue';
+import { kickScanWorker } from '@/lib/scanner/processUserScanQueue';
 import { getScanBatchLimit } from '@/lib/queue/constants';
 
 /** Allow scan worker to finish (must match lib/queue/routeConfig.ts). */
@@ -296,8 +296,11 @@ export async function POST() {
 
   if (queued > 0) {
     try {
-      await processQueuedScansForUser({
+      await kickScanWorker({
         batchLimit: Math.min(queued, getScanBatchLimit()),
+        source: 'trigger-all',
+        userId: user.id,
+        traceId,
       });
     } catch (err) {
       console.error('[trigger-all] Scan worker kick failed (non-fatal):', err);

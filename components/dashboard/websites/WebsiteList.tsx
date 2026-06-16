@@ -546,9 +546,8 @@ export default function WebsiteList() {
       }
 
       if (res.status === 200 && (data.already_queued || data.duplicate)) {
-
+        void fetch("/api/scan/process-pending", { method: "POST" });
         return;
-
       }
 
       if (!res.ok && res.status !== 202) {

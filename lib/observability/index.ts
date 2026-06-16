@@ -17,6 +17,8 @@ export type ObservabilityLayer =
 export type EventType =
   | 'scan_created'
   | 'scan_enqueued'
+  | 'worker_kicked'
+  | 'job_claimed'
   | 'scan_started'
   | 'scan_completed'
   | 'scan_failed'

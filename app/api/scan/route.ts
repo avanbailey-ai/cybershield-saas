@@ -59,7 +59,7 @@ import { emit } from '@/core/events/emit';
 import { getUser, getWebsiteCountForUser } from '@/services/supabaseService';
 
 import { enqueueScan } from '@/services/scanQueueService';
-import { processQueuedScansForUser } from '@/lib/scanner/processUserScanQueue';
+import { kickScanWorker } from '@/lib/scanner/processUserScanQueue';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
 import { decrementScanUsage } from '@/lib/billing/usageService';
@@ -428,6 +428,19 @@ export async function POST(req: NextRequest) {
 
 
           case 'already_queued':
+            if (enqueueResult.jobId) {
+              try {
+                await kickScanWorker({
+                  batchLimit: 1,
+                  jobId: enqueueResult.jobId,
+                  source: 'scan',
+                  userId: user.id,
+                  traceId,
+                });
+              } catch (err) {
+                console.error('[scan] Worker kick on already_queued failed (non-fatal):', err);
+              }
+            }
 
             return NextResponse.json(
 
@@ -454,6 +467,19 @@ export async function POST(req: NextRequest) {
 
 
           case 'duplicate':
+            if (enqueueResult.jobId) {
+              try {
+                await kickScanWorker({
+                  batchLimit: 1,
+                  jobId: enqueueResult.jobId,
+                  source: 'scan',
+                  userId: user.id,
+                  traceId,
+                });
+              } catch (err) {
+                console.error('[scan] Worker kick on duplicate failed (non-fatal):', err);
+              }
+            }
 
             return NextResponse.json(
 
@@ -620,7 +646,13 @@ export async function POST(req: NextRequest) {
         });
 
         try {
-          await processQueuedScansForUser({ batchLimit: 1 });
+          await kickScanWorker({
+            batchLimit: 1,
+            jobId: enqueueResult.jobId,
+            source: 'scan',
+            userId: user.id,
+            traceId,
+          });
         } catch (err) {
           console.error('[scan] Scan worker kick failed (non-fatal):', err);
         }
