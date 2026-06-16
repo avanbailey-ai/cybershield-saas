@@ -93,6 +93,13 @@ export async function runScan(url: string): Promise<ScanResult> {
     if (htmlResponse.ok) {
       const html = await htmlResponse.text();
       pageSnapshot = parseHtmlSnapshot(html, url);
+      // Some origins omit security headers on HEAD; merge GET response headers.
+      for (const [key, value] of htmlResponse.headers.entries()) {
+        const lower = key.toLowerCase();
+        if (!rawHeaders[lower]) {
+          rawHeaders[lower] = value;
+        }
+      }
     }
   } catch {
     // HTML fetch is best-effort; header-based scan still succeeds.

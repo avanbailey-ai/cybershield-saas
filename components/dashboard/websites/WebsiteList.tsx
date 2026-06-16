@@ -191,6 +191,12 @@ export default function WebsiteList() {
 
   const scanIdempotencyRef = useRef<Map<string, string>>(new Map());
 
+  const scanSessionRef = useRef<{
+    websiteId: string;
+    startedAt: number;
+    sawActive: boolean;
+  } | null>(null);
+
   const prevJobsByWebsiteRef = useRef<Map<string, ScanQueueJob>>(new Map());
 
 
@@ -239,11 +245,16 @@ export default function WebsiteList() {
 
 
 
-  // Clear scanning spinner when realtime reports completion or failure
+  // Clear scanning spinner when realtime reports completion or failure for THIS scan session.
+  // Ignore pre-existing completed rows that appear before the new pending scan is subscribed.
 
   useEffect(() => {
 
     if (!scanningId) return;
+
+    const session = scanSessionRef.current;
+
+    if (!session || session.websiteId !== scanningId) return;
 
     const job = getWebsiteJob(scanningId);
 
@@ -251,13 +262,39 @@ export default function WebsiteList() {
 
 
 
-    if (job.status === "completed" || job.scanStatus === "completed") {
+    if (isActiveScanStatus(job.scanStatus)) {
+
+      session.sawActive = true;
+
+      return;
+
+    }
+
+
+
+    const isCompleted = job.status === "completed" || job.scanStatus === "completed";
+
+    const isFailed = job.status === "failed" || job.scanStatus === "failed";
+
+    const isStale = isQueueJobStale(job);
+
+
+
+    if (!isCompleted && !isFailed && !isStale) return;
+
+    if (!jobBelongsToScanSession(job, session)) return;
+
+
+
+    if (isCompleted) {
 
       scanningRef.current = null;
 
       setScanningId(null);
 
       scanIdempotencyRef.current.delete(scanningId);
+
+      scanSessionRef.current = null;
 
       const scanId = job.result?.scanId ?? job.id;
       if (scanId) {
@@ -267,12 +304,10 @@ export default function WebsiteList() {
       router.refresh();
       void refreshPlan();
 
-    } else if (job.status === "failed" || job.scanStatus === "failed" || isQueueJobStale(job)) {
-
-      const isStale = isQueueJobStale(job);
+    } else {
 
       setError(
-        job.scanStatus === "failed" || job.status === "failed"
+        isFailed
           ? (job.result?.error ?? job.error ?? "Scan failed")
           : SCAN_DELAYED_MESSAGE,
       );
@@ -286,6 +321,8 @@ export default function WebsiteList() {
       setScanningId(null);
 
       scanIdempotencyRef.current.delete(scanningId);
+
+      scanSessionRef.current = null;
 
     }
 
@@ -314,6 +351,8 @@ export default function WebsiteList() {
         setScanningId(null);
 
         scanIdempotencyRef.current.delete(scanningId);
+
+        scanSessionRef.current = null;
 
       }
 
@@ -372,6 +411,16 @@ export default function WebsiteList() {
 
     scanIdempotencyRef.current.delete(websiteId);
 
+    if (scanSessionRef.current?.websiteId === websiteId) {
+      scanSessionRef.current = null;
+    }
+
+  }
+
+  function jobBelongsToScanSession(job: ScanQueueJob, session: NonNullable<typeof scanSessionRef.current>): boolean {
+    if (session.sawActive) return true;
+    const jobStartMs = new Date(job.started_at ?? job.created_at).getTime();
+    return jobStartMs >= session.startedAt - 3000;
   }
 
 
@@ -470,6 +519,12 @@ export default function WebsiteList() {
     scanningRef.current = websiteId;
 
     setScanningId(websiteId);
+
+    scanSessionRef.current = {
+      websiteId,
+      startedAt: Date.now(),
+      sawActive: false,
+    };
 
     setLimitError(null);
 
@@ -583,6 +638,8 @@ export default function WebsiteList() {
 
         }
 
+        void fetch("/api/scan/process-pending", { method: "POST" });
+
         return;
 
       }
@@ -600,6 +657,8 @@ export default function WebsiteList() {
       setScanningId(null);
 
       scanIdempotencyRef.current.delete(websiteId);
+
+      scanSessionRef.current = null;
 
     }
 
@@ -1172,7 +1231,9 @@ export default function WebsiteList() {
 
                       <button
 
-                        onClick={() => handleScan(site.id)}
+                        type="button"
+
+                        onClick={() => void handleScan(site.id)}
 
                         disabled={isScanning}
 

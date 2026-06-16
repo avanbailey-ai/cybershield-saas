@@ -326,7 +326,15 @@ export default async function ReportPage({ params }: PageProps) {
                 return (
                   <li key={ps.id} className="flex items-center justify-between rounded-lg bg-gray-800/50 px-4 py-3">
                     <span className="text-sm text-gray-400">
-                      {ps.completed_at ? new Date(ps.completed_at).toLocaleDateString() : 'Unknown date'}
+                      {ps.completed_at
+                        ? new Date(ps.completed_at).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })
+                        : 'Unknown date'}
                     </span>
                     <div className="flex items-center gap-3">
                       {ps.security_score !== null && (
