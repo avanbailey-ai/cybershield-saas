@@ -83,7 +83,7 @@ export default function ScanAllButton() {
         {isLoading && (
           <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         )}
-        {isLoading ? 'Scanning…' : 'Scan all websites'}
+        {isLoading ? 'Queuing scans…' : 'Scan all websites'}
       </button>
       {message && (
         <span

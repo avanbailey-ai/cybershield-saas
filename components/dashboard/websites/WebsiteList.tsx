@@ -10,6 +10,9 @@ import {
   isScanStale,
   scanStatusLabel,
   SCAN_UI_TIMEOUT_MS,
+  SCAN_DELAYED_MESSAGE,
+  SCAN_DELAYED_LABEL,
+  SCAN_TIMEOUT_HINT,
 } from "@/lib/scanner/scanStatus";
 import { getWebsiteUsageMessage } from "@/lib/auth/permissions";
 import { buildScanIdempotencyKey } from "@/lib/usage/idempotencyKey";
@@ -266,11 +269,17 @@ export default function WebsiteList() {
 
     } else if (job.status === "failed" || job.scanStatus === "failed" || isQueueJobStale(job)) {
 
+      const isStale = isQueueJobStale(job);
+
       setError(
         job.scanStatus === "failed" || job.status === "failed"
           ? (job.result?.error ?? job.error ?? "Scan failed")
-          : "Scan delayed — retry",
+          : SCAN_DELAYED_MESSAGE,
       );
+
+      if (isStale) {
+        setDelayedRetryWebsiteId(scanningId);
+      }
 
       scanningRef.current = null;
 
@@ -296,7 +305,7 @@ export default function WebsiteList() {
 
       if (!job || isActiveScanStatus(job.scanStatus)) {
 
-        setError("Scan delayed — retry");
+        setError(SCAN_DELAYED_MESSAGE);
 
         setDelayedRetryWebsiteId(scanningId);
 
@@ -645,6 +654,8 @@ export default function WebsiteList() {
 
     const isScanning = (scanningId === site.id || !!activeJob) && !staleJob;
 
+    const isDelayed = staleJob || delayedRetryWebsiteId === site.id;
+
     const score =
       scanJob?.scanStatus === "completed" && typeof scanJob.result?.score === "number"
         ? scanJob.result.score
@@ -657,7 +668,7 @@ export default function WebsiteList() {
 
       liveJob?.completed_at ?? site.last_scanned_at;
 
-    return { scanJob, liveJob, isScanning, score, lastScannedAt };
+    return { scanJob, liveJob, isScanning, isDelayed, score, lastScannedAt };
 
   }
 
@@ -887,14 +898,14 @@ export default function WebsiteList() {
 
           {error}
 
-          {error === "Scan delayed — retry" && delayedRetryWebsiteId && (
+          {error === SCAN_DELAYED_MESSAGE && delayedRetryWebsiteId && (
 
             <button
               type="button"
               onClick={() => void retryDelayedScan(delayedRetryWebsiteId)}
-              className="ml-3 font-semibold text-red-300 underline"
+              className="ml-3 font-semibold text-red-300 underline hover:text-red-200"
             >
-              Retry scan
+              Retry scan now
             </button>
 
           )}
@@ -963,9 +974,25 @@ export default function WebsiteList() {
 
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-16 text-center">
 
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 ring-1 ring-blue-500/20">
+            <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A8.966 8.966 0 013 12c0-1.105.223-2.152.623-3.093" />
+            </svg>
+          </div>
+
           <p className="text-sm font-medium text-gray-300">No websites yet</p>
 
-          <p className="mt-1 text-xs text-gray-500">Add your site URL below to run your first scan.</p>
+          <p className="mt-1 max-w-sm text-xs text-gray-500">
+            Add your site URL to run your first security scan. {SCAN_TIMEOUT_HINT}.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+          >
+            Add your first website
+          </button>
 
         </div>
 
@@ -1001,7 +1028,7 @@ export default function WebsiteList() {
 
               {websites.map((site) => {
 
-                const { scanJob, liveJob, isScanning, score, lastScannedAt } = resolveWebsiteDisplay(site);
+                const { scanJob, liveJob, isScanning, isDelayed, score, lastScannedAt } = resolveWebsiteDisplay(site);
 
                 return (
 
@@ -1029,11 +1056,29 @@ export default function WebsiteList() {
 
                       )}
 
-                      {scanJob && isActiveScanStatus(scanJob.scanStatus) && (
+                      {scanJob && isActiveScanStatus(scanJob.scanStatus) && !isDelayed && (
 
                         <p className="mt-1 text-xs text-blue-400/80">
 
                           {scanProgressMessage(scanJob)}
+
+                        </p>
+
+                      )}
+
+                      {isDelayed && (
+
+                        <p className="mt-1 text-xs text-orange-400">
+
+                          {SCAN_DELAYED_LABEL} —{' '}
+
+                          <button
+                            type="button"
+                            onClick={() => void retryDelayedScan(site.id)}
+                            className="font-semibold underline hover:text-orange-300"
+                          >
+                            retry scan
+                          </button>
 
                         </p>
 
@@ -1103,6 +1148,10 @@ export default function WebsiteList() {
                         {scanProgressMessage(scanJob) || "Scanning…"}
 
                       </span>
+
+                    ) : isDelayed ? (
+
+                      <span className="text-xs text-orange-400">Scan delayed</span>
 
                     ) : (
 

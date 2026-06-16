@@ -10,6 +10,10 @@ export type ScanDisplayStatus = 'queued' | 'processing' | 'completed' | 'failed'
 export const SCAN_UI_TIMEOUT_MS = 180_000;
 export const SCAN_LOCK_EXPIRE_MINUTES = 3;
 export const STALE_RECLAIM_MINUTES = 10;
+export const SCAN_TIMEOUT_HINT = 'Scans can take up to 3 minutes';
+export const SCAN_DELAYED_LABEL = 'Scan delayed';
+export const SCAN_DELAYED_MESSAGE =
+  'Scan took longer than expected (over 3 min). The queue may still finish — retry if no result appears.';
 
 export function mapScanStatusToDisplay(status: string): ScanDisplayStatus {
   switch (status) {
@@ -33,13 +37,13 @@ export function isActiveScanStatus(status: string): boolean {
 export function scanStatusLabel(status: string, timedOut = false): string {
   const display = mapScanStatusToDisplay(status);
   if (timedOut && (status === 'pending' || status === 'running')) {
-    return 'Scan delayed — retry';
+    return SCAN_DELAYED_LABEL;
   }
   switch (display) {
     case 'queued':
-      return 'Scan queued…';
+      return 'Queued — waiting for worker…';
     case 'processing':
-      return 'Scanning in progress…';
+      return 'Scanning — may take up to 3 min…';
     case 'completed':
       return 'Scan complete';
     case 'failed':
