@@ -35,6 +35,7 @@ import {
   type MonitoringAlertType,
 } from './diffDetection';
 import { finalizeScanQueueJob, type ScanQueueFinalizeResult } from './finalizeScan';
+import { updateOrgIntelligence } from '@/lib/enterprise/updateOrgIntelligence';
 
 type PreviousScanRow = {
   id: string;
@@ -555,6 +556,17 @@ export async function postProcessScan(params: {
       orgId,
       currentSnapshot,
     });
+
+    if (orgId && !scanResult.error) {
+      try {
+        await updateOrgIntelligence(orgId);
+      } catch (intelErr) {
+        console.error(
+          `[POST-PROCESS] Org intelligence update failed (non-fatal) orgId=${orgId}:`,
+          intelErr,
+        );
+      }
+    }
 
     postProcessScanSideEffects({
       scanId,

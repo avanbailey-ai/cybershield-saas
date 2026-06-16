@@ -13,6 +13,7 @@ import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAcc
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
 import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY } from "@/lib/enterprise/orgDashboardSummary";
+import { POSTURE_DISPLAY } from "@/lib/enterprise/postureState";
 
 export const metadata: Metadata = {
   title: "Enterprise Dashboard",
@@ -68,6 +69,17 @@ export default async function EnterpriseDashboardPage() {
     criticalAlertsCount: 0,
     openAlertsCount: 0,
     avgScore: null as number | null,
+    rollingRiskScore: null as number | null,
+    postureState: null as keyof typeof POSTURE_DISPLAY | null,
+    anomalies: [] as Array<{
+      id: string;
+      type: string;
+      severity: string;
+      message: string;
+      websiteId: string | null;
+      createdAt: string;
+      resolved: boolean;
+    }>,
     sitesByClientGroup: [] as Array<{
       clientGroup: string;
       siteCount: number;
@@ -102,8 +114,18 @@ export default async function EnterpriseDashboardPage() {
     })) as typeof recentScans;
   }
 
-  const { totalSitesMonitored, riskDistribution, criticalAlertsCount, openAlertsCount, avgScore, sitesByClientGroup } =
-    summary;
+  const {
+    totalSitesMonitored,
+    riskDistribution,
+    criticalAlertsCount,
+    openAlertsCount,
+    avgScore,
+    rollingRiskScore,
+    postureState,
+    anomalies,
+    sitesByClientGroup,
+  } = summary;
+  const postureMeta = postureState ? POSTURE_DISPLAY[postureState] : null;
   const scoreBuckets = riskDistribution;
 
   const orgRole = orgCtx.role ?? (orgId ? await getUserOrgRole(user.id, orgId) : null);
@@ -148,6 +170,22 @@ export default async function EnterpriseDashboardPage() {
           )}
         </div>
 
+        <div className="mb-8 flex flex-wrap items-center gap-3">
+          {postureMeta && postureState && (
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold ${postureMeta.badgeClass} ${postureMeta.textClass}`}
+            >
+              Posture: {postureMeta.label}
+            </span>
+          )}
+          {rollingRiskScore !== null && (
+            <span className="text-sm text-gray-400">
+              Rolling risk score (last 20 scans):{" "}
+              <span className="font-semibold text-white">{rollingRiskScore}/100</span>
+            </span>
+          )}
+        </div>
+
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Sites Monitored</p>
@@ -157,11 +195,14 @@ export default async function EnterpriseDashboardPage() {
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Critical Alerts</p>
             <p className="mt-2 text-3xl font-bold text-red-400">{criticalAlertsCount}</p>
           </div>
-          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Avg Score</p>
+          <div className="rounded-xl border border-indigo-800/50 bg-indigo-950/20 p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-indigo-300/80">Rolling Risk Score</p>
             <p className="mt-2 text-3xl font-bold text-white">
-              {avgScore !== null ? `${avgScore}/100` : "—"}
+              {rollingRiskScore !== null ? `${rollingRiskScore}/100` : "—"}
             </p>
+            {avgScore !== null && (
+              <p className="mt-1 text-xs text-gray-500">Avg (all scans): {avgScore}/100</p>
+            )}
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Open Alerts</p>
@@ -178,6 +219,40 @@ export default async function EnterpriseDashboardPage() {
             </p>
           </div>
         </div>
+
+        {anomalies.length > 0 && (
+          <div className="mb-8 rounded-xl border border-orange-800/40 bg-orange-950/10 p-6">
+            <h3 className="mb-1 text-sm font-semibold text-white">Intelligence Anomalies</h3>
+            <p className="mb-4 text-xs text-gray-500">Unresolved signals from recent scan activity</p>
+            <ul className="space-y-2">
+              {anomalies.map((anomaly) => (
+                <li
+                  key={anomaly.id}
+                  className="flex items-start justify-between gap-4 rounded-lg bg-gray-900/60 px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm text-gray-200">{anomaly.message}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {anomaly.type.replace(/_/g, " ")} ·{" "}
+                      {new Date(anomaly.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 text-xs font-medium capitalize ${
+                      anomaly.severity === "critical"
+                        ? "text-red-400"
+                        : anomaly.severity === "high"
+                          ? "text-orange-400"
+                          : "text-yellow-400"
+                    }`}
+                  >
+                    {anomaly.severity}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mb-8 rounded-xl border border-gray-800 bg-gray-900/50 p-6">
           <h3 className="mb-1 text-sm font-semibold text-white">Risk Distribution</h3>

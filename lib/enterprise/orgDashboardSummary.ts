@@ -1,6 +1,18 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { computeRollingRiskScore } from './rollingRiskScore';
+import { scoreToPostureState, type PostureState } from './postureState';
 
 export type RiskBucket = 'critical' | 'high' | 'medium' | 'low' | 'unknown';
+
+export type OrgAnomalyFeedItem = {
+  id: string;
+  type: string;
+  severity: string;
+  message: string;
+  websiteId: string | null;
+  createdAt: string;
+  resolved: boolean;
+};
 
 export type RiskDistribution = Record<RiskBucket, number>;
 
@@ -18,6 +30,9 @@ export interface OrgDashboardSummary {
   criticalAlertsCount: number;
   openAlertsCount: number;
   avgScore: number | null;
+  rollingRiskScore: number | null;
+  postureState: PostureState | null;
+  anomalies: OrgAnomalyFeedItem[];
   sitesByClientGroup: ClientGroupSummary[];
 }
 
@@ -60,6 +75,12 @@ function scanHasOpenFindings(scan: CompletedScanRow): boolean {
 export async function getOrgDashboardSummary(orgId: string): Promise<OrgDashboardSummary> {
   const admin = createAdminClient();
 
+  const orgIntelRes = await admin
+    .from('organizations')
+    .select('rolling_risk_score, posture_state, intelligence_updated_at')
+    .eq('id', orgId)
+    .single();
+
   const websitesRes = await admin
     .from('websites')
     .select('id, client_group, is_active')
@@ -93,6 +114,35 @@ export async function getOrgDashboardSummary(orgId: string): Promise<OrgDashboar
             scoredScans.length,
         )
       : null;
+
+  const computedRolling = computeRollingRiskScore(scans);
+  const storedRolling = orgIntelRes.data?.rolling_risk_score ?? null;
+  const rollingRiskScore = storedRolling ?? computedRolling;
+  const postureState =
+    (orgIntelRes.data?.posture_state as PostureState | null) ??
+    scoreToPostureState(rollingRiskScore);
+
+  const { data: anomalyRows, error: anomaliesError } = await admin
+    .from('org_anomalies')
+    .select('id, type, severity, message, website_id, created_at, resolved')
+    .eq('org_id', orgId)
+    .eq('resolved', false)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (anomaliesError) {
+    throw new Error(anomaliesError.message);
+  }
+
+  const anomalies: OrgAnomalyFeedItem[] = (anomalyRows ?? []).map((row) => ({
+    id: row.id,
+    type: row.type,
+    severity: row.severity,
+    message: row.message,
+    websiteId: row.website_id,
+    createdAt: row.created_at,
+    resolved: row.resolved,
+  }));
 
   const criticalAlertsCount = scoredScans.filter((s) => (s.security_score as number) < 50).length;
 
@@ -149,6 +199,9 @@ export async function getOrgDashboardSummary(orgId: string): Promise<OrgDashboar
     criticalAlertsCount,
     openAlertsCount,
     avgScore,
+    rollingRiskScore,
+    postureState,
+    anomalyCount: anomalies.length,
     latestPerWebsite: latestScanByWebsite.size,
   });
 
@@ -185,6 +238,9 @@ export async function getOrgDashboardSummary(orgId: string): Promise<OrgDashboar
     criticalAlertsCount,
     openAlertsCount,
     avgScore,
+    rollingRiskScore,
+    postureState,
+    anomalies,
     sitesByClientGroup,
   };
 }
