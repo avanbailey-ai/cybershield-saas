@@ -1,6 +1,6 @@
 import type { ScanResult, HeaderChecks } from '@/lib/scanner/runScan';
 import type { PageSnapshotPartial } from '@/lib/scanner/pageSnapshot';
-import { buildSnapshotFromDbRow } from '@/lib/scanner/pageSnapshot';
+import { buildSnapshotFromDbRow, enrichPageSnapshotPartial } from '@/lib/scanner/pageSnapshot';
 import {
   runSecurityIntelligence,
   type SecurityIntelligenceReport,
@@ -79,7 +79,10 @@ export function buildScanResultFromRow(url: string, row: PersistedScanRow): Scan
     scan_snapshot: row.scan_snapshot,
   });
 
-  const pageSnapshot = pageSnapshotFromDb(row.scan_snapshot);
+  const pageSnapshot = enrichPageSnapshotPartial(
+    pageSnapshotFromDb(row.scan_snapshot),
+    url,
+  );
   if (snapshot) {
     pageSnapshot.metaTags = snapshot.metaTags;
     pageSnapshot.scripts = snapshot.scripts;

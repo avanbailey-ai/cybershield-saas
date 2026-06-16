@@ -8,6 +8,10 @@ export interface ScanSnapshot {
   scripts: string[];
   loginFormDetected: boolean;
   endpoints: string[];
+  formsDetected?: number;
+  thirdPartyScripts?: string[];
+  externalApiCalls?: string[];
+  techFingerprint?: TechFingerprint;
 }
 
 export interface TechFingerprint {
@@ -235,6 +239,45 @@ export function buildSnapshotFromScanResult(params: {
     scripts: page.scripts,
     loginFormDetected: page.loginFormDetected,
     endpoints: page.endpoints,
+    formsDetected: page.formsDetected,
+    thirdPartyScripts: page.thirdPartyScripts,
+    externalApiCalls: page.externalApiCalls,
+    techFingerprint: page.techFingerprint,
+  };
+}
+
+/** Fill derived snapshot fields when loading legacy rows that only stored scripts. */
+export function enrichPageSnapshotPartial(
+  partial: PageSnapshotPartial,
+  baseUrl: string,
+): PageSnapshotPartial {
+  const combinedText = partial.scripts.join(' ');
+  const thirdPartyScripts =
+    partial.thirdPartyScripts.length > 0
+      ? partial.thirdPartyScripts
+      : matchLabels(combinedText, THIRD_PARTY_PATTERNS);
+  const externalApiCalls =
+    partial.externalApiCalls.length > 0
+      ? partial.externalApiCalls
+      : extractExternalOrigins(partial.scripts, baseUrl);
+  const frameworks =
+    partial.techFingerprint.frameworks.length > 0
+      ? partial.techFingerprint.frameworks
+      : matchLabels(combinedText, FRAMEWORK_PATTERNS);
+  const cdn =
+    partial.techFingerprint.cdn.length > 0
+      ? partial.techFingerprint.cdn
+      : matchLabels(combinedText, CDN_PATTERNS);
+  const analytics =
+    partial.techFingerprint.analytics.length > 0
+      ? partial.techFingerprint.analytics
+      : thirdPartyScripts.filter((s) => /Analytics|Google Analytics|Facebook Pixel/i.test(s));
+
+  return {
+    ...partial,
+    thirdPartyScripts,
+    externalApiCalls,
+    techFingerprint: { frameworks, cdn, analytics },
   };
 }
 
@@ -253,6 +296,10 @@ export function buildSnapshotFromDbRow(row: {
       scripts: snap.scripts ?? [],
       loginFormDetected: snap.loginFormDetected ?? false,
       endpoints: snap.endpoints ?? [],
+      formsDetected: snap.formsDetected,
+      thirdPartyScripts: snap.thirdPartyScripts,
+      externalApiCalls: snap.externalApiCalls,
+      techFingerprint: snap.techFingerprint,
     };
   }
 
