@@ -60,6 +60,8 @@ interface PublicScanResponse {
 
   cached?: boolean;
 
+  aiReportStatus?: 'used' | 'skipped' | 'cached';
+
 }
 
 
@@ -69,6 +71,8 @@ function buildPublicResponse(
   result: Awaited<ReturnType<typeof runScan>>,
 
   shareToken: string | null,
+
+  aiReportStatus?: 'used' | 'skipped' | 'cached',
 
 ): PublicScanResponse {
 
@@ -105,6 +109,8 @@ function buildPublicResponse(
     riskDetected,
 
     shareToken,
+
+    aiReportStatus,
 
   };
 
@@ -226,6 +232,8 @@ export async function POST(req: NextRequest) {
 
       let shareToken: string | null = null;
 
+      let aiReportStatus: 'used' | 'skipped' | 'cached' = 'skipped';
+
       try {
 
         const stored = await generateAndStoreReport({
@@ -240,9 +248,15 @@ export async function POST(req: NextRequest) {
 
           autoShare: true,
 
+          websiteId: null,
+
+          plan: 'free',
+
         });
 
         shareToken = stored?.shareToken ?? null;
+
+        if (stored?.aiStatus) aiReportStatus = stored.aiStatus;
 
       } catch (err) {
 
@@ -278,7 +292,7 @@ export async function POST(req: NextRequest) {
 
 
 
-      const built = buildPublicResponse(result, shareToken);
+      const built = buildPublicResponse(result, shareToken, aiReportStatus);
 
       setCachedScan(domain, built, CACHE_TTL_MS);
 

@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { ScanResult } from '@/lib/scanner/runScan';
-import { generateSecurityReport } from './generateSecurityReport';
+import type { ScanSnapshot } from '@/lib/scanner/pageSnapshot';
+import type { Plan } from '@/lib/billing/plans';
+import { buildReport, type AiReportStatus } from './buildReport';
 import { generateShareToken } from '@/lib/share/token';
 
 export function extractDomain(url: string): string {
@@ -15,6 +17,8 @@ export function extractDomain(url: string): string {
 export interface StoredReport {
   id: string;
   shareToken: string | null;
+  aiStatus: AiReportStatus;
+  aiSkipReason?: string;
 }
 
 export async function generateAndStoreReport(params: {
@@ -23,10 +27,34 @@ export async function generateAndStoreReport(params: {
   userId: string | null;
   scanResult: ScanResult;
   autoShare?: boolean;
+  websiteId?: string | null;
+  plan?: Plan;
+  previousScan?: {
+    securityScore: number | null;
+    issues: string[] | null;
+    snapshot: ScanSnapshot | null;
+  } | null;
 }): Promise<StoredReport | null> {
-  const { scanId, domain, userId, scanResult, autoShare = userId === null } = params;
+  const {
+    scanId,
+    domain,
+    userId,
+    scanResult,
+    autoShare = userId === null,
+    websiteId = null,
+    plan = 'free',
+    previousScan = null,
+  } = params;
 
-  const report = await generateSecurityReport(scanResult);
+  const built = await buildReport({
+    scanResult,
+    websiteId,
+    userId,
+    plan,
+    previousScan,
+  });
+
+  const report = built.report;
   const riskScore = 100 - scanResult.score;
   const shareToken = autoShare ? generateShareToken() : null;
 
@@ -55,6 +83,13 @@ export async function generateAndStoreReport(params: {
     throw error;
   }
 
-  console.log(`[storeReport] Report stored id=${data.id} domain=${domain} scanId=${scanId ?? 'none'}`);
-  return { id: data.id, shareToken: data.share_token };
+  console.log(
+    `[storeReport] Report stored id=${data.id} domain=${domain} scanId=${scanId ?? 'none'} aiStatus=${built.aiStatus}`,
+  );
+  return {
+    id: data.id,
+    shareToken: data.share_token,
+    aiStatus: built.aiStatus,
+    aiSkipReason: built.aiSkipReason,
+  };
 }

@@ -26,7 +26,8 @@ function issueTitle(issue: string): string {
   return issue.length > 60 ? issue.slice(0, 57) + '...' : issue;
 }
 
-function buildTemplateReport(scanResult: ScanResult): SecurityReport {
+/** Template-only report — deterministic, no OpenAI. */
+export function buildTemplateReport(scanResult: ScanResult): SecurityReport {
   const risk = assessRisk(scanResult);
   const securityScore = scanResult.score;
   const riskScore = 100 - securityScore;
@@ -98,7 +99,8 @@ function buildTemplateReport(scanResult: ScanResult): SecurityReport {
   };
 }
 
-async function enhanceWithOpenAI(
+/** AI enhancement — plain-English summary and remediation only. Called only when aiGate allows. */
+export async function enhanceReportWithAi(
   report: SecurityReport,
   scanResult: ScanResult,
 ): Promise<SecurityReport> {
@@ -118,17 +120,26 @@ async function enhanceWithOpenAI(
           {
             role: 'system',
             content:
-              'You are a cybersecurity analyst. Rewrite the summary in 2-3 clear sentences for a business owner. Return only the summary text, no markdown.',
+              'You are a cybersecurity analyst. Rewrite the summary in 2-3 clear sentences for a business owner. ' +
+              'Also provide 3-5 actionable remediation steps as a JSON array under key "recommendations". ' +
+              'Return JSON: { "summary": "...", "recommendations": ["..."] }. No markdown.',
           },
           {
             role: 'user',
-            content: `Domain: ${scanResult.url}\nScore: ${scanResult.score}/100\nIssues: ${scanResult.issues.join('; ')}\nCurrent summary: ${report.summary}`,
+            content: JSON.stringify({
+              domain: scanResult.url,
+              score: scanResult.score,
+              issues: scanResult.issues,
+              currentSummary: report.summary,
+              currentRecommendations: report.recommendations,
+            }),
           },
         ],
-        max_tokens: 200,
+        max_tokens: 400,
         temperature: 0.3,
+        response_format: { type: 'json_object' },
       }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) return report;
@@ -136,10 +147,18 @@ async function enhanceWithOpenAI(
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
-    const enhanced = data.choices?.[0]?.message?.content?.trim();
-    if (enhanced) {
-      return { ...report, summary: enhanced };
-    }
+    const raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) return report;
+
+    const parsed = JSON.parse(raw) as { summary?: string; recommendations?: string[] };
+    return {
+      ...report,
+      summary: parsed.summary?.trim() || report.summary,
+      recommendations:
+        Array.isArray(parsed.recommendations) && parsed.recommendations.length > 0
+          ? parsed.recommendations
+          : report.recommendations,
+    };
   } catch (err) {
     console.warn('[generateSecurityReport] OpenAI enhancement skipped:', err);
   }
@@ -147,7 +166,7 @@ async function enhanceWithOpenAI(
   return report;
 }
 
+/** Default export: template-only (no AI). Use buildReport orchestrator for gated AI. */
 export async function generateSecurityReport(scanResult: ScanResult): Promise<SecurityReport> {
-  const templateReport = buildTemplateReport(scanResult);
-  return enhanceWithOpenAI(templateReport, scanResult);
+  return buildTemplateReport(scanResult);
 }

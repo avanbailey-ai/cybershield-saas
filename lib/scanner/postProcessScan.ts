@@ -70,7 +70,7 @@ export async function postProcessScan(params: {
   // Fetch the previous completed scan for risk-increase and change detection
   const { data: prevScans } = await supabase
     .from('scans')
-    .select('id, risk_score, security_score, ssl_valid, headers, scan_snapshot')
+    .select('id, risk_score, security_score, ssl_valid, headers, issues, scan_snapshot')
     .eq('website_id', websiteId)
     .eq('status', 'completed')
     .neq('id', scanId)
@@ -420,10 +420,27 @@ export async function postProcessScan(params: {
     }
   }
 
-  // 4. Growth Engine V2 — fire-and-forget (never block critical path)
+  // 4. AI-minimized report — event-driven only (change + plan gate)
   const domain = extractDomain(url);
+  const userWithPlan = await getUserWithPlan(userId, orgId);
+  const plan = getEffectivePlan(userWithPlan);
+  const previousForReport = previousScanRow
+    ? {
+        securityScore: previousScanRow.security_score ?? null,
+        issues: (previousScanRow.issues as string[] | null) ?? null,
+        snapshot: buildSnapshotFromDbRow(previousScanRow),
+      }
+    : null;
 
-  void generateAndStoreReport({ scanId, domain, userId, scanResult }).catch((err) =>
+  void generateAndStoreReport({
+    scanId,
+    domain,
+    userId,
+    scanResult,
+    websiteId,
+    plan,
+    previousScan: previousForReport,
+  }).catch((err) =>
     console.error('[POST-PROCESS] Report generation failed (non-fatal):', err),
   );
 
