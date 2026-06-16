@@ -18,8 +18,7 @@ export interface ScheduledScanResult {
  * Enqueues monitored websites (is_active) whose next_scan_at is due.
  * Called by /api/scan/enqueue-or-process-batch before the worker batch runs.
  *
- * Note: Vercel Hobby cron runs once/day; hourly_monitor schedules hourly
- * next_scan_at but enqueue cadence follows the cron interval.
+ * Note: Production cron runs every 6 hours; `hourly_monitor` next_scan_at may be sooner than enqueue cadence.
  */
 export async function runScheduledScans(): Promise<ScheduledScanResult> {
   const supabase = createAdminClient();
