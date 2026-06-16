@@ -9,6 +9,7 @@ import {
   mapScanStatusToDisplay,
   scanStatusLabel,
   SCAN_UI_TIMEOUT_MS,
+  SCAN_TIMEOUT_HINT,
 } from '@/lib/scanner/scanStatus';
 
 function effectiveJobStatus(job: ScanQueueJob): ScanQueueJob['status'] | 'failed' {
@@ -95,7 +96,7 @@ function JobRow({ job }: { job: ScanQueueJob }) {
       </div>
       {errorMsg && status === 'failed' && (
         <p className="mt-2 text-xs text-red-400">
-          Error: {timedOut ? 'Scan timed out — please try again' : errorMsg}
+          Error: {timedOut ? 'Scan timed out after 3 minutes — retry from Websites' : errorMsg}
         </p>
       )}
       {(status === 'pending' || status === 'processing') && (
@@ -124,8 +125,8 @@ export default function ScanQueueList() {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 py-16 text-center">
         <p className="text-sm font-medium text-gray-300">No scans yet</p>
-        <p className="mt-1 text-xs text-gray-500">
-          Add a website or click Scan Now — status updates appear here instantly.
+        <p className="mt-1 max-w-sm text-xs text-gray-500">
+          Add a website or click Scan Now — status updates appear here instantly. {SCAN_TIMEOUT_HINT}.
         </p>
         <Link
           href="/dashboard/websites"
