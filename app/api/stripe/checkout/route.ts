@@ -8,6 +8,7 @@ import { requirePermission } from '@/lib/auth/rbac';
 import { getPriceId } from '@/lib/billing/plans';
 import { rateLimitCheckout, rateLimitHeaders } from '@/lib/rateLimit/limiter';
 import { logCheckoutLatency } from '@/lib/observability/log';
+import { ensureUserOrg } from '@/lib/org/migrateExistingUsers';
 
 export const runtime = 'nodejs';
 
@@ -115,6 +116,7 @@ export async function POST(req: Request) {
         orgCustomerId = org?.stripe_customer_id ?? null;
       }
     } else {
+      await ensureUserOrg(user.id, user.email ?? null);
       orgId = await getActiveOrgId(user.id);
     }
 

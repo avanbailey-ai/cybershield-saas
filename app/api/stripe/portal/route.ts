@@ -15,6 +15,7 @@ import { requirePermission } from '@/lib/auth/rbac';
 import { getOrgSubscription } from '@/lib/billing/orgSubscriptionService';
 
 import { isSubscriptionActive } from '@/lib/billing/subscriptionService';
+import { ensureUserOrg } from '@/lib/org/migrateExistingUsers';
 
 
 
@@ -53,6 +54,7 @@ export async function POST() {
 
 
 
+    await ensureUserOrg(user.id, user.email ?? null);
     const orgId = await getActiveOrgId(user.id);
 
     if (!orgId) {

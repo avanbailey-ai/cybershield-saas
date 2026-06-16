@@ -50,6 +50,8 @@ import { rateLimitWebhook } from '@/lib/rateLimit/limiter';
 
 import { emitEvent } from '@/lib/brain/eventBus';
 
+import { ensureUserOrg } from '@/lib/org/migrateExistingUsers';
+
 
 
 async function claimWebhookEvent(
@@ -211,7 +213,7 @@ async function resolveOrgIdForCheckout(
 
     .from('profiles')
 
-    .select('default_org_id')
+    .select('default_org_id, email')
 
     .eq('id', userId)
 
@@ -219,7 +221,9 @@ async function resolveOrgIdForCheckout(
 
 
 
-  return profile?.default_org_id ?? null;
+  if (profile?.default_org_id) return profile.default_org_id;
+
+  return ensureUserOrg(userId, profile?.email ?? null);
 
 }
 
