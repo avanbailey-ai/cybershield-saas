@@ -14,6 +14,7 @@ import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
 import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY, type OrgDashboardSummary } from "@/lib/enterprise/orgDashboardSummary";
 import { POSTURE_DISPLAY } from "@/lib/enterprise/postureState";
+import EnterpriseExportPdfButton from "@/components/enterprise/EnterpriseExportPdfButton";
 
 export const metadata: Metadata = {
   title: "Enterprise Dashboard",
@@ -142,7 +143,7 @@ export default async function EnterpriseDashboardPage() {
       <DashboardHeader email={user.email ?? "User"} title="Enterprise Overview" showPlanUsage={false} />
 
       <main className="flex-1 overflow-auto p-6">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-white">Enterprise Overview</h2>
             <p className="mt-1 text-sm text-gray-500">
@@ -158,17 +159,22 @@ export default async function EnterpriseDashboardPage() {
               <span className="capitalize text-blue-400">{planLabel}</span>
             </p>
           </div>
-          <Link href="/enterprise/portal/users" className="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white">
-            Manage Team
-          </Link>
-          {(orgRole === "owner" || orgRole === "admin") && (
-            <Link
-              href="/app/settings"
-              className="rounded-lg border border-indigo-700/50 bg-indigo-600/10 px-4 py-2 text-sm font-medium text-indigo-300 hover:text-white"
-            >
-              Billing & Settings
+          <div className="flex flex-wrap items-center gap-3">
+            {(orgRole === "owner" || orgRole === "admin") && orgId && (
+              <EnterpriseExportPdfButton orgId={orgId} />
+            )}
+            <Link href="/enterprise/portal/users" className="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white">
+              Manage Team
             </Link>
-          )}
+            {(orgRole === "owner" || orgRole === "admin") && (
+              <Link
+                href="/app/settings"
+                className="rounded-lg border border-indigo-700/50 bg-indigo-600/10 px-4 py-2 text-sm font-medium text-indigo-300 hover:text-white"
+              >
+                Billing & Settings
+              </Link>
+            )}
+          </div>
         </div>
 
         <div className="mb-8 flex flex-wrap items-center gap-3">
