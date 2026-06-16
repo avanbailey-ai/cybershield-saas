@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ScanResultPaywall, { type PublicScanResult } from '@/components/conversion/ScanResultPaywall';
-import { ConversionProvider, useConversion } from '@/components/conversion/ConversionProvider';
+import { ConversionProvider } from '@/components/conversion/ConversionProvider';
 import {
   canRunPublicScan,
   getOrCreateScanSessionId,
@@ -12,20 +12,81 @@ import {
 import { trackEvent } from '@/lib/conversion/track';
 import { getUrgencyMessage } from '@/lib/conversion/urgency';
 import { readAndRecordDomainScore } from '@/lib/funnel/client';
+import { saveFunnelSession, buildPricingHref } from '@/lib/funnel/session';
 
 interface ScanInputProps {
   showUpgradeCta?: boolean;
 }
 
+const SCAN_STAGES = [
+  { label: 'Mapping your attack surface…', progress: 25 },
+  { label: 'Checking SSL, headers, and open ports…', progress: 55 },
+  { label: 'Modeling exploit scenarios…', progress: 85 },
+] as const;
+
 function ScanInputInner(_props: ScanInputProps) {
-  const { openUpgradeModal } = useConversion();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PublicScanResult | null>(null);
   const [priorScore, setPriorScore] = useState<number | null>(null);
   const [isSecondScan, setIsSecondScan] = useState(false);
+  const [scanStage, setScanStage] = useState(0);
+  const [revealing, setRevealing] = useState(false);
+  const [revealedIssues, setRevealedIssues] = useState(0);
+  const [revealedScore, setRevealedScore] = useState<number | null>(null);
   const submittingRef = useRef(false);
+  const pendingResultRef = useRef<PublicScanResult | null>(null);
+
+  useEffect(() => {
+    if (!loading) {
+      setScanStage(0);
+      return;
+    }
+
+    const timers = SCAN_STAGES.map((_, i) =>
+      setTimeout(() => setScanStage(i), i * 1200),
+    );
+
+    return () => timers.forEach(clearTimeout);
+  }, [loading]);
+
+  useEffect(() => {
+    if (!revealing || !pendingResultRef.current) return;
+
+    const data = pendingResultRef.current;
+    const issueCount = Math.min(3, data.issues.length);
+    let issueIdx = 0;
+
+    const issueTimer = setInterval(() => {
+      issueIdx += 1;
+      setRevealedIssues(issueIdx);
+      if (issueIdx >= issueCount) clearInterval(issueTimer);
+    }, 400);
+
+    const scoreDelay = setTimeout(() => {
+      let current = 0;
+      const target = data.score;
+      const step = Math.max(1, Math.ceil(target / 20));
+      const scoreTimer = setInterval(() => {
+        current = Math.min(target, current + step);
+        setRevealedScore(current);
+        if (current >= target) {
+          clearInterval(scoreTimer);
+          setTimeout(() => {
+            setRevealing(false);
+            setResult(data);
+            pendingResultRef.current = null;
+          }, 600);
+        }
+      }, 50);
+    }, issueCount * 400 + 300);
+
+    return () => {
+      clearInterval(issueTimer);
+      clearTimeout(scoreDelay);
+    };
+  }, [revealing]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +96,8 @@ function ScanInputInner(_props: ScanInputProps) {
     setResult(null);
     setPriorScore(null);
     setIsSecondScan(false);
+    setRevealedIssues(0);
+    setRevealedScore(null);
 
     let normalizedUrl = url.trim();
     if (!normalizedUrl) {
@@ -55,10 +118,10 @@ function ScanInputInner(_props: ScanInputProps) {
     const { allowed, domainAlreadyScanned } = canRunPublicScan(normalizedUrl);
     if (!allowed) {
       if (domainAlreadyScanned) {
-        setError('You already scanned this website today. See pricing for unlimited monitoring.');
+        setError('You already scanned this website today. Enable continuous protection to monitor changes.');
       } else {
         setError(
-          `Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). See pricing to upgrade.`,
+          `Daily free scan limit reached (${MAX_PUBLIC_SCANS_PER_DAY} websites/day). Enable continuous protection for unlimited monitoring.`,
         );
       }
       return;
@@ -83,7 +146,7 @@ function ScanInputInner(_props: ScanInputProps) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
           (data as { error?: string }).error ??
-            'Daily scan limit reached. See pricing to upgrade.',
+            'Daily scan limit reached. Enable continuous protection for unlimited monitoring.',
         );
       }
 
@@ -95,17 +158,25 @@ function ScanInputInner(_props: ScanInputProps) {
       const data = (await res.json()) as PublicScanResult;
       const previousScore = readAndRecordDomainScore(normalizedUrl, data.score);
       setPriorScore(previousScore);
-      setResult(data);
+
+      saveFunnelSession({
+        scanned_site: normalizedUrl,
+        score: data.score,
+        risk_level: data.riskLevel,
+        issue_count: data.vulnerabilitiesCount,
+      });
 
       const { isSecondScan: second } = recordPublicScan(normalizedUrl);
       setIsSecondScan(second);
-      sessionStorage.setItem('cybershield_last_score', String(data.score));
 
       trackEvent('scan_completed', {
         score: data.score,
         domain: normalizedUrl,
         vulnerabilitiesCount: data.vulnerabilitiesCount,
       });
+
+      pendingResultRef.current = data;
+      setRevealing(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -114,11 +185,22 @@ function ScanInputInner(_props: ScanInputProps) {
     }
   }
 
+  function handleUpgradeClick() {
+    if (!result) return;
+    const href = buildPricingHref(
+      getUrgencyMessage(result.score, result.url).highlightPlan === 'pro' ? 'pro' : 'growth',
+    );
+    window.location.href = href;
+  }
+
+  const stage = SCAN_STAGES[scanStage] ?? SCAN_STAGES[0];
+  const pendingData = pendingResultRef.current;
+
   return (
-    <section className="relative px-4 py-16">
+    <section id="scan" className="relative scroll-mt-20 px-4 py-16">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="mb-2 text-2xl font-bold text-white sm:text-3xl">
-          Check Your Website Security — Free
+          Scan Your Website — Free
         </h2>
         <p className="mb-8 text-gray-400">
           Enter your URL for an instant security score and top findings. No login required.
@@ -130,15 +212,15 @@ function ScanInputInner(_props: ScanInputProps) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter your website URL (e.g. https://yoursite.com)"
-            disabled={loading}
+            disabled={loading || revealing}
             className="flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || revealing}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? (
+            {loading || revealing ? (
               <>
                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                   <circle
@@ -155,22 +237,74 @@ function ScanInputInner(_props: ScanInputProps) {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
-                Scanning…
+                {loading ? 'Scanning…' : 'Analyzing…'}
               </>
             ) : (
-              'Check Security'
+              'Scan your website for free'
             )}
           </button>
         </form>
 
+        {loading && (
+          <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-6 text-left">
+            <p className="text-sm font-medium text-blue-300">{stage.label}</p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-800">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-700"
+                style={{ width: `${stage.progress}%` }}
+              />
+            </div>
+            <p className="mt-3 text-xs text-gray-500">
+              Stage {scanStage + 1} of {SCAN_STAGES.length} — this usually takes under 30 seconds
+            </p>
+          </div>
+        )}
+
+        {revealing && pendingData && (
+          <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-6 text-left">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Preliminary findings
+            </p>
+            <ul className="space-y-2">
+              {pendingData.issues.slice(0, 3).map((issue, i) => (
+                <li
+                  key={issue}
+                  className={`flex items-start gap-2 text-sm transition-opacity duration-300 ${
+                    i < revealedIssues ? 'text-gray-300 opacity-100' : 'text-gray-600 opacity-0'
+                  }`}
+                >
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                  {issue}
+                </li>
+              ))}
+            </ul>
+            {revealedScore != null && (
+              <div className="mt-6 flex items-center justify-center">
+                <div
+                  className={`flex h-32 w-32 flex-col items-center justify-center rounded-full border-4 ${
+                    revealedScore >= 70
+                      ? 'border-green-500/40 text-green-400'
+                      : revealedScore >= 40
+                        ? 'border-yellow-500/40 text-yellow-400'
+                        : 'border-red-500/40 text-red-400'
+                  }`}
+                >
+                  <span className="text-4xl font-bold">{revealedScore}</span>
+                  <span className="text-xs text-gray-400">/ 100</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
-            {error.includes('pricing') && (
+            {(error.includes('protection') || error.includes('monitoring')) && (
               <>
                 {' '}
                 <a href="/pricing" className="font-semibold underline hover:text-red-300">
-                  View plans
+                  Enable continuous protection
                 </a>
               </>
             )}
@@ -182,17 +316,12 @@ function ScanInputInner(_props: ScanInputProps) {
             result={result}
             isSecondScan={isSecondScan}
             priorScore={priorScore}
-            onUpgradeClick={() =>
-              openUpgradeModal({
-                score: result.score,
-                domain: result.url,
-                trigger: isSecondScan ? 'second_scan' : 'full_report',
-                recommendedPlan: getUrgencyMessage(result.score, result.url).highlightPlan,
-              })
-            }
+            onUpgradeClick={handleUpgradeClick}
             onRescanClick={() => {
               setResult(null);
               setIsSecondScan(false);
+              setRevealedIssues(0);
+              setRevealedScore(null);
               setError(null);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}

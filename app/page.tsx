@@ -36,21 +36,11 @@ const ScanInput = dynamic(() => import("@/components/landing/ScanInput"), {
 
 
 
-const Pricing = dynamic(() => import("@/components/landing/Pricing"), {
-
-  loading: () => <div className="h-96 animate-pulse bg-gray-900/30" />,
-
-});
-
-
-
 export const metadata: Metadata = {
 
-  title: "Free Website Security Scanner",
-
+  title: "Free Website Security Scanner — Instant Results",
   description:
-
-    "Scan any website for free. Get an instant security score, SSL check, and vulnerability preview with CyberShield.",
+    "Scan your website for free. Get an instant security score, vulnerability preview, and risk assessment — no signup required.",
 
   openGraph: {
 
@@ -85,8 +75,6 @@ export default function HomePage() {
         <Features />
 
         <HowItWorks />
-
-        <Pricing />
 
         <FAQ />
 

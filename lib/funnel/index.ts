@@ -17,3 +17,13 @@ export {
 } from './evaluate';
 
 export { readAndRecordDomainScore } from './client';
+
+export {
+  FUNNEL_KEYS,
+  saveFunnelSession,
+  readFunnelSession,
+  buildPricingHref,
+  parseFunnelFromSearchParams,
+  hostnameFromUrl,
+} from './session';
+export type { FunnelSessionState } from './session';

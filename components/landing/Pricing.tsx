@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   PLAN_LIMITS,
   formatScanFrequency,
@@ -12,16 +13,45 @@ import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 import { trackEvent } from '@/lib/conversion/track';
 import PlanComparisonTable from '@/components/conversion/PlanComparisonTable';
+import CheckoutContextPanel from '@/components/conversion/CheckoutContextPanel';
+import {
+  parseFunnelFromSearchParams,
+  readFunnelSession,
+  hostnameFromUrl,
+  type FunnelSessionState,
+} from '@/lib/funnel/session';
 
 const smbPlans = [
   {
-    id: 'growth' as const,
-    name: 'Continuous Protection',
-    subtitle: 'Most chosen by SMBs',
-    badge: 'Most Popular',
+    id: 'pro' as const,
+    name: 'Pro',
+    subtitle: 'Recommended after your scan',
+    badge: 'Best for your site',
     price: '',
     period: '/mo',
-    description: 'Recommended for live websites. Daily scans, alerts, and full reports keep you ahead of new threats.',
+    description:
+      'Full vulnerability reports, daily scans, and automated fix guidance — everything your scan revealed, unlocked.',
+    roiLine: 'Fixes the issues your scan found automatically.',
+    features: [
+      formatWebsiteLimit(PLAN_LIMITS.pro.websites),
+      `${PLAN_LIMITS.pro.maxScansPerDay} scans/day`,
+      formatScanFrequency(PLAN_LIMITS.pro.scanFrequency),
+      'Full reports & email alerts',
+      'Attack surface & exploit modeling',
+      'Daily automated scans',
+    ],
+    cta: 'Enable continuous protection',
+    highlighted: true,
+    stripePlan: 'pro' as const,
+  },
+  {
+    id: 'growth' as const,
+    name: 'Continuous Protection',
+    subtitle: 'For multiple live sites',
+    badge: null,
+    price: '',
+    period: '/mo',
+    description: 'Daily scans, alerts, and change detection for teams managing several websites.',
     roiLine: 'One prevented breach pays for years of monitoring.',
     features: [
       formatWebsiteLimit(PLAN_LIMITS.growth.websites),
@@ -31,87 +61,95 @@ const smbPlans = [
       'Email alerts when risks change',
       'Change detection & trend tracking',
     ],
-    cta: 'Enable protection',
-    highlighted: true,
-    stripePlan: 'growth' as const,
-  },
-  {
-    id: 'pro' as const,
-    name: 'Pro',
-    subtitle: 'For solo sites & side projects',
-    badge: null,
-    price: '',
-    period: '/mo',
-    description: 'Continuous monitoring for a handful of sites without enterprise overhead.',
-    roiLine: 'Less than the cost of one hour of downtime.',
-    features: [
-      formatWebsiteLimit(PLAN_LIMITS.pro.websites),
-      `${PLAN_LIMITS.pro.maxScansPerDay} scans/day`,
-      formatScanFrequency(PLAN_LIMITS.pro.scanFrequency),
-      'Full reports & email alerts',
-      'Daily automated scans',
-    ],
-    cta: 'Enable protection',
+    cta: 'Enable continuous protection',
     highlighted: false,
-    stripePlan: 'pro' as const,
+    stripePlan: 'growth' as const,
   },
 ];
 
 const freePlan = {
   id: 'free' as const,
-  name: 'First Scan',
-  description: 'Try your first scan — see your score and top issues. Incomplete without continuous monitoring.',
+  name: 'Free Scan',
+  description: 'One-time preview only — top 3 findings shown, no continuous monitoring.',
   features: [
     'One-time risk score',
     'Top 3 vulnerabilities shown',
     'No account required',
+    'Attack surface mapping not included',
     'Change detection not included',
+    'Exploit modeling not included',
   ],
-  cta: 'Try your first scan',
-  href: '/scan',
+  cta: 'Scan your website for free',
+  href: '/#scan',
 };
 
-export default function Pricing() {
+function PricingInner() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [highlightedPlan, setHighlightedPlan] = useState<BilledPlan>('growth');
+  const [highlightedPlan, setHighlightedPlan] = useState<BilledPlan>('pro');
   const [trustSignals, setTrustSignals] = useState(true);
+  const [funnelState, setFunnelState] = useState<FunnelSessionState | null>(null);
+  const [checkoutPlan, setCheckoutPlan] = useState<BilledPlan | null>(null);
   const { prices } = useDisplayPrices();
 
   useEffect(() => {
+    const fromParams = parseFunnelFromSearchParams(searchParams);
+    setFunnelState(fromParams ?? readFunnelSession());
+
+    const planParam = searchParams.get('plan');
+    if (planParam === 'pro' || planParam === 'growth') {
+      setHighlightedPlan(planParam);
+    }
+
     trackEvent('pricing_viewed', { path: '/pricing', trigger: 'page_load' });
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     fetch('/api/analytics/config')
       .then((r) => (r.ok ? r.json() : null))
       .then((cfg) => {
         if (!cfg) return;
-        if (cfg.highlighted_plan) setHighlightedPlan(cfg.highlighted_plan);
+        if (cfg.highlighted_plan && !searchParams.get('plan')) {
+          setHighlightedPlan(cfg.highlighted_plan);
+        }
         if (typeof cfg.trust_signals_visible === 'boolean') {
           setTrustSignals(cfg.trust_signals_visible);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [searchParams]);
 
   const pricedSmbPlans = useMemo(
     () =>
       smbPlans.map((p) => ({
         ...p,
-        highlighted: p.id === highlightedPlan || p.highlighted,
+        highlighted: p.id === highlightedPlan,
         price: formatDisplayPrice(prices[p.stripePlan]),
       })),
     [highlightedPlan, prices],
   );
 
   const orderedSmbPlans = useMemo(() => {
-    const hero = pricedSmbPlans.find((p) => p.id === 'growth')!;
-    const rest = pricedSmbPlans.filter((p) => p.id !== 'growth');
+    const hero = pricedSmbPlans.find((p) => p.id === 'pro')!;
+    const rest = pricedSmbPlans.filter((p) => p.id !== 'pro');
     return [hero, ...rest];
   }, [pricedSmbPlans]);
 
-  async function handleCheckout(plan: BilledPlan) {
+  const personalizedHeadline = useMemo(() => {
+    if (!funnelState) return 'Enable continuous protection for your website';
+    const hostname = hostnameFromUrl(funnelState.scanned_site);
+    const issues = funnelState.issue_count;
+    if (issues > 0) {
+      return `Your site has ${issues} issue${issues !== 1 ? 's' : ''} — Pro fixes this automatically`;
+    }
+    if (funnelState.score < 70) {
+      return `${hostname} scored ${funnelState.score}/100 — enable protection before attackers find these gaps`;
+    }
+    return `Protect ${hostname} with continuous monitoring`;
+  }, [funnelState]);
+
+  async function proceedToCheckout(plan: BilledPlan) {
     setLoading(plan);
     setError(null);
     trackEvent('upgrade_clicked', { plan, trigger: 'pricing' });
@@ -144,23 +182,45 @@ export default function Pricing() {
       setError('Network error. Please try again.');
     } finally {
       setLoading(null);
+      setCheckoutPlan(null);
     }
   }
 
+  function handleCheckoutClick(plan: BilledPlan) {
+    setCheckoutPlan(plan);
+  }
+
   return (
-    <section id="pricing" className="relative py-24 px-4">
+    <section id="pricing" className="relative px-4 py-24">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
       <div className="mx-auto max-w-7xl">
         <div className="mb-14 text-center">
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-blue-500">
-            Pricing
+            Enable protection
           </p>
           <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Continuous protection for live websites
+            {personalizedHeadline}
           </h2>
-          <p className="mx-auto max-w-xl text-gray-400">
-            Start with a free scan to see your gaps. Enable protection when you&apos;re ready — most
-            SMBs choose Continuous Protection for daily monitoring.
+          {funnelState && (
+            <div className="mx-auto mt-4 inline-flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/60 px-4 py-2">
+              <span
+                className={`text-2xl font-bold ${
+                  funnelState.score < 70 ? 'text-red-400' : 'text-yellow-400'
+                }`}
+              >
+                {funnelState.score}
+              </span>
+              <span className="text-left text-sm text-gray-400">
+                <span className="block font-medium text-white">
+                  {hostnameFromUrl(funnelState.scanned_site)}
+                </span>
+                {funnelState.issue_count} issue{funnelState.issue_count !== 1 ? 's' : ''} detected
+              </span>
+            </div>
+          )}
+          <p className="mx-auto mt-4 max-w-xl text-gray-400">
+            Your free scan showed the gaps. Pro unlocks full reports, daily monitoring, and automated
+            fix guidance.
           </p>
           {trustSignals && (
             <p className="mx-auto mt-3 max-w-xl text-xs text-gray-500">
@@ -170,12 +230,11 @@ export default function Pricing() {
         </div>
 
         {error && (
-          <div className="mb-6 mx-auto max-w-md rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-400">
+          <div className="mx-auto mb-6 max-w-md rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-400">
             {error}
           </div>
         )}
 
-        {/* PRO / Continuous Protection — highlighted first */}
         <div className="grid gap-6 lg:grid-cols-2">
           {orderedSmbPlans.map((plan) => (
             <div
@@ -186,7 +245,7 @@ export default function Pricing() {
                   : 'border-gray-800 bg-gray-900/50'
               }`}
             >
-              {plan.badge && (
+              {plan.badge && plan.highlighted && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                   <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
                     {plan.badge}
@@ -225,7 +284,7 @@ export default function Pricing() {
               </ul>
 
               <button
-                onClick={() => handleCheckout(plan.stripePlan)}
+                onClick={() => handleCheckoutClick(plan.stripePlan)}
                 disabled={loading === plan.stripePlan}
                 className={`w-full rounded-lg py-3 text-center text-sm font-semibold transition-colors disabled:opacity-60 ${
                   plan.highlighted
@@ -239,12 +298,11 @@ export default function Pricing() {
           ))}
         </div>
 
-        {/* FREE — greyed, incomplete value */}
-        <div className="mt-8 rounded-xl border border-gray-800/80 bg-gray-950/40 p-6 opacity-80">
+        <div className="mt-8 rounded-xl border border-gray-800/80 bg-gray-950/40 p-6 opacity-75">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                Not a plan — a preview
+                Incomplete without monitoring
               </p>
               <h3 className="mt-1 text-lg font-semibold text-gray-400">{freePlan.name}</h3>
               <p className="mt-1 text-sm text-gray-500">{freePlan.description}</p>
@@ -268,7 +326,6 @@ export default function Pricing() {
 
         <PlanComparisonTable />
 
-        {/* ENTERPRISE — separate section, no price card */}
         <div className="mt-16 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-gray-950 p-8 sm:p-10">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
@@ -292,11 +349,15 @@ export default function Pricing() {
             </ul>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
-                href="/enterprise/review"
+                href={
+                  funnelState
+                    ? `/enterprise/review?domain=${encodeURIComponent(funnelState.scanned_site)}&score=${funnelState.score}&source=pricing`
+                    : '/enterprise/review'
+                }
                 onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_review' })}
                 className="rounded-lg bg-amber-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
               >
-                Request security review
+                Request Security Review
               </Link>
               <Link
                 href="/enterprise/lead"
@@ -308,14 +369,24 @@ export default function Pricing() {
             </div>
           </div>
         </div>
-
-        <p className="mt-8 text-center text-xs text-gray-600">
-          Need hourly scans for agencies?{' '}
-          <Link href="/pricing#agency" className="text-gray-500 hover:text-gray-400">
-            Agency plan available at checkout
-          </Link>
-        </p>
       </div>
+
+      <CheckoutContextPanel
+        open={checkoutPlan != null}
+        plan={checkoutPlan ?? 'pro'}
+        funnelState={funnelState}
+        loading={loading != null}
+        onConfirm={() => checkoutPlan && proceedToCheckout(checkoutPlan)}
+        onCancel={() => setCheckoutPlan(null)}
+      />
     </section>
+  );
+}
+
+export default function Pricing() {
+  return (
+    <Suspense fallback={<div className="h-96 animate-pulse bg-gray-900/30" />}>
+      <PricingInner />
+    </Suspense>
   );
 }

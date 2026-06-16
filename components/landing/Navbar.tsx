@@ -13,19 +13,14 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3">
-          <Link href="/scan">
-            <Button variant="ghost" size="sm">
-              Free Scan
+          <Link href="/#scan">
+            <Button variant="primary" size="sm">
+              Scan your website for free
             </Button>
           </Link>
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Sign In
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button variant="primary" size="sm">
-              Get Started
             </Button>
           </Link>
         </div>

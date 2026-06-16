@@ -17,6 +17,7 @@ import { getVariantClient } from '@/lib/analytics/experimentsClient';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 import type { PaywallTrigger } from './ConversionProvider';
+import CheckoutContextPanel from './CheckoutContextPanel';
 import SecurityCoverageBar from './SecurityCoverageBar';
 import { computeSecurityCoverage } from '@/lib/conversion/coverage';
 
@@ -42,6 +43,7 @@ export default function UpgradeModal({
   const [ctaText, setCtaText] = useState<string | null>(null);
   const [autopilotPlan, setAutopilotPlan] = useState<BilledPlan | null>(null);
   const [trustSignals, setTrustSignals] = useState(true);
+  const [checkoutPlan, setCheckoutPlan] = useState<BilledPlan | null>(null);
   const { config: adaptiveConfig } = useAdaptiveConfig();
   const { prices } = useDisplayPrices();
 
@@ -97,7 +99,7 @@ export default function UpgradeModal({
 
   if (!open) return null;
 
-  async function handleCheckout(plan: BilledPlan) {
+  async function proceedToCheckout(plan: BilledPlan) {
     setLoading(plan);
     setError(null);
     trackEvent('upgrade_clicked', { plan, score, domain, trigger });
@@ -131,7 +133,12 @@ export default function UpgradeModal({
       setError('Network error. Please try again.');
     } finally {
       setLoading(null);
+      setCheckoutPlan(null);
     }
+  }
+
+  function handleCheckoutClick(plan: BilledPlan) {
+    setCheckoutPlan(plan);
   }
 
   const triggerMessages: Record<PaywallTrigger, string | null> = {
@@ -244,7 +251,7 @@ export default function UpgradeModal({
                 {isHighlighted ? (
                   <button
                     type="button"
-                    onClick={() => handleCheckout(plan)}
+                    onClick={() => handleCheckoutClick(plan)}
                     disabled={loading !== null}
                     className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
                   >
@@ -253,7 +260,7 @@ export default function UpgradeModal({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleCheckout(plan)}
+                    onClick={() => handleCheckoutClick(plan)}
                     disabled={loading !== null}
                     className="mt-4 w-full rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-60"
                   >
@@ -283,11 +290,19 @@ export default function UpgradeModal({
               }
               className="font-medium text-amber-400 hover:text-amber-300"
             >
-              Request security review
+              Request Security Review
             </Link>
           </p>
         </div>
       </div>
+
+      <CheckoutContextPanel
+        open={checkoutPlan != null}
+        plan={checkoutPlan ?? 'pro'}
+        loading={loading != null}
+        onConfirm={() => checkoutPlan && proceedToCheckout(checkoutPlan)}
+        onCancel={() => setCheckoutPlan(null)}
+      />
     </div>
   );
 }
