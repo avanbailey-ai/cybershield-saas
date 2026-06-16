@@ -31,9 +31,13 @@ function timeAgo(dateStr: string): string {
 
 function lastScanLabel(lastScan: LastScanSummary | null): string {
   if (!lastScan) return 'No scans yet';
-  if (lastScan.status === 'processing' || lastScan.status === 'pending') return 'Scan in progress…';
-  if (lastScan.status === 'failed') return 'Last scan failed';
-  if (lastScan.score !== null) return `Score ${lastScan.score}/100 · ${lastScan.completedAt ? timeAgo(lastScan.completedAt) : 'recently'}`;
+  if (lastScan.status === 'processing' || lastScan.status === 'pending') {
+    return 'Scan in progress — up to 3 min';
+  }
+  if (lastScan.status === 'failed') return 'Last scan failed — retry from Websites';
+  if (lastScan.score !== null) {
+    return `Score ${lastScan.score}/100 · ${lastScan.completedAt ? timeAgo(lastScan.completedAt) : 'recently'}`;
+  }
   return lastScan.status;
 }
 

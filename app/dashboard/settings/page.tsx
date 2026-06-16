@@ -65,7 +65,7 @@ export default async function SettingsPage() {
                   <p className="text-sm text-gray-300">{memberSince}</p>
                 </div>
                 <p className="rounded-lg border border-gray-700/50 bg-gray-800/30 px-3 py-2 text-xs text-gray-500">
-                  Profile editing coming soon.
+                  Name and profile photo editing coming soon — your email is managed through your login provider.
                 </p>
               </div>
             </CardContent>

@@ -121,7 +121,9 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
           <p className="mt-0.5 text-xs text-gray-500">
             {meta.name} Plan · {meta.description}
             {subscriptionStatusResolved && subscriptionStatusResolved !== 'active' && (
-              <span className="ml-2 text-yellow-400">({subscriptionStatusResolved})</span>
+              <span className="ml-2 text-yellow-400">
+                (Subscription {subscriptionStatusResolved.replace(/_/g, ' ')})
+              </span>
             )}
           </p>
         </div>
@@ -155,11 +157,11 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
           </div>
           {atScanLimit && upgradePlans.length > 0 && (
             <p className="mt-2 text-xs text-orange-400">
-              Daily limit reached.{' '}
+              Daily scan limit reached — resets at UTC midnight.{' '}
               <Link href="/dashboard/settings" className="font-semibold underline hover:text-orange-300">
                 Upgrade your plan
               </Link>{' '}
-              for more scans.
+              for more scans per day.
             </p>
           )}
         </div>

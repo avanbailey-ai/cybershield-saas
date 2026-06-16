@@ -21,7 +21,10 @@ export default function PlanUsageWidget() {
 
   const planLabel = PLAN_LIMITS[plan]?.name ?? 'Free';
   const websiteUsage = getWebsiteUsageMessage(websiteCount, { id: '', plan });
-  const scanUsage = `${scansToday} / ${limits.maxScansPerDay} scans today`;
+  const scanUsage =
+    limits.maxScansPerDay === Infinity
+      ? `${scansToday} scans today`
+      : `${scansRemaining} of ${limits.maxScansPerDay} scans left today`;
   const nearLimit = websitesRemaining === 0 || scansRemaining === 0;
 
   function handleUpgrade() {
@@ -47,12 +50,12 @@ export default function PlanUsageWidget() {
           onClick={handleUpgrade}
           className="text-xs font-medium text-orange-400 hover:text-orange-300"
         >
-          Upgrade
+          Upgrade for more scans
         </button>
       )}
       {nearLimit && !conversion && (
         <Link href="/app/settings" className="text-xs font-medium text-orange-400 hover:text-orange-300">
-          Upgrade
+          Upgrade for more scans
         </Link>
       )}
     </div>
