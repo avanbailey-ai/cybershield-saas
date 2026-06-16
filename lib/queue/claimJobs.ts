@@ -61,7 +61,10 @@ export async function claimScanJobs(limit: number): Promise<QueueJob[]> {
   });
 
   if (error) {
-    console.error('[claimJobs] claimScanJobs failed', error);
+    console.error(
+      '[claimJobs] claimScanJobs failed — worker will process 0 jobs',
+      { limit, workerId: getWorkerId(), code: error.code, message: error.message, details: error.details },
+    );
     return [];
   }
 
