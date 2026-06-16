@@ -2,13 +2,10 @@
 
 import Link from 'next/link';
 import { getSeverityCategory, getUrgencyMessage } from '@/lib/conversion/urgency';
-import { getPersonalizedCta } from '@/lib/conversion/personalize';
 import { useConversionOptional } from './ConversionProvider';
 import { usePaywallTiming } from '@/lib/analytics/usePaywallTiming';
 import { trackEvent } from '@/lib/analytics/events';
 import { useScanResultViralTriggers } from '@/lib/viral/triggers';
-import { hasEnterpriseLevelIssues } from '@/lib/sales/detectEnterpriseScan';
-import { useBrainState } from '@/lib/brain/useBrainState';
 import { MAX_PUBLIC_SCANS_PER_DAY, getPublicScanCount } from '@/lib/conversion/limits';
 
 export interface PublicScanResult {
@@ -47,6 +44,32 @@ function severityBadgeClass(level: 'low' | 'medium' | 'high'): string {
   }
 }
 
+function getSmbPrimaryCta(score: number): string {
+  return score >= 70 ? 'Improve Security' : 'Fix these issues';
+}
+
+function getRemediationTips(score: number): string[] {
+  if (score < 40) {
+    return [
+      'Enable HTTPS and resolve mixed-content warnings',
+      'Add security headers (CSP, HSTS, X-Frame-Options)',
+      'Remove or protect exposed admin and debug endpoints',
+    ];
+  }
+  if (score < 70) {
+    return [
+      'Review and tighten Content-Security-Policy headers',
+      'Enable automated monitoring to catch new issues early',
+      'Patch outdated dependencies and third-party scripts',
+    ];
+  }
+  return [
+    'Schedule regular scans to catch regressions',
+    'Keep security headers up to date as your site changes',
+    'Enable alerts for score drops and new vulnerabilities',
+  ];
+}
+
 export default function ScanResultPaywall({
   result,
   isSecondScan = false,
@@ -55,7 +78,6 @@ export default function ScanResultPaywall({
 }: ScanResultPaywallProps) {
   const conversion = useConversionOptional();
   const { showPaywall, requireExplicitClick, revealPaywall } = usePaywallTiming();
-  const brain = useBrainState();
   const { shareModal, openShare } = useScanResultViralTriggers({
     domain: result.url,
     score: result.score,
@@ -91,16 +113,10 @@ export default function ScanResultPaywall({
     window.location.href = '/scan';
   }
 
-  const unlockCta = getPersonalizedCta(result.url, 'full_report');
+  const smbPrimaryCta = getSmbPrimaryCta(result.score);
+  const remediationTips = getRemediationTips(result.score);
   const paywallVisible = showPaywall;
-  const showEnterpriseCta =
-    brain.recommendedAction === 'enterprise_demo' ||
-    hasEnterpriseLevelIssues({
-      vulnerabilitiesCount: result.vulnerabilitiesCount,
-      score: result.score,
-      url: result.url,
-    });
-  const enterpriseLeadHref = `/enterprise/lead?domain=${encodeURIComponent(result.url)}`;
+  const enterpriseHref = '/enterprise/pricing';
 
   return (
     <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-5 text-left sm:p-6">
@@ -133,6 +149,22 @@ export default function ScanResultPaywall({
               <li key={issue} className="flex items-start gap-2 text-sm text-gray-300">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
                 {issue}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {paywallVisible && (
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Quick fixes to try
+          </p>
+          <ul className="space-y-2">
+            {remediationTips.map((tip) => (
+              <li key={tip} className="flex items-start gap-2 text-sm text-gray-400">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+                {tip}
               </li>
             ))}
           </ul>
@@ -202,52 +234,21 @@ export default function ScanResultPaywall({
               onClick={() => handleUpgrade(isSecondScan ? 'second_scan' : 'full_report')}
               className="w-full max-w-xs rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
             >
-              {unlockCta}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Enterprise — separate from SMB upgrade */}
-      {showEnterpriseCta && paywallVisible && (
-        <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="text-sm font-semibold text-amber-200">
-            Security review recommended
-          </p>
-          <p className="mt-1 text-xs text-amber-200/70">
-            Critical findings may require coordinated remediation and enterprise coverage — escalate
-            to our security team for a structured review.
-          </p>
-          <div className="mt-4 flex flex-col gap-2">
-            <Link
-              href={enterpriseLeadHref}
-              onClick={() =>
-                trackEvent('upgrade_clicked', { domain: result.url, trigger: 'enterprise_cta' })
-              }
-              className="rounded-lg bg-amber-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-amber-500"
-            >
-              Request Security Review
-            </Link>
-            <button
-              type="button"
-              onClick={() => handleUpgrade('full_report')}
-              className="text-center text-xs text-gray-400 hover:text-gray-300"
-            >
-              Or upgrade self-serve →
+              {smbPrimaryCta}
             </button>
           </div>
         </div>
       )}
 
       {/* Single primary CTA when no locked blur section */}
-      {paywallVisible && !showEnterpriseCta && lockedCount === 0 && (
+      {paywallVisible && lockedCount === 0 && (
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => handleUpgrade(isSecondScan ? 'second_scan' : 'full_report')}
             className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 sm:flex-1"
           >
-            {unlockCta}
+            {smbPrimaryCta}
           </button>
           <button
             type="button"
@@ -259,7 +260,7 @@ export default function ScanResultPaywall({
         </div>
       )}
 
-      {paywallVisible && lockedCount > 0 && !showEnterpriseCta && (
+      {paywallVisible && lockedCount > 0 && (
         <div className="mt-4 flex justify-center">
           <button
             type="button"
@@ -271,7 +272,7 @@ export default function ScanResultPaywall({
         </div>
       )}
 
-      {paywallVisible && !showEnterpriseCta && (
+      {paywallVisible && (
         <div className="mt-4 text-center">
           <button
             type="button"
@@ -280,6 +281,28 @@ export default function ScanResultPaywall({
           >
             Scan another site →
           </button>
+        </div>
+      )}
+
+      {/* Enterprise — opt-in secondary section, separate from SMB flow */}
+      {paywallVisible && (
+        <div className="mt-8 rounded-lg border border-gray-700/50 bg-gray-800/20 p-4">
+          <p className="text-sm font-semibold text-gray-200">
+            Need Continuous Security Monitoring?
+          </p>
+          <p className="mt-1 text-xs text-gray-400">
+            Enterprise plans include compliance reporting, 24/7 monitoring, audit trails, and
+            dedicated security support for regulated teams.
+          </p>
+          <Link
+            href={enterpriseHref}
+            onClick={() =>
+              trackEvent('upgrade_clicked', { domain: result.url, trigger: 'enterprise_learn' })
+            }
+            className="mt-4 inline-flex rounded-lg border border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white"
+          >
+            Learn about Enterprise Protection
+          </Link>
         </div>
       )}
 
