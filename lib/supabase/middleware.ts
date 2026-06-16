@@ -27,6 +27,21 @@ const REF_COOKIE = "cybershield_ref";
 
 const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
+/** Enterprise users manage sites/scans here — do not redirect to portal. */
+const ENTERPRISE_OPERATIONAL_APP_PREFIXES = [
+  '/app/websites',
+  '/app/scans',
+  '/app/reports',
+  '/app/alerts',
+  '/app/settings',
+] as const;
+
+function isEnterpriseOperationalAppPath(pathname: string): boolean {
+  return ENTERPRISE_OPERATIONAL_APP_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 
 
 // Future SSO hook point: before isProtected check, evaluate isSSOEnabled() + org SSO config
@@ -273,6 +288,7 @@ export async function updateSession(request: NextRequest) {
 
       if (
         pathname.startsWith('/app') &&
+        !isEnterpriseOperationalAppPath(pathname) &&
         canAccessEnterprise(
           {
             email: user.email,

@@ -16,6 +16,7 @@ import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY, type OrgDashboardSummary }
 import { getCanonicalOrgSecurityState } from "@/lib/enterprise/canonicalOrgSecurityState";
 import { POSTURE_DISPLAY } from "@/lib/enterprise/postureState";
 import EnterpriseExportPdfButton from "@/components/enterprise/EnterpriseExportPdfButton";
+import ScanAllButton from "@/components/dashboard/ScanAllButton";
 
 export const metadata: Metadata = {
   title: "Enterprise Dashboard",
@@ -168,7 +169,16 @@ export default async function EnterpriseDashboardPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {(orgRole === "owner" || orgRole === "admin") && orgId && (
-              <EnterpriseExportPdfButton orgId={orgId} />
+              <>
+                <Link
+                  href="/app/websites"
+                  className="rounded-lg border border-blue-700/50 bg-blue-600/10 px-4 py-2 text-sm font-medium text-blue-300 hover:text-white"
+                >
+                  Manage Websites & Scan
+                </Link>
+                <ScanAllButton />
+                <EnterpriseExportPdfButton orgId={orgId} />
+              </>
             )}
             <Link href="/enterprise/portal/users" className="rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white">
               Manage Team
@@ -427,7 +437,17 @@ export default async function EnterpriseDashboardPage() {
         )}
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
-          <h3 className="mb-4 text-sm font-semibold text-white">Recent Org Scans</h3>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-white">Recent Org Scans</h3>
+            {(orgRole === "owner" || orgRole === "admin") && (
+              <Link
+                href="/app/websites"
+                className="text-xs font-medium text-blue-400 hover:text-blue-300"
+              >
+                Add site or run scan →
+              </Link>
+            )}
+          </div>
           {recentScans.length === 0 ? (
             <div className="rounded-lg border border-dashed border-gray-700 bg-gray-800/20 px-4 py-8 text-center">
               <p className="text-sm font-medium text-gray-300">No org-scoped scans yet</p>

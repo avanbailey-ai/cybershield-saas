@@ -1,10 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // PDFKit reads Helvetica.afm from node_modules at runtime — must not be webpack-bundled.
-  serverExternalPackages: ["pdfkit"],
+  // PDFKit standalone avoids missing Helvetica.afm on Vercel serverless.
+  serverExternalPackages: ["pdfkit", "fontkit"],
   outputFileTracingIncludes: {
-    "/api/enterprise/export/pdf": ["./node_modules/pdfkit/js/data/**/*"],
+    "/api/enterprise/export/pdf": [
+      "./node_modules/pdfkit/js/pdfkit.standalone.js",
+      "./node_modules/pdfkit/js/data/**/*",
+    ],
   },
   env: {
     NEXT_PUBLIC_SUPABASE_URL:

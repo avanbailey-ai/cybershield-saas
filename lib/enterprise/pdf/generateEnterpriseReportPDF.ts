@@ -1,6 +1,6 @@
 import 'server-only';
 
-import PDFDocument from 'pdfkit';
+import PDFDocument from '@/lib/enterprise/pdf/createPdfDocument';
 import type { EnterpriseReportData } from '../reportBuilder';
 import { sanitizeReportText } from '../reportBuilder';
 
