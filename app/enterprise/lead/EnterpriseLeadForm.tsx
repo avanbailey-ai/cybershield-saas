@@ -47,9 +47,12 @@ export default function EnterpriseLeadForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
-    qualified?: boolean;
-    cta?: string;
     leadId?: string;
+    risk_score?: number | null;
+    security_score?: number | null;
+    risk_level?: string | null;
+    remediationInsights?: string[];
+    reportUrl?: string | null;
   } | null>(null);
 
   function toggleNeed(need: string) {
@@ -94,43 +97,75 @@ export default function EnterpriseLeadForm() {
     }
   }
 
-  if (result?.qualified) {
-    return (
-      <div className="min-h-screen bg-[#0a0f1e]">
-        <EnterpriseHeader />
-        <main className="mx-auto max-w-xl px-4 py-16 text-center">
-          <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-8">
-            <h1 className="text-2xl font-bold text-white">Security review scheduled</h1>
-            <p className="mt-3 text-gray-300">
-              Your escalation is prioritized. Our security team will reach out within one business day
-              to coordinate remediation and coverage options.
-            </p>
-            <Link
-              href={`/enterprise/demo?lead_id=${result.leadId ?? ''}`}
-              className="mt-6 inline-block rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500"
-            >
-              {result.cta ?? 'Book a Security Review'}
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   if (result) {
+    const displayDomain = domain || scanDomain || 'your domain';
+    const insights = result.remediationInsights ?? [];
+
     return (
       <div className="min-h-screen bg-[#0a0f1e]">
         <EnterpriseHeader />
         <main className="mx-auto max-w-xl px-4 py-16 text-center">
           <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-8">
-            <h1 className="text-2xl font-bold text-white">Escalation received</h1>
-            <p className="mt-3 text-gray-300">
-              Thank you, {name}. Our security team will review your request and respond within one
-              business day.
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-300/80">
+              Automated Security Review System
             </p>
-            <Link href="/enterprise/pricing" className="mt-6 inline-block text-blue-400 hover:text-blue-300">
-              View enterprise coverage options →
-            </Link>
+            <h1 className="mt-2 text-2xl font-bold text-white">Security review received</h1>
+            <p className="mt-3 text-gray-300">
+              Thank you, {name}. An automated analysis for {displayDomain} has been queued. Check
+              your inbox for remediation insights from the CyberShield Security Intelligence Engine.
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              No phone call is required or scheduled — all responses are delivered by email.
+            </p>
+
+            {(result.risk_score != null || result.security_score != null) && (
+              <div className="mt-6 rounded-lg border border-gray-700/50 bg-gray-900/40 p-4 text-left">
+                <p className="text-sm font-medium text-gray-300">Risk summary</p>
+                {result.security_score != null && (
+                  <p className="mt-1 text-white">
+                    Security score: <strong>{result.security_score}/100</strong>
+                    {result.risk_level ? ` (${result.risk_level} risk)` : ''}
+                  </p>
+                )}
+                {result.risk_score != null && result.security_score == null && (
+                  <p className="mt-1 text-white">
+                    Risk score: <strong>{result.risk_score}</strong>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {insights.length > 0 && (
+              <div className="mt-4 rounded-lg border border-gray-700/50 bg-gray-900/40 p-4 text-left">
+                <p className="text-sm font-medium text-gray-300">Top remediation priorities</p>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-400">
+                  {insights.slice(0, 5).map((insight) => (
+                    <li key={insight}>{insight}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              {result.reportUrl && (
+                <Link
+                  href={result.reportUrl}
+                  className="inline-block rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500"
+                >
+                  View full report
+                </Link>
+              )}
+              <Link
+                href="/enterprise/pricing?focus=continuousMonitoring"
+                className="inline-block rounded-lg border border-gray-600 px-6 py-3 font-semibold text-gray-200 hover:border-gray-500"
+              >
+                Upgrade to continuous monitoring
+              </Link>
+            </div>
+
+            <p className="mt-6 text-xs text-gray-500">
+              Responses generated by CyberShield Security Intelligence Engine
+            </p>
           </div>
         </main>
       </div>
@@ -153,13 +188,15 @@ export default function EnterpriseLeadForm() {
         )}
 
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-white">
-            {fromScan ? 'Request Enterprise Security Review' : 'Enterprise Security Escalation'}
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-400/80">
+            Automated Security Review System
+          </p>
+          <h1 className="mt-2 text-3xl font-bold text-white">
+            {fromScan ? 'Request Automated Security Review' : 'Enterprise Security Review'}
           </h1>
           <p className="mt-2 text-gray-400">
-            {fromScan
-              ? 'Escalate scan findings to our security team for remediation planning, compliance alignment, and continuous coverage.'
-              : 'Coordinate remediation, compliance requirements, and continuous monitoring with our security team.'}
+            Submit your domain for automated analysis. Responses are generated by the CyberShield
+            Security Intelligence Engine — no phone call required.
           </p>
         </div>
 
@@ -288,8 +325,12 @@ export default function EnterpriseLeadForm() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
           >
-            {loading ? 'Submitting...' : 'Request Security Review'}
+            {loading ? 'Submitting...' : 'Submit for Automated Review'}
           </button>
+
+          <p className="text-center text-xs text-gray-500">
+            Responses generated by CyberShield Security Intelligence Engine
+          </p>
         </form>
 
         <div className="mt-12">

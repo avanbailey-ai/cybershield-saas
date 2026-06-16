@@ -4,10 +4,13 @@ import { OWNER_EMAIL } from '@/lib/auth/owner';
 import {
   computeLeadScore,
   detectEnterpriseIntentFromEvents,
-  QUALIFIED_LEAD_THRESHOLD,
 } from '@/lib/sales/intent';
-import { notifyAdminNewLead } from '@/lib/sales/notify';
-import { scheduleEnterpriseEmailSequences } from '@/lib/sales/sequences';
+import {
+  sendEnterpriseLeadAdminEmail,
+  sendEnterpriseLeadCustomerEmail,
+} from '@/lib/email/enterpriseLead';
+import { fetchLeadScanContext } from '@/lib/enterprise/leadScanContext';
+import { normalizeDomain } from '@/lib/cache/scanCache';
 import { emitEvent } from '@/lib/brain/eventBus';
 
 interface LeadBody {
@@ -44,18 +47,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
   }
 
+  const normalizedDomain = domain?.trim() ? normalizeDomain(domain.trim()) : null;
+
   const analyticsSignals = await detectEnterpriseIntentFromEvents(session_id);
 
   const leadScore = computeLeadScore({
     companySize: company_size,
     securityNeeds: security_needs,
-    domain,
+    domain: normalizedDomain ?? undefined,
     message,
     analyticsSignals,
   });
 
-  const qualified = leadScore >= QUALIFIED_LEAD_THRESHOLD;
-  const status = qualified ? 'qualified' : 'new';
+  const scanContext = normalizedDomain ? await fetchLeadScanContext(normalizedDomain) : null;
 
   const admin = createAdminClient();
 
@@ -65,14 +69,16 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       company: company?.trim() || null,
-      domain: domain?.trim() || null,
+      domain: normalizedDomain,
       company_size: company_size || null,
       security_needs: security_needs ?? [],
       message: message?.trim() || null,
       lead_score: leadScore,
-      status,
+      scan_id: scanContext?.scanId ?? null,
+      risk_score: scanContext?.riskScore ?? null,
+      status: 'received',
     })
-    .select('id, name, email, company, domain, company_size, security_needs, message, lead_score, status')
+    .select('id, name, email, company, domain, company_size, security_needs, message, lead_score, status, scan_id, risk_score')
     .single();
 
   if (insertError || !lead) {
@@ -80,22 +86,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to save lead' }, { status: 500 });
   }
 
-  const valueEstimate = qualified ? 12000 : company_size === '500+' ? 8000 : 5000;
+  const valueEstimate = leadScore >= 70 ? 12000 : company_size === '500+' ? 8000 : 5000;
 
   await admin.from('enterprise_pipeline').insert({
     lead_id: lead.id,
-    stage: qualified ? 'qualified' : 'new',
+    stage: leadScore >= 70 ? 'qualified' : 'new',
     owner_email: OWNER_EMAIL,
     value_estimate: valueEstimate,
-    notes: qualified ? 'Auto-qualified by lead score' : null,
+    notes: scanContext?.summary ? `Auto-analyzed: ${scanContext.summary.slice(0, 200)}` : null,
   });
 
-  void scheduleEnterpriseEmailSequences(lead.id, lead.email, lead.name, lead.domain);
-  notifyAdminNewLead(lead);
+  await admin
+    .from('enterprise_leads')
+    .update({ status: 'analyzed' })
+    .eq('id', lead.id);
+
+  const emailLead = {
+    id: lead.id,
+    name: lead.name,
+    email: lead.email,
+    company: lead.company,
+    domain: lead.domain,
+    company_size: lead.company_size,
+    security_needs: lead.security_needs as string[] | null,
+    message: lead.message,
+    lead_score: leadScore,
+  };
+
+  await Promise.all([
+    sendEnterpriseLeadAdminEmail(emailLead, scanContext),
+    sendEnterpriseLeadCustomerEmail(emailLead, scanContext),
+  ]);
+
+  await admin
+    .from('enterprise_leads')
+    .update({ status: 'responded' })
+    .eq('id', lead.id);
 
   void emitEvent(
     'enterprise_lead_created',
-    { leadId: lead.id, leadScore, qualified, company: lead.company },
+    {
+      leadId: lead.id,
+      leadScore,
+      domain: lead.domain,
+      riskScore: scanContext?.riskScore ?? null,
+      automated: true,
+    },
     null,
     session_id ?? null,
   );
@@ -104,7 +140,10 @@ export async function POST(req: NextRequest) {
     ok: true,
     leadId: lead.id,
     lead_score: leadScore,
-    qualified,
-    ...(qualified ? { cta: 'Book a Security Demo' } : {}),
+    risk_score: scanContext?.riskScore ?? null,
+    security_score: scanContext?.securityScore ?? null,
+    risk_level: scanContext?.riskLevel ?? null,
+    remediationInsights: scanContext?.remediationInsights ?? [],
+    reportUrl: scanContext?.reportUrl ?? null,
   });
 }
