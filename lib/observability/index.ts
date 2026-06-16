@@ -60,6 +60,14 @@ export function generateTraceId(): string {
   return crypto.randomUUID();
 }
 
+const TRACE_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Skip Postgres trace writes when callers pass placeholders like "unknown". */
+function isPersistableTraceId(traceId: string | null | undefined): traceId is string {
+  return typeof traceId === 'string' && TRACE_ID_RE.test(traceId);
+}
+
 function structuredConsole(payload: Record<string, unknown>): void {
   console.log(JSON.stringify({ ...payload, ts: new Date().toISOString() }));
 }
@@ -83,7 +91,7 @@ export async function logEvent(params: LogEventParams): Promise<void> {
       layer: params.layer,
       user_id: params.userId ?? null,
       org_id: params.orgId ?? null,
-      trace_id: params.traceId ?? null,
+      trace_id: isPersistableTraceId(params.traceId) ? params.traceId : null,
       metadata: params.metadata ?? {},
     });
   } catch (err) {
@@ -104,6 +112,10 @@ export async function startTrace(params: StartTraceParams): Promise<void> {
     traceId: params.traceId,
     name: params.name ?? 'scan',
   });
+
+  if (!isPersistableTraceId(params.traceId)) {
+    return;
+  }
 
   try {
     const supabase = createAdminClient();
@@ -144,6 +156,10 @@ export async function addTraceStep(
     durationMs: durationMs ?? null,
   });
 
+  if (!isPersistableTraceId(traceId)) {
+    return;
+  }
+
   try {
     const supabase = createAdminClient();
     await supabase.from('trace_steps').insert({
@@ -173,6 +189,10 @@ export async function completeTrace(
   metadata?: Record<string, unknown>,
 ): Promise<void> {
   structuredConsole({ observability: 'trace_complete', traceId, status });
+
+  if (!isPersistableTraceId(traceId)) {
+    return;
+  }
 
   try {
     const supabase = createAdminClient();
