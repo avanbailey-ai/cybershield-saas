@@ -9,7 +9,7 @@ import { getSeverityCategory } from '@/lib/conversion/urgency';
 
 type PlanId = 'free' | 'pro' | 'growth' | 'agency';
 
-const ROWS: { feature: string; values: Record<PlanId, string | boolean> }[] = [
+const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string | boolean> }[] = [
   {
     feature: 'Websites',
     values: {
@@ -30,14 +30,22 @@ const ROWS: { feature: string; values: Record<PlanId, string | boolean> }[] = [
   },
   {
     feature: 'Full vulnerability report',
+    freeNote: 'Not enabled on Free plan',
     values: { free: false, pro: true, growth: true, agency: true },
+  },
+  {
+    feature: 'Change detection',
+    freeNote: 'Not enabled on Free plan',
+    values: { free: false, pro: false, growth: true, agency: true },
   },
   {
     feature: 'Email alerts',
+    freeNote: 'Not enabled on Free plan',
     values: { free: false, pro: true, growth: true, agency: true },
   },
   {
-    feature: 'Daily monitoring',
+    feature: 'Continuous monitoring',
+    freeNote: 'Not enabled on Free plan',
     values: { free: false, pro: true, growth: true, agency: true },
   },
   {
@@ -49,31 +57,33 @@ const ROWS: { feature: string; values: Record<PlanId, string | boolean> }[] = [
 const PLAN_IDS: PlanId[] = ['free', 'pro', 'growth', 'agency'];
 
 const PLAN_LABELS: Record<PlanId, string> = {
-  free: 'Free',
+  free: 'First Scan',
   pro: PLAN_LIMITS.pro.name,
-  growth: PLAN_LIMITS.growth.name,
+  growth: 'Continuous Protection',
   agency: PLAN_LIMITS.agency.name,
 };
 
-function CellValue({ value }: { value: string | boolean }) {
+function CellValue({ value, isFree }: { value: string | boolean; isFree?: boolean }) {
   if (typeof value === 'boolean') {
     return value ? (
       <svg className="mx-auto h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
       </svg>
     ) : (
-      <span className="text-gray-600">—</span>
+      <span className={`text-xs ${isFree ? 'text-gray-500' : 'text-gray-600'}`}>
+        {isFree ? 'Locked' : '—'}
+      </span>
     );
   }
-  return <span className="text-sm text-gray-300">{value}</span>;
+  return <span className={`text-sm ${isFree ? 'text-gray-500' : 'text-gray-300'}`}>{value}</span>;
 }
 
 export default function PlanComparisonTable() {
-  const [recommendedPlan, setRecommendedPlan] = useState<'pro' | 'growth'>('pro');
+  const [recommendedPlan, setRecommendedPlan] = useState<'pro' | 'growth'>('growth');
   const { prices } = useDisplayPrices();
 
   function planPrice(id: PlanId): string {
-    if (id === 'free') return '$0';
+    if (id === 'free') return 'Preview only';
     return formatDisplayPriceMonthly(prices[id]);
   }
 
@@ -93,10 +103,15 @@ export default function PlanComparisonTable() {
           <tr className="border-b border-gray-800 bg-gray-900/60">
             <th className="px-4 py-4 text-sm font-semibold text-gray-400">Feature</th>
             {PLAN_IDS.map((planId) => (
-              <th key={planId} className="px-4 py-4 text-center">
-                <div className="text-sm font-semibold text-white">{PLAN_LABELS[planId]}</div>
+              <th
+                key={planId}
+                className={`px-4 py-4 text-center ${planId === 'free' ? 'opacity-60' : ''}`}
+              >
+                <div className={`text-sm font-semibold ${planId === 'free' ? 'text-gray-500' : 'text-white'}`}>
+                  {PLAN_LABELS[planId]}
+                </div>
                 <div className="mt-0.5 text-xs text-gray-500">{planPrice(planId)}</div>
-                {planId === 'growth' && PLAN_LIMITS.growth.mostPopular && (
+                {planId === 'growth' && (
                   <span className="mt-1 inline-block rounded-full bg-blue-600/20 px-2 py-0.5 text-xs font-semibold text-blue-400">
                     Most Popular
                   </span>
@@ -113,10 +128,15 @@ export default function PlanComparisonTable() {
         <tbody>
           {ROWS.map((row) => (
             <tr key={row.feature} className="border-b border-gray-800/60">
-              <td className="px-4 py-3 text-sm text-gray-400">{row.feature}</td>
+              <td className="px-4 py-3 text-sm text-gray-400">
+                {row.feature}
+                {row.freeNote && (
+                  <span className="mt-0.5 block text-xs text-gray-600">{row.freeNote}</span>
+                )}
+              </td>
               {PLAN_IDS.map((planId) => (
-                <td key={planId} className="px-4 py-3 text-center">
-                  <CellValue value={row.values[planId]} />
+                <td key={planId} className={`px-4 py-3 text-center ${planId === 'free' ? 'opacity-60' : ''}`}>
+                  <CellValue value={row.values[planId]} isFree={planId === 'free'} />
                 </td>
               ))}
             </tr>

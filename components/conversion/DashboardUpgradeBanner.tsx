@@ -17,16 +17,16 @@ export default function DashboardUpgradeBanner() {
       <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900/40 px-5 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-medium text-white">Unlock continuous monitoring</p>
+            <p className="font-medium text-white">Enable continuous protection</p>
             <p className="mt-1 text-sm text-gray-400">
-              Get daily scans, alerts, and full reports with a paid plan.
+              One-time scans miss new threats. Get daily scans, alerts, and full reports.
             </p>
           </div>
           <Link
             href="/pricing"
             className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
           >
-            View plans
+            Enable protection
           </Link>
         </div>
       </div>
@@ -49,14 +49,14 @@ export default function DashboardUpgradeBanner() {
           }
           className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
         >
-          Upgrade plan
+          Upgrade protection
         </button>
       ) : (
         <Link
           href="/app/settings"
           className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
         >
-          Upgrade plan
+          Upgrade protection
         </Link>
       )}
     </div>

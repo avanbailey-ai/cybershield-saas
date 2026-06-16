@@ -14,13 +14,13 @@ export function getPersonalizedCta(domain: string | null | undefined, action: Ct
     case 'monitor':
       return `Enable daily monitoring for ${hostname}`;
     case 'protect':
-      return `Protect ${hostname} continuously`;
+      return 'Enable protection';
     case 'full_report':
-      return `Unlock full report for ${hostname}`;
+      return 'Unlock full protection report';
     case 'export':
-      return `Export ${hostname} security report`;
+      return 'Enable protection to export';
     case 'upgrade':
     default:
-      return `Upgrade to protect ${hostname}`;
+      return 'Enable protection';
   }
 }

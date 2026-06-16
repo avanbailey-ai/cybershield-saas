@@ -2,15 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import EnterpriseHeader from '@/components/enterprise/EnterpriseHeader';
 import TrustSignals from '@/components/enterprise/TrustSignals';
-import { PLAN_LIMITS } from '@/lib/billing/plans';
-import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
-import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 
 export const metadata: Metadata = {
-  title: 'Enterprise Pricing',
-  description: 'CyberShield enterprise security monitoring — Growth, Enterprise, and Security Audit packages.',
+  title: 'Enterprise Security',
+  description: 'Request a security review, compliance reporting, and dedicated support for regulated teams.',
   openGraph: {
-    title: 'CyberShield Enterprise Pricing',
+    title: 'CyberShield Enterprise',
     description: 'Custom enterprise security monitoring, audit logs, and dedicated support.',
     type: 'website',
   },
@@ -19,33 +16,11 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 export const runtime = 'nodejs';
 
-export default async function EnterprisePricingPage() {
-  const displayAmounts = await getPlanDisplayAmounts();
-  const growthPrice = displayAmounts.growth;
-
-  const tiers = [
+export default function EnterprisePricingPage() {
+  const offerings = [
     {
-      name: 'Business',
-      planKey: 'growth' as const,
-      subtitle: 'For growing teams',
-      price: growthPrice,
-      custom: false,
-      features: [
-        `${PLAN_LIMITS.growth.websites} websites monitored`,
-        'Daily automated scans',
-        'Email alerts & digests',
-        'Team dashboard access',
-      ],
-      cta: 'Get Started',
-      ctaHref: '/pricing',
-      highlighted: false,
-    },
-    {
-      name: 'Enterprise',
-      planKey: null,
+      name: 'Enterprise Protection',
       subtitle: 'For security-conscious organizations',
-      price: null,
-      custom: true,
       features: [
         'Unlimited websites & seats',
         'Multi-tenant org management',
@@ -54,17 +29,13 @@ export default async function EnterprisePricingPage() {
         'Dedicated security review',
         'Custom SLA & support',
       ],
-      cta: 'Contact Sales',
-      ctaHref: '/enterprise/lead',
+      cta: 'Request security review',
+      ctaHref: '/enterprise/review',
       highlighted: true,
     },
     {
       name: 'Security Audit',
-      planKey: null,
       subtitle: 'One-time comprehensive assessment',
-      price: null,
-      custom: true,
-      auditPrice: 'From $2,500',
       features: [
         'Full vulnerability assessment',
         'Executive summary report',
@@ -72,7 +43,7 @@ export default async function EnterprisePricingPage() {
         'Compliance gap analysis',
         'Optional ongoing monitoring handoff',
       ],
-      cta: 'Request Audit',
+      cta: 'Request audit',
       ctaHref: '/enterprise/lead?message=Security+Audit+inquiry',
       highlighted: false,
     },
@@ -83,14 +54,14 @@ export default async function EnterprisePricingPage() {
       <EnterpriseHeader />
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-white">Enterprise Security Pricing</h1>
+          <h1 className="text-4xl font-bold text-white">Enterprise Security</h1>
           <p className="mt-3 text-lg text-gray-400">
-            From self-serve Growth plans to custom enterprise deployments.
+            Custom coverage for regulated teams — scoped by our security experts.
           </p>
         </div>
 
-        <div className="mb-16 grid gap-6 lg:grid-cols-3">
-          {tiers.map((tier) => (
+        <div className="mb-16 grid gap-6 lg:grid-cols-2">
+          {offerings.map((tier) => (
             <div
               key={tier.name}
               className={`relative rounded-xl border p-6 ${
@@ -101,23 +72,13 @@ export default async function EnterprisePricingPage() {
             >
               {tier.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-0.5 text-xs font-semibold text-white">
-                  Most Popular
+                  Recommended
                 </span>
               )}
               <h2 className="text-xl font-bold text-white">{tier.name}</h2>
               <p className="mt-1 text-sm text-gray-400">{tier.subtitle}</p>
-              <div className="mt-4">
-                {tier.custom ? (
-                  <p className="text-3xl font-bold text-white">
-                    {'auditPrice' in tier && tier.auditPrice ? tier.auditPrice : 'Custom'}
-                  </p>
-                ) : (
-                  <p className="text-3xl font-bold text-white">
-                    {formatDisplayPrice(tier.price)}
-                    <span className="text-base font-normal text-gray-400">/mo</span>
-                  </p>
-                )}
-              </div>
+              <p className="mt-4 text-3xl font-bold text-white">Custom</p>
+              <p className="mt-1 text-xs text-gray-500">Scoped to your environment</p>
               <ul className="mt-6 space-y-3">
                 {tier.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-sm text-gray-300">
@@ -149,16 +110,16 @@ export default async function EnterprisePricingPage() {
 
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           <Link
-            href="/enterprise/lead"
+            href="/enterprise/review"
             className="rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white hover:bg-blue-500"
           >
-            Talk to Sales
+            Request security review
           </Link>
           <Link
             href="/scan"
             className="rounded-lg border border-gray-700 px-8 py-3 font-semibold text-gray-300 hover:border-gray-600 hover:text-white"
           >
-            Run Free Scan
+            Run free scan first
           </Link>
         </div>
       </main>

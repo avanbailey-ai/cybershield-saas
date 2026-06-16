@@ -32,7 +32,10 @@ export default function SecurityOverviewPanel({ report, locked = false }: Securi
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           {locked ? (
-            <p className="text-sm text-gray-500">Upgrade to view full security score</p>
+            <>
+              <p className="text-sm text-gray-500">Score preview only</p>
+              <p className="mt-2 text-xs text-gray-600">Not enabled on Free plan</p>
+            </>
           ) : (
             <>
               <p className={`text-5xl font-bold tabular-nums ${riskScoreColor(report.riskLevel)}`}>
@@ -57,6 +60,22 @@ export default function SecurityOverviewPanel({ report, locked = false }: Securi
           )}
         </div>
       </div>
+
+      {locked && (
+        <div className="mt-4 rounded-lg border border-gray-700/50 bg-gray-800/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Change detection
+          </p>
+          <div className="mt-2 space-y-1 blur-sm select-none" aria-hidden="true">
+            <p className="text-xs text-gray-500">Website change detected since last scan</p>
+            <p className="text-xs text-gray-500">Posture degraded — new endpoint exposed</p>
+          </div>
+          <p className="mt-3 text-sm font-medium text-white">Start continuous protection</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Change detection and trend tracking are not enabled on the Free plan.
+          </p>
+        </div>
+      )}
 
       {!locked && (
         <>

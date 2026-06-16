@@ -6,10 +6,10 @@ import Footer from '@/components/landing/Footer';
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'CyberShield plans from free scans to Pro, Growth, and Agency monitoring. Compare features and upgrade anytime.',
+    'Try your first scan free, then enable continuous protection. Most SMBs choose daily monitoring for live websites.',
   openGraph: {
-    title: 'CyberShield Pricing',
-    description: 'Affordable security monitoring for every team size.',
+    title: 'CyberShield Pricing — Continuous Protection',
+    description: 'Start with a free scan. Enable protection when you\'re ready.',
     type: 'website',
   },
 };

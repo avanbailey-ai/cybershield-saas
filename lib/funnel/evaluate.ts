@@ -89,7 +89,7 @@ export function evaluateScanFunnel(input: ScanFunnelInput): ScanFunnelResult {
     conversionTier,
     showEnterpriseCta,
     showEnterpriseReview,
-    smbPrimaryCta: 'Improve my score automatically',
+    smbPrimaryCta: 'Enable protection',
     smbPrimaryHref: `/pricing?plan=${recommendedPlan}${domain ? `&domain=${encodeURIComponent(domain)}` : ''}`,
     recommendedPlan,
     enterpriseHref,

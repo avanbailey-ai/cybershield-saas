@@ -290,16 +290,20 @@ export default async function ReportPage({ params }: PageProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
             </div>
-            <h3 className="mb-2 text-lg font-semibold text-white">Full Report Locked</h3>
-            <p className="mb-6 text-sm text-gray-400">{gate.genericMessage}</p>
+            <h3 className="mb-2 text-lg font-semibold text-white">Full protection report locked</h3>
+            <p className="mb-4 text-sm text-gray-400">{gate.genericMessage}</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+              Not enabled on Free plan
+            </p>
             <p className="mb-6 text-xs text-gray-500">
-              Upgrade to see intelligence cards, exploit scenarios, remediation steps, and security trend charts.
+              Hidden risks detected: intelligence cards, exploit scenarios, remediation steps, and
+              security trend charts require continuous protection.
             </p>
             <Link
               href="/pricing"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
             >
-              Upgrade to Pro →
+              Enable protection →
             </Link>
           </div>
         )}
