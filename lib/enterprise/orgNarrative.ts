@@ -1,6 +1,6 @@
 import { computeRollingRiskScore, type CompletedScanScoreRow } from './rollingRiskScore';
 import { POSTURE_DISPLAY, scoreToPostureState, type PostureState } from './postureState';
-import type { OrgAnomalyFeedItem } from './orgDashboardSummary';
+import type { OrgAnomalyFeedItem } from './enterpriseTypes';
 import type { OrgSecurityNarrative, TrendDirection } from './narrativeTypes';
 
 const TREND_DELTA_THRESHOLD = 10;

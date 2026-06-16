@@ -13,6 +13,7 @@ import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAcc
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
 import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY, type OrgDashboardSummary } from "@/lib/enterprise/orgDashboardSummary";
+import { getCanonicalOrgSecurityState } from "@/lib/enterprise/canonicalOrgSecurityState";
 import { POSTURE_DISPLAY } from "@/lib/enterprise/postureState";
 import EnterpriseExportPdfButton from "@/components/enterprise/EnterpriseExportPdfButton";
 
@@ -83,27 +84,33 @@ export default async function EnterpriseDashboardPage() {
   let summary: OrgDashboardSummary = emptySummary;
 
   if (orgId) {
-    const [membersRes, scansRes, orgSummary] = await Promise.all([
+    const [membersRes, orgSummary, canonical] = await Promise.all([
       admin
         .from("organization_members")
         .select("*", { count: "exact", head: true })
         .eq("org_id", orgId),
-      admin
-        .from("scans")
-        .select("id, security_score, status, completed_at, websites(url, label)")
-        .eq("org_id", orgId)
-        .eq("status", "completed")
-        .order("completed_at", { ascending: false })
-        .limit(20),
       getOrgDashboardSummary(orgId),
+      getCanonicalOrgSecurityState(orgId),
     ]);
 
     memberCount = membersRes.count ?? 0;
     summary = orgSummary;
-    recentScans = (scansRes.data ?? []).map((s) => ({
-      ...s,
-      websites: Array.isArray(s.websites) ? s.websites[0] ?? null : s.websites,
-    })) as typeof recentScans;
+    recentScans = [...canonical.latest_scans]
+      .sort(
+        (a, b) =>
+          new Date(b.completed_at ?? 0).getTime() - new Date(a.completed_at ?? 0).getTime(),
+      )
+      .slice(0, 20)
+      .map((scan) => ({
+        id: scan.scan_id,
+        security_score: scan.security_score,
+        status: "completed",
+        completed_at: scan.completed_at,
+        websites:
+          scan.website_url || scan.website_label
+            ? { url: scan.website_url ?? "", label: scan.website_label }
+            : null,
+      }));
   }
 
   const {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireEnterpriseAccess } from '@/lib/auth/requireEnterpriseAccess';
 import { getOrgDashboardSummary } from '@/lib/enterprise/orgDashboardSummary';
+import { denyEnterpriseAdminAccess } from '@/lib/enterprise/enterpriseRbac';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 
 /** GET /api/enterprise/dashboard-summary — org-wide monitoring aggregates for agency portal */
@@ -20,6 +21,13 @@ export async function GET() {
     supabase as unknown as SessionSubscriptionClient,
   );
   if (!access.allowed) return access.response;
+
+  const rbacDenied = denyEnterpriseAdminAccess(
+    access.orgId,
+    access.role,
+    '/api/enterprise/dashboard-summary',
+  );
+  if (rbacDenied) return rbacDenied;
 
   try {
     const summary = await getOrgDashboardSummary(access.orgId);

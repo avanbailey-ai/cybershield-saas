@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { requireEnterpriseAccess } from '@/lib/auth/requireEnterpriseAccess';
-import { isOrgAdminRole } from '@/lib/auth/rbac';
+import { denyEnterpriseAdminAccess } from '@/lib/enterprise/enterpriseRbac';
 import { generateEnterpriseReportPDFForOrg } from '@/lib/enterprise/pdf/generateEnterpriseReportPDF';
 import { parseDateRange } from '@/lib/enterprise/reportBuilder';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
@@ -28,12 +28,12 @@ export async function POST(req: NextRequest) {
   );
   if (!access.allowed) return access.response;
 
-  if (!isOrgAdminRole(access.role)) {
-    return NextResponse.json(
-      { error: 'Forbidden: only organization owners and admins may export reports' },
-      { status: 403 },
-    );
-  }
+  const rbacDenied = denyEnterpriseAdminAccess(
+    access.orgId,
+    access.role,
+    '/api/enterprise/export/pdf',
+  );
+  if (rbacDenied) return rbacDenied;
 
   let body: ExportPdfBody;
   try {

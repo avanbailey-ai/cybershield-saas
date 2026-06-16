@@ -549,7 +549,15 @@ export async function generateEnterpriseReportPDFForOrg(
   orgId: string,
   dateRange?: { start?: string; end?: string } | null,
 ): Promise<{ buffer: Buffer; filename: string }> {
+  const {
+    getCanonicalOrgSecurityState,
+    validateCanonicalState,
+  } = await import('../canonicalOrgSecurityState');
   const { buildEnterpriseReport } = await import('../reportBuilder');
+
+  const canonical = await getCanonicalOrgSecurityState(orgId, { forceRefresh: true });
+  await validateCanonicalState(orgId, canonical);
+
   const reportData = await buildEnterpriseReport(orgId, dateRange);
   const buffer = await generateEnterpriseReportPDF(reportData);
   const safeName = reportData.cover.orgName.replace(/[^a-z0-9.-]/gi, '_').slice(0, 60);

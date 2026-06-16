@@ -7,6 +7,10 @@ import {
 } from './rollingRiskScore';
 import type { ScanFindingRow } from './scanDiff';
 import { generateAndStoreScanNarrative } from './storeNarrative';
+import {
+  buildCanonicalOrgSecurityState,
+  invalidateCanonicalOrgSecurityState,
+} from './canonicalOrgSecurityState';
 
 export interface OrgIntelligenceSnapshot {
   orgId: string;
@@ -154,6 +158,16 @@ export async function updateOrgIntelligence(
         narrativeErr,
       );
     }
+  }
+
+  invalidateCanonicalOrgSecurityState(orgId);
+  try {
+    await buildCanonicalOrgSecurityState(orgId);
+  } catch (canonicalErr) {
+    console.error(
+      `[updateOrgIntelligence] Canonical state rebuild failed (non-fatal) orgId=${orgId}:`,
+      canonicalErr,
+    );
   }
 
   return {

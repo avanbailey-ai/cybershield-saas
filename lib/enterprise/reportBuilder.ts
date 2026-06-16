@@ -2,9 +2,8 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrganization } from '@/lib/org/context';
-import { generateOrgSecurityNarrative } from './orgNarrative';
-import { computeRollingRiskScore } from './rollingRiskScore';
-import { scoreToPostureState, POSTURE_DISPLAY, type PostureState } from './postureState';
+import { getCanonicalOrgSecurityState } from './canonicalOrgSecurityState';
+import { POSTURE_DISPLAY, type PostureState } from './postureState';
 import {
   classifyIssueSeverity,
   diffScanFindings,
@@ -12,7 +11,7 @@ import {
   type ScanFindingDiff,
   type ScanFindingRow,
 } from './scanDiff';
-import { scoreToRiskBucket, type RiskDistribution } from './orgDashboardSummary';
+import type { RiskDistribution } from './enterpriseTypes';
 import type { OrgSecurityNarrative, SecurityNarrative } from './narrativeTypes';
 
 export interface ReportDateRange {
@@ -344,13 +343,9 @@ export async function buildEnterpriseReport(
   const admin = createAdminClient();
   const generatedAt = new Date().toISOString();
 
-  const [org, orgIntelRes, websitesRes, scansRes, anomaliesRes, narrativesRes] = await Promise.all([
+  const [org, canonical, websitesRes, scansRes, anomaliesRes] = await Promise.all([
     getOrganization(orgId),
-    admin
-      .from('organizations')
-      .select('rolling_risk_score, posture_state')
-      .eq('id', orgId)
-      .single(),
+    getCanonicalOrgSecurityState(orgId),
     admin.from('websites').select('id, url, label, is_active').eq('org_id', orgId),
     admin
       .from('scans')
@@ -369,11 +364,6 @@ export async function buildEnterpriseReport(
       .gte('created_at', dateRange.start)
       .lte('created_at', dateRange.end)
       .order('created_at', { ascending: false }),
-    admin
-      .from('security_narratives')
-      .select('scan_id, narrative, generated_at')
-      .eq('org_id', orgId)
-      .order('generated_at', { ascending: false }),
   ]);
 
   if (scansRes.error) throw new Error(scansRes.error.message);
@@ -386,17 +376,15 @@ export async function buildEnterpriseReport(
     : org?.name ?? 'unknown';
 
   const scans = (scansRes.data ?? []) as ScanRow[];
-  const narrativeByScan = new Map<string, SecurityNarrative>();
-  for (const row of narrativesRes.data ?? []) {
-    if (!narrativeByScan.has(row.scan_id)) {
-      narrativeByScan.set(row.scan_id, row.narrative as SecurityNarrative);
-    }
-  }
+  const rollingRiskScore = canonical.rollingRiskScore;
+  const postureState = canonical.postureState;
+  const riskDistribution = canonical.dashboard.riskDistribution;
+  const orgNarrative = canonical.security_narratives.org;
+  const latestScanNarrative = canonical.security_narratives.latestScan;
 
-  const latestNarrativeRow = (narrativesRes.data ?? [])[0];
-  const latestScanNarrative = latestNarrativeRow
-    ? (latestNarrativeRow.narrative as SecurityNarrative)
-    : null;
+  const diffByScanId = new Map(
+    canonical.scan_diff.map((entry) => [entry.scan_id, entry.diff]),
+  );
 
   const priorScansRes = await admin
     .from('scans')
@@ -430,14 +418,26 @@ export async function buildEnterpriseReport(
     const url = website?.url ?? 'unknown';
     const label = website?.label ?? null;
 
-    const websiteScans = scansByWebsite.get(scan.website_id) ?? [];
-    const scanIndex = websiteScans.findIndex((s) => s.id === scan.id);
-    const previousInRange = scanIndex > 0 ? websiteScans[scanIndex - 1] : null;
-    const previous =
-      previousInRange ?? priorByWebsite.get(scan.website_id) ?? null;
+    const canonicalDiff = diffByScanId.get(scan.id);
+    let diff: ScanFindingDiff;
+    if (canonicalDiff) {
+      diff = canonicalDiff;
+    } else {
+      const websiteScans = scansByWebsite.get(scan.website_id) ?? [];
+      const scanIndex = websiteScans.findIndex((s) => s.id === scan.id);
+      const previousInRange = scanIndex > 0 ? websiteScans[scanIndex - 1] : null;
+      const previous = previousInRange ?? priorByWebsite.get(scan.website_id) ?? null;
+      diff = diffScanFindings(previous, scan);
+    }
 
-    const diff = diffScanFindings(previous, scan);
-    const findings = issuesToFindings(scan.issues);
+    const canonicalResult = canonical.scan_results.find((r) => r.scan_id === scan.id);
+    const findings = canonicalResult
+      ? canonicalResult.issues.map((issue) => ({
+          severity: classifyIssueSeverity(issue),
+          description: sanitizeReportText(issue, 500),
+          category: classifyIssueCategory(issue),
+        }))
+      : issuesToFindings(scan.issues);
 
     scanDetails.push({
       scanId: scan.id,
@@ -473,43 +473,6 @@ export async function buildEnterpriseReport(
 
   timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const allOrgScansRes = await admin
-    .from('scans')
-    .select('id, website_id, security_score, completed_at, issues, vulnerabilities_count')
-    .eq('org_id', orgId)
-    .eq('status', 'completed');
-
-  const allScans = (allOrgScansRes.data ?? []) as ScanRow[];
-  const computedRolling = computeRollingRiskScore(allScans);
-  const rollingRiskScore =
-    orgIntelRes.data?.rolling_risk_score ?? computedRolling;
-  const postureState =
-    (orgIntelRes.data?.posture_state as PostureState | null) ??
-    scoreToPostureState(rollingRiskScore);
-
-  const riskDistribution: RiskDistribution = {
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    unknown: 0,
-  };
-
-  const latestByWebsite = new Map<string, ScanRow>();
-  for (const scan of [...allScans].sort(
-    (a, b) => new Date(b.completed_at ?? 0).getTime() - new Date(a.completed_at ?? 0).getTime(),
-  )) {
-    if (!latestByWebsite.has(scan.website_id)) {
-      latestByWebsite.set(scan.website_id, scan);
-    }
-  }
-
-  for (const site of activeWebsites) {
-    const latest = latestByWebsite.get(site.id);
-    const bucket = scoreToRiskBucket(latest?.security_score ?? null);
-    riskDistribution[bucket]++;
-  }
-
   let totalVulnerabilities = 0;
   let resolvedFindings = 0;
   let activeFindings = 0;
@@ -519,26 +482,6 @@ export async function buildEnterpriseReport(
     resolvedFindings += detail.diff.removed.length;
     activeFindings += detail.findings.length;
   }
-
-  const anomalyFeed = anomalies.map((a) => ({
-    id: a.id,
-    type: a.type,
-    severity: a.severity,
-    message: a.message,
-    websiteId: null as string | null,
-    createdAt: a.createdAt,
-    resolved: a.resolved,
-  }));
-
-  const orgNarrative = generateOrgSecurityNarrative({
-    orgId,
-    rollingRiskScore,
-    postureState,
-    scans: allScans,
-    anomalies: anomalyFeed,
-    totalSitesMonitored: activeWebsites.length,
-    criticalAlertsCount: riskDistribution.critical,
-  });
 
   const actionPlan = buildActionPlan(scanDetails, anomalies, latestScanNarrative);
   const compliance = buildComplianceSummary(
@@ -562,7 +505,7 @@ export async function buildEnterpriseReport(
       orgNarrative,
       rollingRiskScore,
       totalScansAnalyzed: scans.length,
-      sitesMonitored: activeWebsites.length,
+      sitesMonitored: canonical.dashboard.totalSitesMonitored,
     },
     metrics: {
       rollingRiskScore,
