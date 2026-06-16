@@ -73,10 +73,14 @@ export default function EnterpriseExportPdfButton({
         type="button"
         onClick={handleExport}
         disabled={disabled || loading || !orgId}
+        aria-label="Export organization security posture report as PDF"
         className="rounded-lg border border-emerald-700/50 bg-emerald-600/10 px-4 py-2 text-sm font-medium text-emerald-300 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? 'Generating PDF…' : 'Export SOC2 Report (PDF)'}
+        {loading ? 'Generating PDF…' : 'Export security posture report (PDF)'}
       </button>
+      {disabled && !loading && (
+        <p className="max-w-xs text-right text-xs text-gray-500">Requires organization admin access and scan data.</p>
+      )}
       {success && <p className="max-w-xs text-right text-xs text-emerald-400">{success}</p>}
       {error && <p className="max-w-xs text-right text-xs text-red-400">{error}</p>}
     </div>

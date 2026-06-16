@@ -302,11 +302,11 @@ export default async function EnterpriseDashboardPage() {
             <p className="mt-2 text-3xl font-bold text-white">{totalSitesMonitored}</p>
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Critical Alerts</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Critical Alerts (unread)</p>
             <p className="mt-2 text-3xl font-bold text-red-400">{criticalAlertsCount}</p>
           </div>
           <div className="rounded-xl border border-indigo-800/50 bg-indigo-950/20 p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-indigo-300/80">Rolling Risk Score</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-indigo-300/80">Org Risk Score (rolling)</p>
             <p className="mt-2 text-3xl font-bold text-white">
               {rollingRiskScore !== null ? `${rollingRiskScore}/100` : "—"}
             </p>
@@ -315,7 +315,7 @@ export default async function EnterpriseDashboardPage() {
             )}
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Open Alerts</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Open Alerts (all severities)</p>
             <p className="mt-2 text-3xl font-bold text-orange-400">{openAlertsCount}</p>
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-5">
