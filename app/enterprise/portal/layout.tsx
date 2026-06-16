@@ -6,6 +6,8 @@ import EnterprisePortalSidebar from '@/components/enterprise/EnterprisePortalSid
 import { canAccessEnterprise } from '@/lib/auth/permissions';
 import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
+import { isOwner } from '@/lib/auth/owner';
+import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
 
 export default async function EnterprisePortalLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -42,8 +44,9 @@ export default async function EnterprisePortalLayout({ children }: { children: R
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0a0f1e]">
-      <EnterprisePortalSidebar />
+      <EnterprisePortalSidebar showOwnerTools={isOwner(user.email)} />
       <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
+      <ReportProblemWidget userEmail={user.email} />
     </div>
   );
 }

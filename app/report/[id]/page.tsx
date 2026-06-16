@@ -14,6 +14,7 @@ import SecurityPostureTimeline from '@/components/report/SecurityPostureTimeline
 import SecurityReportEmptyState from '@/components/report/SecurityReportEmptyState';
 import SecurityRecommendationsPanel from '@/components/report/SecurityRecommendationsPanel';
 import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
+import ReportProblemOnReport from '@/components/beta/ReportProblemOnReport';
 
 interface ScanRow {
   id: string;
@@ -353,6 +354,11 @@ export default async function ReportPage({ params }: PageProps) {
           </div>
         )}
       </main>
+      <ReportProblemOnReport
+        reportId={scan.id}
+        websiteId={scan.website_id}
+        userEmail={user.email}
+      />
     </div>
   );
 }

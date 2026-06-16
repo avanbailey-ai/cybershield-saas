@@ -17,6 +17,7 @@ import { isOwner } from "@/lib/auth/owner";
 import { type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
 
+import ReportProblemWidget from "@/components/beta/ReportProblemWidget";
 import { ensureUserOrg } from "@/lib/org/migrateExistingUsers";
 
 
@@ -100,6 +101,8 @@ export default async function DashboardLayout({
           {children}
 
         </div>
+
+        <ReportProblemWidget userEmail={user.email} />
 
       </div>
 

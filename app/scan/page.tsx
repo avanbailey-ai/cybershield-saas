@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import ScanInput from '@/components/landing/ScanInput';
+import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
 
 export const metadata: Metadata = {
   title: 'Free Security Scan — CyberShield',
@@ -37,6 +38,7 @@ export default function ScanPage() {
       <main>
         <ScanInput showUpgradeCta />
       </main>
+      <ReportProblemWidget />
     </div>
   );
 }
