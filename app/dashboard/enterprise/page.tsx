@@ -12,7 +12,7 @@ import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from "@/lib/o
 import type { SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import { getActiveOrgId, getOrganization } from "@/lib/org/context";
 import { getSeatLimitForPlan } from "@/lib/billing/orgPlans";
-import { getOrgDashboardSummary } from "@/lib/enterprise/orgDashboardSummary";
+import { getOrgDashboardSummary, RISK_BUCKET_DISPLAY } from "@/lib/enterprise/orgDashboardSummary";
 
 export const metadata: Metadata = {
   title: "Enterprise Dashboard",
@@ -58,7 +58,7 @@ export default async function EnterpriseDashboardPage() {
     id: string;
     security_score: number | null;
     status: string;
-    started_at: string;
+    completed_at: string | null;
     websites: { url: string; label: string | null } | null;
   }> = [];
 
@@ -86,9 +86,10 @@ export default async function EnterpriseDashboardPage() {
         .eq("org_id", orgId),
       admin
         .from("scans")
-        .select("id, security_score, status, started_at, websites(url, label)")
+        .select("id, security_score, status, completed_at, websites(url, label)")
         .eq("org_id", orgId)
-        .order("started_at", { ascending: false })
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
         .limit(20),
       getOrgDashboardSummary(orgId),
     ]);
@@ -182,15 +183,7 @@ export default async function EnterpriseDashboardPage() {
           <h3 className="mb-1 text-sm font-semibold text-white">Risk Distribution</h3>
           <p className="mb-4 text-xs text-gray-500">Latest completed scan per monitored site</p>
           <div className="space-y-3">
-            {(
-              [
-                { key: "critical", label: "Critical (<50)", color: "bg-red-500", text: "text-red-400" },
-                { key: "high", label: "High (50–69)", color: "bg-orange-500", text: "text-orange-400" },
-                { key: "medium", label: "Medium (70–89)", color: "bg-yellow-500", text: "text-yellow-400" },
-                { key: "low", label: "Low (90+)", color: "bg-green-500", text: "text-green-400" },
-                { key: "unknown", label: "Not scanned", color: "bg-gray-500", text: "text-gray-400" },
-              ] as const
-            ).map(({ key, label, color, text }) => {
+            {RISK_BUCKET_DISPLAY.map(({ key, label, color, text }) => {
               const count = scoreBuckets[key];
               const pct = Math.round((count / maxBucket) * 100);
               return (
@@ -263,7 +256,11 @@ export default async function EnterpriseDashboardPage() {
                   >
                     <div>
                       <p className="text-sm text-gray-200">{site?.label ?? site?.url ?? "Unknown"}</p>
-                      <p className="text-xs text-gray-500">{new Date(scan.started_at).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">
+                        {scan.completed_at
+                          ? new Date(scan.completed_at).toLocaleString()
+                          : "—"}
+                      </p>
                     </div>
                     <div className="flex items-center gap-3">
                       {scan.security_score !== null && (
