@@ -26,6 +26,8 @@ import { handleScanBatch } from '@/lib/scanner/handleScanBatch';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import { buildScanIdempotencyKey } from '@/lib/usage/idempotencyKey';
 import { decrementScanUsage } from '@/lib/billing/usageService';
+import { findDuplicateWebsiteInOrg } from '@/lib/websites/findDuplicateWebsite';
+import { normalizeWebsiteUrlForStorage } from '@/lib/websites/normalizeWebsiteUrl';
 
 export async function GET() {
   const supabase = await createClient();
@@ -74,6 +76,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
   }
 
+  let storedUrl: string;
+  try {
+    storedUrl = normalizeWebsiteUrlForStorage(url);
+  } catch {
+    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+  }
+
+  if (orgId) {
+    try {
+      const duplicate = await findDuplicateWebsiteInOrg(orgId, url);
+      if (duplicate) {
+        return NextResponse.json(
+          {
+            error: 'DUPLICATE_WEBSITE',
+            message: 'This website is already monitored in your organization.',
+            existingWebsiteId: duplicate.id,
+            existingUrl: duplicate.url,
+          },
+          { status: 409 },
+        );
+      }
+    } catch (dupErr) {
+      const message = dupErr instanceof Error ? dupErr.message : 'Duplicate check failed';
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
   const websiteCount = orgId
     ? (
         await supabase
@@ -115,7 +144,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { website, error } = await insertWebsite(supabase, {
-    url,
+    url: storedUrl,
     label: label ?? null,
     userId: user.id,
     orgId,

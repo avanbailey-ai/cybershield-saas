@@ -67,53 +67,42 @@ interface PublicScanResponse {
 
 
 function buildPublicResponse(
-
   result: Awaited<ReturnType<typeof runScan>>,
-
+  requestUrl: string,
   shareToken: string | null,
-
   aiReportStatus?: 'deterministic' | 'skipped' | 'cached',
-
 ): PublicScanResponse {
-
   const totalIssues = result.issues.length;
-
   const truncatedIssues = result.issues.slice(0, FREE_ISSUE_LIMIT);
-
   const riskDetected = result.score < 60;
-
   const genericMessage = riskDetected
-
     ? 'Risk Detected — upgrade to see full details'
-
     : 'No major issues found — upgrade for continuous monitoring';
 
+  const displayUrl =
+    typeof result.url === 'string' && result.url.trim().length > 0
+      ? result.url.trim()
+      : requestUrl.trim();
 
+  const issueStrings = truncatedIssues.map((issue) =>
+    typeof issue === 'string' ? issue : String(issue),
+  );
+
+  const score =
+    typeof result.score === 'number' && Number.isFinite(result.score) ? result.score : 0;
 
   return {
-
-    url: result.url,
-
-    score: result.score,
-
-    riskLevel: result.riskLevel,
-
-    issues: truncatedIssues,
-
+    url: displayUrl,
+    score,
+    riskLevel: result.riskLevel ?? 'medium',
+    issues: issueStrings,
     vulnerabilitiesCount: totalIssues,
-
     lockedIssuesCount: Math.max(0, totalIssues - FREE_ISSUE_LIMIT),
-
     genericMessage,
-
     riskDetected,
-
     shareToken,
-
     aiReportStatus,
-
   };
-
 }
 
 
@@ -205,17 +194,25 @@ export async function POST(req: NextRequest) {
   const cached = getCachedScan<PublicScanResponse>(domain);
 
   if (cached) {
+    const repaired: PublicScanResponse = {
+      ...cached,
+      url:
+        typeof cached.url === 'string' && cached.url.trim().length > 0 && !cached.url.includes('undefined')
+          ? cached.url
+          : url.trim(),
+      score:
+        typeof cached.score === 'number' && Number.isFinite(cached.score) ? cached.score : 0,
+      issues: Array.isArray(cached.issues)
+        ? cached.issues.map((issue) => (typeof issue === 'string' ? issue : String(issue)))
+        : [],
+    };
 
     logApiTiming('/api/scan/public', Date.now() - start, 200, { cached: true, domain });
 
     return NextResponse.json(
-
-      { ...cached, cached: true },
-
+      { ...repaired, cached: true },
       { headers: rateLimitHeaders(rateCheck) },
-
     );
-
   }
 
 
@@ -277,7 +274,7 @@ export async function POST(req: NextRequest) {
 
 
 
-      const built = buildPublicResponse(result, shareToken, aiReportStatus);
+      const built = buildPublicResponse(result, url, shareToken, aiReportStatus);
 
       setCachedScan(domain, built, CACHE_TTL_MS);
 

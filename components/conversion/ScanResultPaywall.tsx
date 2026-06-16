@@ -158,7 +158,7 @@ export default function ScanResultPaywall({
           >
             {severity.label} Risk — {severity.description}
           </span>
-          <p className="mt-3 text-base font-medium text-white">{result.url}</p>
+          <p className="mt-3 text-base font-medium text-white">{result.url || 'Unknown site'}</p>
           <p className="mt-2 text-sm text-gray-400">{urgency.subtext}</p>
         </div>
       </div>

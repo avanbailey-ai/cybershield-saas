@@ -156,26 +156,44 @@ function ScanInputInner(_props: ScanInputProps) {
       }
 
       const data = (await res.json()) as PublicScanResult;
-      const previousScore = readAndRecordDomainScore(normalizedUrl, data.score);
+      const displayUrl =
+        typeof data.url === 'string' && data.url.trim().length > 0 && !data.url.includes('undefined')
+          ? data.url.trim()
+          : normalizedUrl;
+      const merged: PublicScanResult = {
+        ...data,
+        url: displayUrl,
+        score: typeof data.score === 'number' && Number.isFinite(data.score) ? data.score : 0,
+        issues: Array.isArray(data.issues)
+          ? data.issues.map((issue) => (typeof issue === 'string' ? issue : String(issue)))
+          : [],
+        riskLevel: data.riskLevel ?? 'medium',
+        vulnerabilitiesCount: data.vulnerabilitiesCount ?? data.issues?.length ?? 0,
+        genericMessage:
+          data.genericMessage ??
+          (data.score < 60 ? 'Risk Detected — upgrade to see full details' : 'Scan complete'),
+        riskDetected: data.riskDetected ?? data.score < 60,
+      };
+      const previousScore = readAndRecordDomainScore(normalizedUrl, merged.score);
       setPriorScore(previousScore);
 
       saveFunnelSession({
-        scanned_site: normalizedUrl,
-        score: data.score,
-        risk_level: data.riskLevel,
-        issue_count: data.vulnerabilitiesCount,
+        scanned_site: displayUrl,
+        score: merged.score,
+        risk_level: merged.riskLevel,
+        issue_count: merged.vulnerabilitiesCount,
       });
 
       const { isSecondScan: second } = recordPublicScan(normalizedUrl);
       setIsSecondScan(second);
 
       trackEvent('scan_completed', {
-        score: data.score,
-        domain: normalizedUrl,
-        vulnerabilitiesCount: data.vulnerabilitiesCount,
+        score: merged.score,
+        domain: displayUrl,
+        vulnerabilitiesCount: merged.vulnerabilitiesCount,
       });
 
-      pendingResultRef.current = data;
+      pendingResultRef.current = merged;
       setRevealing(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
@@ -209,7 +227,7 @@ function ScanInputInner(_props: ScanInputProps) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
-            value={url}
+            value={url ?? ''}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter your website URL (e.g. https://yoursite.com)"
             disabled={loading || revealing}
