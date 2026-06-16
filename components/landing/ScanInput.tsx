@@ -68,8 +68,14 @@ function ScanInputInner(_props: ScanInputProps) {
     }, 400);
 
     const scoreDelay = setTimeout(() => {
-      let current = 0;
       const target = data.score;
+      if (target === null || !Number.isFinite(target)) {
+        setRevealing(false);
+        setResult(data);
+        pendingResultRef.current = null;
+        return;
+      }
+      let current = 0;
       const step = Math.max(1, Math.ceil(target / 20));
       const scoreTimer = setInterval(() => {
         current = Math.min(target, current + step);
@@ -99,7 +105,7 @@ function ScanInputInner(_props: ScanInputProps) {
     return {
       ...data,
       url: displayUrl,
-      score: typeof data.score === 'number' && Number.isFinite(data.score) ? data.score : 0,
+      score: typeof data.score === 'number' && Number.isFinite(data.score) ? data.score : null,
       issues: Array.isArray(data.issues)
         ? data.issues.map((issue) => (typeof issue === 'string' ? issue : String(issue)))
         : [],
@@ -107,8 +113,10 @@ function ScanInputInner(_props: ScanInputProps) {
       vulnerabilitiesCount: data.vulnerabilitiesCount ?? data.issues?.length ?? 0,
       genericMessage:
         data.genericMessage ??
-        (data.score < 60 ? 'Risk Detected — upgrade to see full details' : 'Scan complete'),
-      riskDetected: data.riskDetected ?? data.score < 60,
+        (typeof data.score === 'number' && data.score < 60
+          ? 'Risk Detected — upgrade to see full details'
+          : 'Scan complete'),
+      riskDetected: data.riskDetected ?? (typeof data.score === 'number' ? data.score < 60 : true),
     };
   }
 
@@ -139,7 +147,10 @@ function ScanInputInner(_props: ScanInputProps) {
       if (res.ok) {
         const data = (await res.json()) as PublicScanResult & { repeatScanToday?: boolean };
         const merged = mergePublicScanResult(data, normalizedUrl);
-        savePublicScanResult(normalizedUrl, merged);
+        savePublicScanResult(normalizedUrl, {
+        ...merged,
+        score: merged.score ?? 0,
+      });
         setRepeatScanToday(Boolean(data.repeatScanToday ?? data.cached));
         setResult(merged);
         return;
@@ -228,23 +239,27 @@ function ScanInputInner(_props: ScanInputProps) {
 
       const data = (await res.json()) as PublicScanResult & { repeatScanToday?: boolean; cached?: boolean };
       const merged = mergePublicScanResult(data, normalizedUrl);
-      const previousScore = readAndRecordDomainScore(normalizedUrl, merged.score);
+      const previousScore =
+        merged.score !== null ? readAndRecordDomainScore(normalizedUrl, merged.score) : null;
       setPriorScore(previousScore);
 
       saveFunnelSession({
         scanned_site: merged.url,
-        score: merged.score,
+        score: merged.score ?? 0,
         risk_level: merged.riskLevel,
         issue_count: merged.vulnerabilitiesCount,
       });
 
       const { isSecondScan: second } = recordPublicScan(normalizedUrl);
       setIsSecondScan(second);
-      savePublicScanResult(normalizedUrl, merged);
+      savePublicScanResult(normalizedUrl, {
+        ...merged,
+        score: merged.score ?? 0,
+      });
       setRepeatScanToday(Boolean(data.repeatScanToday ?? data.cached));
 
       trackEvent('scan_completed', {
-        score: merged.score,
+        score: merged.score ?? undefined,
         domain: merged.url,
         vulnerabilitiesCount: merged.vulnerabilitiesCount,
       });
@@ -260,7 +275,7 @@ function ScanInputInner(_props: ScanInputProps) {
   }
 
   function handleUpgradeClick() {
-    if (!result) return;
+    if (!result || result.score === null) return;
     const href = buildPricingHref(
       getUrgencyMessage(result.score, result.url).highlightPlan === 'pro' ? 'pro' : 'growth',
     );
@@ -320,7 +335,7 @@ function ScanInputInner(_props: ScanInputProps) {
         </form>
 
         {loading && (
-          <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-6 text-left">
+          <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-6 text-left" aria-live="polite">
             <p className="text-sm font-medium text-blue-300">{stage.label}</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-800">
               <div
@@ -329,7 +344,7 @@ function ScanInputInner(_props: ScanInputProps) {
               />
             </div>
             <p className="mt-3 text-xs text-gray-500">
-              Stage {scanStage + 1} of {SCAN_STAGES.length} — this usually takes under 30 seconds
+              Stage {scanStage + 1} of {SCAN_STAGES.length} — scans can take up to 3 minutes
             </p>
           </div>
         )}

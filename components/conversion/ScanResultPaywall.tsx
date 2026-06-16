@@ -15,7 +15,7 @@ import LockedFeaturePreview from './LockedFeaturePreview';
 
 export interface PublicScanResult {
   url: string;
-  score: number;
+  score: number | null;
   riskLevel: string;
   issues: string[];
   vulnerabilitiesCount: number;
@@ -70,9 +70,11 @@ export default function ScanResultPaywall({
 }: ScanResultPaywallProps) {
   const conversion = useConversionOptional();
   const { showPaywall, requireExplicitClick, revealPaywall } = usePaywallTiming();
+  const displayScore = result.score ?? 0;
+  const hasScore = result.score !== null && Number.isFinite(result.score);
   const { shareModal, openShare } = useScanResultViralTriggers({
     domain: result.url,
-    score: result.score,
+    score: displayScore,
     shareToken: result.shareToken,
     reportViewed: showPaywall,
   });
@@ -80,34 +82,33 @@ export default function ScanResultPaywall({
   const funnel = useMemo(
     () =>
       evaluateScanFunnel({
-        score: result.score,
+        score: displayScore,
         riskLevel: result.riskLevel,
         issues: result.issues,
         vulnerabilitiesCount: result.vulnerabilitiesCount,
         domain: result.url,
         priorScore,
       }),
-    [result, priorScore],
+    [result, priorScore, displayScore],
   );
 
   useEffect(() => {
     saveFunnelSession({
       scanned_site: result.url,
-      score: result.score,
+      score: displayScore,
       risk_level: result.riskLevel,
       issue_count: result.vulnerabilitiesCount,
     });
-  }, [result]);
-
-  const severity = getSeverityCategory(result.score);
-  const urgency = getUrgencyMessage(result.score, result.url);
+  }, [result, displayScore]);
+  const severity = getSeverityCategory(displayScore);
+  const urgency = getUrgencyMessage(displayScore, result.url);
   const lockedCount =
     result.lockedIssuesCount ?? Math.max(0, result.vulnerabilitiesCount - result.issues.length);
   const scansUsed = getPublicScanCount();
   const topIssues = result.issues.slice(0, funnel.topIssuesCount);
   const paywallVisible = showPaywall;
   const coveragePercent = computeSecurityCoverage(topIssues.length, result.vulnerabilitiesCount);
-  const scoreAtRisk = result.score < 70;
+  const scoreAtRisk = hasScore && result.score! < 70;
 
   function navigateToPricing(plan: 'pro' | 'growth' = funnel.recommendedPlan) {
     window.location.href = buildPricingHref(plan);
@@ -118,7 +119,7 @@ export default function ScanResultPaywall({
       domain: result.url,
       trigger,
       plan: funnel.recommendedPlan,
-      score: result.score,
+      score: displayScore,
     });
     if (onUpgradeClick) {
       onUpgradeClick();
@@ -131,7 +132,7 @@ export default function ScanResultPaywall({
     trackEvent('upgrade_clicked', {
       domain: result.url,
       trigger,
-      score: result.score,
+      score: displayScore,
       plan: funnel.recommendedPlan,
     });
     handleProUpgrade('full_report');
@@ -149,16 +150,20 @@ export default function ScanResultPaywall({
     <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-5 text-left sm:p-8">
       {repeatScanToday && (
         <p className="mb-4 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-200">
-          You already scanned this site today — showing your most recent result. Rescan again tomorrow or upgrade for continuous monitoring.
+          You already scanned this site today — showing your most recent result.{' '}
+          <Link href="/pricing" className="font-semibold underline hover:text-blue-100">
+            Upgrade for continuous monitoring
+          </Link>{' '}
+          or rescan tomorrow.
         </p>
       )}
       <SecurityCoverageBar percent={coveragePercent} className="mb-8" />
 
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
         <div
-          className={`flex h-36 w-36 shrink-0 flex-col items-center justify-center rounded-full border-[5px] ${scoreRingColor(result.score)}`}
+          className={`flex h-36 w-36 shrink-0 flex-col items-center justify-center rounded-full border-[5px] ${hasScore ? scoreRingColor(displayScore) : 'border-gray-600 text-gray-400'}`}
         >
-          <span className="text-5xl font-bold">{result.score}</span>
+          <span className="text-5xl font-bold">{result.score ?? '—'}</span>
           <span className="text-sm text-gray-400">/ 100</span>
         </div>
         <div className="flex-1 text-center sm:text-left">
@@ -170,6 +175,9 @@ export default function ScanResultPaywall({
           <p className="mt-3 text-base font-medium text-white">
             {result.url && result.url !== 'undefined' ? result.url : 'Your scanned site'}
           </p>
+          {result.genericMessage && (
+            <p className="mt-2 text-sm text-gray-300">{result.genericMessage}</p>
+          )}
           <p className="mt-2 text-sm text-gray-400">{urgency.subtext}</p>
         </div>
       </div>
@@ -204,15 +212,14 @@ export default function ScanResultPaywall({
             Your site scored below 70 — vulnerabilities need attention
           </p>
           <p className="mt-1 text-xs text-red-200/80">
-            Attackers scan for exactly these gaps. Pro fixes vulnerabilities automatically with
-            daily monitoring and remediation guidance.
+            Attackers scan for exactly these gaps. Pro provides daily monitoring and step-by-step remediation guidance.
           </p>
           <button
             type="button"
             onClick={() => handleProUpgrade('pro_fix')}
             className="mt-4 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500"
           >
-            Fix vulnerabilities automatically
+            Get remediation guidance
           </button>
         </div>
       )}
@@ -229,7 +236,7 @@ export default function ScanResultPaywall({
               trackEvent('upgrade_clicked', {
                 domain: result.url,
                 trigger: 'enterprise_review',
-                score: result.score,
+                score: displayScore,
                 funnelTriggers: funnel.triggers.join(','),
               })
             }
@@ -265,14 +272,14 @@ export default function ScanResultPaywall({
               }}
               className="rounded-lg border border-gray-600 px-5 py-2.5 text-sm font-semibold text-gray-200 hover:border-gray-500 hover:text-white"
             >
-              View scan summary
+              View full preview
             </button>
             <button
               type="button"
               onClick={() => handleProUpgrade('pro_fix')}
               className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"
             >
-              Enable continuous protection
+              Unlock full report
             </button>
           </div>
         </div>
