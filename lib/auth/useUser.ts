@@ -19,6 +19,8 @@ export interface UserInfo {
   effectiveScansLimit: number;
   limits: (typeof PLAN_LIMITS)[Plan];
   loading: boolean;
+  effectivePlan?: Plan;
+  priorityMonitoring?: { eligible: boolean; limit: number; used: number } | null;
 }
 
 const DEFAULT: UserInfo = {
@@ -82,6 +84,7 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
 
   const data = await res.json();
   const plan = (data.plan as Plan) ?? 'free';
+  const effectivePlan = (data.effectivePlan as Plan) ?? plan;
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
   // Plan is resolved server-side from organization_subscriptions only (/api/user/plan).
 
@@ -106,6 +109,8 @@ async function fetchUserInfo(): Promise<UserInfo | null> {
     effectiveScansLimit: effectiveLimit,
     limits,
     loading: false,
+    effectivePlan,
+    priorityMonitoring: data.priorityMonitoring ?? null,
   };
 }
 

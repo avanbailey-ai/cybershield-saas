@@ -431,6 +431,7 @@ async function postProcessScanCore(params: {
     org_id: string | null;
     scan_frequency?: string | null;
     is_active?: boolean | null;
+    priority_monitoring?: boolean | null;
   } | null;
   orgId: string | null;
   currentSnapshot: ReturnType<typeof buildSnapshotFromScanResult>;
@@ -485,9 +486,15 @@ async function postProcessScanCore(params: {
   if (!scanResult.error && websiteRow?.is_active) {
     const userWithPlan = await getUserWithPlan(userId, orgId);
     const plan = getEffectivePlan(userWithPlan);
-    const mode = resolveScanModeForWebsite(plan, websiteRow.scan_frequency);
+    const priorityMonitoring = websiteRow?.priority_monitoring === true;
+    const mode = resolveScanModeForWebsite(plan, websiteRow.scan_frequency, priorityMonitoring);
     if (mode) {
-      websiteUpdate.next_scan_at = computeNextScanAt(plan, mode, new Date(now));
+      websiteUpdate.next_scan_at = computeNextScanAt(
+        plan,
+        mode,
+        new Date(now),
+        priorityMonitoring,
+      );
     }
   }
 
@@ -527,7 +534,7 @@ export async function postProcessScan(params: {
   try {
     const { data: websiteRow } = await supabase
       .from('websites')
-      .select('org_id, scan_frequency, is_active')
+      .select('org_id, scan_frequency, is_active, priority_monitoring')
       .eq('id', websiteId)
       .single();
     const orgId = websiteRow?.org_id ?? (await getActiveOrgId(userId));

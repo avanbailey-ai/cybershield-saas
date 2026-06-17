@@ -20,6 +20,7 @@ export interface WebsiteRow {
   url: string;
   label: string | null;
   is_active: boolean;
+  priority_monitoring: boolean;
   created_at: string;
   last_scanned_at: string | null;
   org_id: string | null;
@@ -37,7 +38,7 @@ export async function getWebsitesForUser(
 ): Promise<{ websites: EnrichedWebsite[]; error?: string }> {
   let query = supabase
     .from('websites')
-    .select('id, url, label, is_active, created_at, last_scanned_at, org_id')
+    .select('id, url, label, is_active, priority_monitoring, created_at, last_scanned_at, org_id')
     .order('created_at', { ascending: false });
 
   if (orgId) {

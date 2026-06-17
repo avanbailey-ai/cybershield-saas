@@ -62,13 +62,15 @@ export const PLAN_MARKETING: Record<Plan, PlanMarketingProfile> = {
   agency: {
     tagline: 'Multi-client monitoring for agencies',
     websiteLabel: `${PLAN_LIMITS.agency.websites} websites included`,
-    monitoringLabel: '5-minute monitoring for priority sites · hourly for others',
+    monitoringLabel: '25 priority sites every 5 minutes · remaining sites hourly',
     deepScanLabel: 'Weekly deep scans + manual deep scans',
     bullets: [
+      '250 websites included',
+      '25 priority websites checked every 5 minutes',
+      'Remaining websites checked hourly',
       'Client-ready reports',
       'Multi-client dashboard',
-      'Priority website monitoring (5-minute cadence)',
-      'Hourly monitoring for remaining sites',
+      '100 manual deep scans/day',
       'Priority support',
     ],
   },

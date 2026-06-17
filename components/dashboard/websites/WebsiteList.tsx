@@ -62,6 +62,8 @@ interface WebsiteRow {
 
   is_active: boolean;
 
+  priority_monitoring: boolean;
+
   created_at: string;
 
   last_scanned_at: string | null;
@@ -142,12 +144,19 @@ export default function WebsiteList() {
   const {
     id: userId,
     plan,
+    effectivePlan,
     limits,
     websiteCount,
     websitesRemaining,
     loading: planLoading,
     refresh: refreshPlan,
+    priorityMonitoring,
   } = useUser();
+
+  const priorityEligible = priorityMonitoring?.eligible === true;
+  const prioritySlotsUsed = priorityMonitoring?.used ?? 0;
+  const prioritySlotsLimit = priorityMonitoring?.limit ?? 25;
+  const prioritySlotsFull = priorityEligible && prioritySlotsUsed >= prioritySlotsLimit;
 
   const { getWebsiteJob, getActiveJob, jobsByWebsite } = useScanQueueRealtime(userId || null);
 
@@ -187,6 +196,10 @@ export default function WebsiteList() {
 
   const [delayedRetryWebsiteId, setDelayedRetryWebsiteId] = useState<string | null>(null);
 
+  const [priorityUpdatingId, setPriorityUpdatingId] = useState<string | null>(null);
+
+  const [priorityError, setPriorityError] = useState<string | null>(null);
+
   const scanningRef = useRef<string | null>(null);
 
   const scanIdempotencyRef = useRef<Map<string, string>>(new Map());
@@ -215,7 +228,17 @@ export default function WebsiteList() {
 
       const data = await res.json();
 
-      setWebsites(data);
+      setWebsites(
+
+        (Array.isArray(data) ? data : []).map((w: WebsiteRow) => ({
+
+          ...w,
+
+          priority_monitoring: w.priority_monitoring === true,
+
+        })),
+
+      );
 
     } catch (e) {
 
@@ -701,6 +724,58 @@ export default function WebsiteList() {
 
 
 
+  async function handlePriorityToggle(websiteId: string, enabled: boolean) {
+
+    setPriorityUpdatingId(websiteId);
+
+    setPriorityError(null);
+
+    try {
+
+      const res = await fetch(`/api/websites/${websiteId}/priority-monitoring`, {
+
+        method: "PATCH",
+
+        headers: { "Content-Type": "application/json" },
+
+        body: JSON.stringify({ enabled }),
+
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+
+        throw new Error(data.error ?? "Failed to update priority monitoring");
+
+      }
+
+      setWebsites((prev) =>
+
+        prev.map((w) =>
+
+          w.id === websiteId ? { ...w, priority_monitoring: enabled } : w,
+
+        ),
+
+      );
+
+      void refreshPlan();
+
+    } catch (e) {
+
+      setPriorityError(e instanceof Error ? e.message : "Failed to update priority monitoring");
+
+    } finally {
+
+      setPriorityUpdatingId(null);
+
+    }
+
+  }
+
+
+
   function resolveWebsiteDisplay(site: WebsiteRow) {
 
     const scanJob = getWebsiteJob(site.id);
@@ -797,6 +872,60 @@ export default function WebsiteList() {
         </div>
 
       </div>
+
+
+
+      {priorityEligible && (
+
+        <div className="mb-4 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-sm text-gray-300">
+
+          <p>
+
+            <span className="font-medium text-white">Priority monitoring slots:</span>{" "}
+
+            {prioritySlotsUsed} / {prioritySlotsLimit} used
+
+          </p>
+
+          <p className="mt-1 text-xs text-gray-500">
+
+            Agency includes {prioritySlotsLimit} priority slots. Priority websites are checked every 5 minutes. Non-priority websites are checked hourly.
+
+          </p>
+
+        </div>
+
+      )}
+
+
+
+      {!priorityEligible && !planLoading && effectivePlan !== "agency" && plan !== "agency" && (
+
+        <p className="mb-4 text-xs text-gray-600">
+
+          Priority 5-minute monitoring is available on Agency plans.
+
+        </p>
+
+      )}
+
+
+
+      {priorityError && (
+
+        <div className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-400">
+
+          {priorityError}
+
+          <button type="button" onClick={() => setPriorityError(null)} className="ml-3 underline">
+
+            Dismiss
+
+          </button>
+
+        </div>
+
+      )}
 
 
 
@@ -1076,6 +1205,16 @@ export default function WebsiteList() {
 
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Last Scanned</th>
 
+                {priorityEligible && (
+
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+
+                    Priority 5-min
+
+                  </th>
+
+                )}
+
                 <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
 
               </tr>
@@ -1224,6 +1363,50 @@ export default function WebsiteList() {
                     {lastScannedAt ? timeAgo(lastScannedAt) : "Never"}
 
                   </td>
+
+
+
+                  {priorityEligible && (
+
+                    <td className="px-5 py-4">
+
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-gray-400">
+
+                        <input
+
+                          type="checkbox"
+
+                          checked={site.priority_monitoring === true}
+
+                          disabled={
+
+                            priorityUpdatingId === site.id ||
+
+                            (!site.priority_monitoring && prioritySlotsFull)
+
+                          }
+
+                          onChange={(e) => void handlePriorityToggle(site.id, e.target.checked)}
+
+                          className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+
+                        />
+
+                        {site.priority_monitoring ? "Priority" : "Hourly"}
+
+                      </label>
+
+                      {!site.priority_monitoring && prioritySlotsFull && (
+
+                        <p className="mt-1 text-xs text-orange-400">No slots left</p>
+
+                      )}
+
+                    </td>
+
+                  )}
+
+
 
                   <td className="px-5 py-4 text-right">
 

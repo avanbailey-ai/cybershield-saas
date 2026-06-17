@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
-import { getPlanLimits, normalizePlan } from '@/lib/auth/permissions';
+import { getPlanLimits, normalizePlan, getEffectivePlan } from '@/lib/auth/permissions';
+import {
+  canUsePriorityMonitoring,
+  countPriorityMonitoringUsed,
+  getPriorityMonitoringSlots,
+} from '@/lib/billing/priorityMonitoring';
 import { getEffectiveMaxScansPerDay, getUserWithPlan } from '@/lib/billing/planService';
 import { getTodayUtc, getUsage } from '@/lib/billing/usageService';
 import { getActiveOrgId } from '@/lib/org/context';
@@ -31,6 +36,7 @@ export async function GET() {
     ]);
 
     const plan = normalizePlan(userWithPlan.plan);
+    const effectivePlan = getEffectivePlan(userWithPlan);
     const limits = getPlanLimits(userWithPlan);
 
     const admin = createAdminClient();
@@ -52,9 +58,25 @@ export async function GET() {
     const scansRemaining =
       scansLimit === Infinity ? Infinity : Math.max(0, scansLimit - usage.scans_used);
 
+    let priorityMonitoring: {
+      eligible: boolean;
+      limit: number;
+      used: number;
+    } | null = null;
+
+    if (canUsePriorityMonitoring(userWithPlan)) {
+      const used = await countPriorityMonitoringUsed(admin, orgId, user.id);
+      priorityMonitoring = {
+        eligible: true,
+        limit: getPriorityMonitoringSlots(effectivePlan),
+        used,
+      };
+    }
+
     return NextResponse.json(
       {
         plan,
+        effectivePlan,
         subscription_status: userWithPlan.subscription_status ?? orgSubscription?.status ?? 'inactive',
         current_period_end: orgSubscription?.currentPeriodEnd ?? null,
         orgId,
@@ -66,6 +88,7 @@ export async function GET() {
         effectiveScansLimit: scansLimit,
         websitesRemaining,
         scansRemaining,
+        priorityMonitoring,
       },
       {
         headers: {

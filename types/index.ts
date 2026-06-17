@@ -33,6 +33,8 @@ export interface Website {
   created_at: string;
   /** Monitoring enabled — cron enqueues when next_scan_at is due. */
   is_active: boolean;
+  /** Agency/owner: 5-minute monitoring when true; hourly when false. */
+  priority_monitoring: boolean;
 }
 
 export interface Scan {

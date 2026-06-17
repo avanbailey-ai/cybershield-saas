@@ -1,130 +1,265 @@
-/**
- * plans.ts — Plan limits and feature metadata (NOT billing prices).
- *
- * Billing authority: Stripe price IDs via env vars below.
- * Display amounts: fetched from Stripe via lib/billing/stripeDisplayPrices.ts
- * Marketing copy: lib/billing/planFeatures.ts
- *
- * Terminology:
- * - maxScansPerDay = manual/on-demand deep scan quota (UTC day)
- * - Scheduled monitoring checks (cron) do not count against maxScansPerDay
- */
-
-export const PLAN_LIMITS = {
-  free: {
-    name: 'Free',
-    websites: 1,
-    maxScansPerDay: 3,
-    maxScansPerWebsite: 1,
-    scanFrequency: 'manual' as const,
-  },
-  pro: {
-    name: 'Pro',
-    websites: 10,
-    maxScansPerDay: 10,
-    scanFrequency: 'daily' as const,
-    stripePriceEnvKey: 'STRIPE_PRICE_PRO',
-  },
-  growth: {
-    name: 'Growth',
-    websites: 50,
-    maxScansPerDay: 50,
-    scanFrequency: 'hourly' as const,
-    stripePriceEnvKey: 'STRIPE_PRICE_GROWTH',
-    mostPopular: true,
-  },
-  agency: {
-    name: 'Agency',
-    websites: 250,
-    maxScansPerDay: 100,
-    scanFrequency: 'hourly' as const,
-    stripePriceEnvKey: 'STRIPE_PRICE_AGENCY',
-    priorityMonitoringSlots: 25,
-  },
-  owner: {
-    name: 'Owner',
-    websites: Infinity,
-    maxScansPerDay: Infinity,
-    scanFrequency: 'hourly' as const,
-  },
-} as const;
-
-function readStripePriceId(plan: BilledPlan): string {
-  const keys = {
-    pro: 'STRIPE_PRICE_PRO',
-    growth: 'STRIPE_PRICE_GROWTH',
-    agency: 'STRIPE_PRICE_AGENCY',
-  } as const;
-  return (process.env[keys[plan]] ?? '').trim();
-}
-
-/** Server/runtime — reads env at call time (not build bake). Safe on client (never called there). */
-export function getStripePriceIds(): Record<BilledPlan, string> {
-  return {
-    pro: readStripePriceId('pro'),
-    growth: readStripePriceId('growth'),
-    agency: readStripePriceId('agency'),
-  };
-}
-
-export type Plan = 'free' | 'pro' | 'growth' | 'agency' | 'owner';
-export type BilledPlan = 'pro' | 'growth' | 'agency';
-
-export const BILLED_PLANS: BilledPlan[] = ['pro', 'growth', 'agency'];
-
-export function isBilledPlan(plan: string): plan is BilledPlan {
-  return BILLED_PLANS.includes(plan as BilledPlan);
-}
-
-export function getPriceId(plan: BilledPlan): string {
-  const priceId = readStripePriceId(plan);
-  if (!priceId) {
-    throw new Error(`Missing Stripe price for plan: ${plan}. Set STRIPE_PRICE_${plan.toUpperCase()} env var.`);
-  }
-  return priceId;
-}
-
-/** Map a Stripe price ID back to a billed plan, if configured. */
-export function planFromPriceId(priceId: string): BilledPlan | null {
-  for (const plan of BILLED_PLANS) {
-    const id = readStripePriceId(plan);
-    if (id && id === priceId) return plan;
-  }
-  return null;
-}
-
-export function formatWebsiteLimit(websites: number): string {
-  if (websites === Infinity) return 'Custom limits available';
-  return `${websites} website${websites === 1 ? '' : 's'}`;
-}
-
-export function formatScanFrequency(frequency: (typeof PLAN_LIMITS)[Plan]['scanFrequency']): string {
-  const labels: Record<(typeof PLAN_LIMITS)[Plan]['scanFrequency'], string> = {
-    manual: 'Manual scans only',
-    daily: 'Daily monitoring · weekly deep scans',
-    hourly: 'Hourly monitoring · weekly deep scans',
-  };
-  return labels[frequency];
-}
-
-/** Manual deep scan quota label for UI (monitoring checks are separate). */
-export function formatDeepScanLimit(maxScansPerDay: number): string {
-  if (maxScansPerDay === Infinity) return 'Unlimited manual deep scans';
-  return `${maxScansPerDay} manual deep scans/day`;
-}
-
-/** Queue priority for claim_scan_jobs (higher = claimed first). */
-export function getPlanQueuePriority(plan: Plan): number {
-  switch (plan) {
-    case 'agency':
-    case 'owner':
-      return 3;
-    case 'growth':
-      return 2;
-    case 'pro':
-      return 1;
-    default:
-      return 0;
-  }
-}
-
+/**
+
+ * plans.ts — Plan limits and feature metadata (NOT billing prices).
+
+ *
+
+ * Billing authority: Stripe price IDs via env vars below.
+
+ * Display amounts: fetched from Stripe via lib/billing/stripeDisplayPrices.ts
+
+ * Marketing copy: lib/billing/planFeatures.ts
+
+ *
+
+ * Terminology:
+
+ * - maxScansPerDay = manual/on-demand deep scan quota (UTC day)
+
+ * - Scheduled monitoring checks (cron) do not count against maxScansPerDay
+
+ */
+
+
+
+export const PLAN_LIMITS = {
+
+  free: {
+
+    name: 'Free',
+
+    websites: 1,
+
+    maxScansPerDay: 3,
+
+    maxScansPerWebsite: 1,
+
+    scanFrequency: 'manual' as const,
+
+  },
+
+  pro: {
+
+    name: 'Pro',
+
+    websites: 10,
+
+    maxScansPerDay: 10,
+
+    scanFrequency: 'daily' as const,
+
+    stripePriceEnvKey: 'STRIPE_PRICE_PRO',
+
+    priorityMonitoringSlots: 0,
+
+  },
+
+  growth: {
+
+    name: 'Growth',
+
+    websites: 50,
+
+    maxScansPerDay: 50,
+
+    scanFrequency: 'hourly' as const,
+
+    stripePriceEnvKey: 'STRIPE_PRICE_GROWTH',
+
+    mostPopular: true,
+
+    priorityMonitoringSlots: 0,
+
+  },
+
+  agency: {
+
+    name: 'Agency',
+
+    websites: 250,
+
+    maxScansPerDay: 100,
+
+    scanFrequency: 'hourly' as const,
+
+    stripePriceEnvKey: 'STRIPE_PRICE_AGENCY',
+
+    priorityMonitoringSlots: 25,
+
+  },
+
+  owner: {
+
+    name: 'Owner',
+
+    websites: Infinity,
+
+    maxScansPerDay: Infinity,
+
+    scanFrequency: 'hourly' as const,
+
+    priorityMonitoringSlots: 25,
+
+  },
+
+} as const;
+
+
+
+function readStripePriceId(plan: BilledPlan): string {
+
+  const keys = {
+
+    pro: 'STRIPE_PRICE_PRO',
+
+    growth: 'STRIPE_PRICE_GROWTH',
+
+    agency: 'STRIPE_PRICE_AGENCY',
+
+  } as const;
+
+  return (process.env[keys[plan]] ?? '').trim();
+
+}
+
+
+
+/** Server/runtime — reads env at call time (not build bake). Safe on client (never called there). */
+
+export function getStripePriceIds(): Record<BilledPlan, string> {
+
+  return {
+
+    pro: readStripePriceId('pro'),
+
+    growth: readStripePriceId('growth'),
+
+    agency: readStripePriceId('agency'),
+
+  };
+
+}
+
+
+
+export type Plan = 'free' | 'pro' | 'growth' | 'agency' | 'owner';
+
+export type BilledPlan = 'pro' | 'growth' | 'agency';
+
+
+
+export const BILLED_PLANS: BilledPlan[] = ['pro', 'growth', 'agency'];
+
+
+
+export function isBilledPlan(plan: string): plan is BilledPlan {
+
+  return BILLED_PLANS.includes(plan as BilledPlan);
+
+}
+
+
+
+export function getPriceId(plan: BilledPlan): string {
+
+  const priceId = readStripePriceId(plan);
+
+  if (!priceId) {
+
+    throw new Error(`Missing Stripe price for plan: ${plan}. Set STRIPE_PRICE_${plan.toUpperCase()} env var.`);
+
+  }
+
+  return priceId;
+
+}
+
+
+
+/** Map a Stripe price ID back to a billed plan, if configured. */
+
+export function planFromPriceId(priceId: string): BilledPlan | null {
+
+  for (const plan of BILLED_PLANS) {
+
+    const id = readStripePriceId(plan);
+
+    if (id && id === priceId) return plan;
+
+  }
+
+  return null;
+
+}
+
+
+
+export function formatWebsiteLimit(websites: number): string {
+
+  if (websites === Infinity) return 'Custom limits available';
+
+  return `${websites} website${websites === 1 ? '' : 's'}`;
+
+}
+
+
+
+export function formatScanFrequency(frequency: (typeof PLAN_LIMITS)[Plan]['scanFrequency']): string {
+
+  const labels: Record<(typeof PLAN_LIMITS)[Plan]['scanFrequency'], string> = {
+
+    manual: 'Manual scans only',
+
+    daily: 'Daily monitoring · weekly deep scans',
+
+    hourly: 'Hourly monitoring · weekly deep scans',
+
+  };
+
+  return labels[frequency];
+
+}
+
+
+
+/** Manual deep scan quota label for UI (monitoring checks are separate). */
+
+export function formatDeepScanLimit(maxScansPerDay: number): string {
+
+  if (maxScansPerDay === Infinity) return 'Unlimited manual deep scans';
+
+  return `${maxScansPerDay} manual deep scans/day`;
+
+}
+
+
+
+/** Queue priority for claim_scan_jobs (higher = claimed first). */
+
+export function getPlanQueuePriority(plan: Plan): number {
+
+  switch (plan) {
+
+    case 'agency':
+
+    case 'owner':
+
+      return 3;
+
+    case 'growth':
+
+      return 2;
+
+    case 'pro':
+
+      return 1;
+
+    default:
+
+      return 0;
+
+  }
+
+}
+
+
