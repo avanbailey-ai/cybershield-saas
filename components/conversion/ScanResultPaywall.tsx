@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo } from 'react';
 import { getSeverityCategory, getUrgencyMessage } from '@/lib/conversion/urgency';
+import { resolveScannedDomainLabel } from '@/lib/conversion/displayDomain';
 import { computeSecurityCoverage } from '@/lib/conversion/coverage';
 import { useConversionOptional } from './ConversionProvider';
 import { usePaywallTiming } from '@/lib/analytics/usePaywallTiming';
@@ -104,8 +105,9 @@ export default function ScanResultPaywall({
       issue_count: result.vulnerabilitiesCount,
     });
   }, [result, displayScore]);
+  const displayDomain = resolveScannedDomainLabel({ url: result.url });
   const severity = getSeverityCategory(displayScore);
-  const urgency = getUrgencyMessage(displayScore, result.url);
+  const urgency = getUrgencyMessage(displayScore, displayDomain);
   const lockedCount =
     result.lockedIssuesCount ?? Math.max(0, result.vulnerabilitiesCount - result.issues.length);
   const scansUsed = getPublicScanCount();
@@ -188,9 +190,7 @@ export default function ScanResultPaywall({
           >
             {severity.label} Risk — {severity.description}
           </span>
-          <p className="mt-3 text-base font-medium text-white">
-            {result.url && result.url !== 'undefined' ? result.url : 'Your scanned site'}
-          </p>
+          <p className="mt-3 text-base font-medium text-white">{displayDomain}</p>
           {result.genericMessage && (
             <p className="mt-2 text-sm text-gray-300">{result.genericMessage}</p>
           )}

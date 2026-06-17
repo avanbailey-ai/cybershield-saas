@@ -1,4 +1,5 @@
 import type { BilledPlan } from '@/lib/billing/plans';
+import { resolveScannedDomainLabel } from '@/lib/conversion/displayDomain';
 
 export type UrgencyLevel = 'low' | 'medium' | 'high';
 
@@ -37,7 +38,7 @@ export function getSeverityCategory(score: number): {
 
 export function getUrgencyMessage(score: number, domain?: string): UrgencyMessage {
   const severity = getSeverityCategory(score);
-  const site = domain ? domain.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'your site';
+  const site = resolveScannedDomainLabel({ url: domain }, 'your site');
 
   if (severity.level === 'high') {
     return {

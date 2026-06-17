@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { maskDomain } from '@/lib/leaderboard/update';
+import { displayLeaderboardDomain } from '@/lib/leaderboard/update';
 import { maskUserId } from '@/lib/referrals/codeFormat';
 
 export const metadata: Metadata = {
@@ -105,7 +105,9 @@ export default async function LeaderboardPage() {
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600/20 text-xs font-bold text-blue-400">
                         {i + 1}
                       </span>
-                      <span className="text-sm text-gray-300">{maskDomain(entry.domain)}</span>
+                      <span className="text-sm text-gray-300">
+                        {displayLeaderboardDomain(entry.domain)}
+                      </span>
                     </div>
                     <span className="text-sm font-semibold text-green-400">{entry.best_score}/100</span>
                   </li>
@@ -129,7 +131,9 @@ export default async function LeaderboardPage() {
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-600/20 text-xs font-bold text-green-400">
                         {i + 1}
                       </span>
-                      <span className="text-sm text-gray-300">{maskDomain(entry.domain)}</span>
+                      <span className="text-sm text-gray-300">
+                        {displayLeaderboardDomain(entry.domain)}
+                      </span>
                     </div>
                     <span className="text-sm font-semibold text-green-400">+{entry.improvement_delta} pts</span>
                   </li>
@@ -181,7 +185,7 @@ export default async function LeaderboardPage() {
                       </span>
                       <span className="text-sm text-gray-300">
                         {entry.key.startsWith('http') || entry.key.includes('.')
-                          ? maskDomain(entry.key)
+                          ? displayLeaderboardDomain(entry.key)
                           : `Scan ${entry.key.slice(0, 8)}…`}
                       </span>
                     </div>
