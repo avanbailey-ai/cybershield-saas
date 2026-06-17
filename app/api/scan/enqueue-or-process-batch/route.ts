@@ -15,7 +15,7 @@ import {
   completeCronMonitoringRun,
   createCronMonitoringRun,
 } from '@/lib/alerts/emailAlertLog';
-import { flushGroupedMonitoringAlerts } from '@/lib/alerts/groupedMonitoringEmail';
+import { flushGroupedMonitoringAlerts } from '@/lib/alerts/emailPipeline';
 
 export const maxDuration = 180;
 

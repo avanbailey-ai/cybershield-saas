@@ -1,11 +1,7 @@
-// Weekly digest — cron or platform owner only. Not on Vercel Cron schedule.
-
-import { createAdminClient } from '@/lib/supabase/admin';
+import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
 import { createClient } from '@/lib/supabase/server';
 import { isOwner } from '@/lib/auth/owner';
-import { sendEmail } from '@/lib/email';
-import { weeklyDigestEmail } from '@/lib/emailTemplates';
-import { isWorkerAuthorized } from '@/lib/queue/workerAuth';
+import { sendWeeklyDigests } from '@/lib/alerts/weeklyDigestService';
 
 export async function POST(request: Request) {
   const cronAuthorized = isWorkerAuthorized(request);
@@ -21,68 +17,6 @@ export async function POST(request: Request) {
     }
   }
 
-  const adminSupabase = createAdminClient();
-
-  const { data: users } = await adminSupabase
-    .from('profiles')
-    .select('id, email, notify_weekly_digest');
-
-  if (!users) return Response.json({ ok: true, sent: 0 });
-
-  let sent = 0;
-
-  for (const recipient of users) {
-    if (recipient.notify_weekly_digest === false) continue;
-
-    const { data: websites } = await adminSupabase
-      .from('websites')
-      .select('id, url, risk_score, last_scanned_at')
-      .eq('user_id', recipient.id)
-      .eq('is_active', true);
-
-    if (!websites || websites.length === 0) continue;
-
-    const websiteData = await Promise.all(
-      websites.map(async (site) => {
-        const { data: scan } = await adminSupabase
-          .from('scans')
-          .select('id, security_score, risk_level, completed_at')
-          .eq('website_id', site.id)
-          .eq('status', 'completed')
-          .order('completed_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        return {
-          url: site.url as string,
-          score: (scan?.security_score as number) ?? 0,
-          riskLevel: (scan?.risk_level as string) ?? 'unknown',
-          lastScanned:
-            (scan?.completed_at as string) ??
-            (site.last_scanned_at as string) ??
-            'Never',
-          scanId: (scan?.id as string) ?? '',
-        };
-      })
-    );
-
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      'https://cybershield-saas-1o19.vercel.app';
-
-    await sendEmail({
-      to: recipient.email as string,
-      subject: `Your weekly security digest — CyberShield`,
-      html: weeklyDigestEmail({
-        userEmail: recipient.email as string,
-        websites: websiteData,
-        digestUrl: `${siteUrl}/enterprise/portal/settings`,
-      }),
-    });
-
-    sent++;
-  }
-
-  return Response.json({ ok: true, sent });
+  const result = await sendWeeklyDigests();
+  return Response.json({ ok: true, ...result });
 }

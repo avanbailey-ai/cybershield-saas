@@ -7,7 +7,9 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assessRisk } from '@/lib/riskEngine';
-import { markAlertPendingEmail, flushGroupedMonitoringAlerts } from '@/lib/alerts/groupedMonitoringEmail';
+import { markAlertPendingEmail } from '@/lib/alerts/groupedMonitoringEmail';
+import { flushGroupedMonitoringAlerts } from '@/lib/alerts/emailPipeline';
+import { recordAlertEvent } from '@/lib/alerts/alertEvents';
 import { generateAndStoreReport, extractDomain } from '@/lib/ai/storeReport';
 import { updateLeaderboard } from '@/lib/leaderboard/update';
 import { triggerScanEmailFunnel } from '@/lib/email/funnel';
@@ -106,6 +108,17 @@ export function postProcessScanSideEffects(params: {
 
           if (sslAlert?.id) {
             await markAlertPendingEmail(sslAlert.id, 'critical');
+            await recordAlertEvent({
+              userId,
+              orgId,
+              websiteId,
+              scanId,
+              alertId: sslAlert.id,
+              eventType: 'ssl_changed',
+              severity: 'critical',
+              findingTitle: `No HTTPS detected on ${url}`,
+              isNew: true,
+            });
           }
         } catch (err) {
           console.error('[POST-PROCESS] SSL alert creation failed (non-fatal):', err);
@@ -150,6 +163,19 @@ export function postProcessScanSideEffects(params: {
 
           if (alert?.id) {
             await markAlertPendingEmail(alert.id, severity);
+            await recordAlertEvent({
+              userId,
+              orgId,
+              websiteId,
+              scanId,
+              alertId: alert.id,
+              eventType: 'security_issue',
+              severity,
+              findingTitle: `Security issues detected on ${url}`,
+              currentScore: scanResult.score,
+              previousScore: previousSecurityScore,
+              isNew: true,
+            });
           }
           }
         }
@@ -189,6 +215,20 @@ export function postProcessScanSideEffects(params: {
 
           if (scoreDropAlert?.id) {
             await markAlertPendingEmail(scoreDropAlert.id, severity);
+            await recordAlertEvent({
+              userId,
+              orgId,
+              websiteId,
+              scanId,
+              alertId: scoreDropAlert.id,
+              eventType: 'security_score_drop',
+              severity,
+              findingTitle: `Security score dropped on ${url}`,
+              previousScore: previousSecurityScore,
+              currentScore: scanResult.score,
+              isNew: true,
+              isWorsened: true,
+            });
           }
         }
       } catch (err) {
@@ -221,6 +261,18 @@ export function postProcessScanSideEffects(params: {
 
           if (riskAlert?.id) {
             await markAlertPendingEmail(riskAlert.id, 'high');
+            await recordAlertEvent({
+              userId,
+              orgId,
+              websiteId,
+              scanId,
+              alertId: riskAlert.id,
+              eventType: 'risk_increase',
+              severity: 'high',
+              findingTitle: 'Risk Score Increased',
+              isNew: true,
+              isWorsened: true,
+            });
           }
         } catch (err) {
           console.error('[POST-PROCESS] Risk increase alert creation failed (non-fatal):', err);
@@ -290,6 +342,17 @@ export function postProcessScanSideEffects(params: {
 
               if (changeAlert?.id) {
                 await markAlertPendingEmail(changeAlert.id, alertSeverity);
+                await recordAlertEvent({
+                  userId,
+                  orgId,
+                  websiteId,
+                  scanId,
+                  alertId: changeAlert.id,
+                  eventType: alertType,
+                  severity: alertSeverity,
+                  findingTitle: title,
+                  isNew: true,
+                });
               }
             } catch (err) {
               console.error(

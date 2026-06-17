@@ -38,10 +38,20 @@ type Summary = {
   failedLast24h: number;
 };
 
+type EmailBudget = {
+  monthlyBudget: number;
+  monthlySent: number;
+  monthlyRemaining: number;
+  dailySent: number;
+  tier: string;
+  budgetMonth: string;
+};
+
 export default function MonitoringLogsClient() {
   const [cronRuns, setCronRuns] = useState<CronRun[]>([]);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [emailBudget, setEmailBudget] = useState<EmailBudget | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +64,7 @@ export default function MonitoringLogsClient() {
         setCronRuns(data.cronRuns ?? []);
         setEmailLogs(data.emailLogs ?? []);
         setSummary(data.summary ?? null);
+        setEmailBudget(data.emailBudget ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Load failed');
       } finally {
@@ -72,6 +83,21 @@ export default function MonitoringLogsClient() {
 
   return (
     <div className="space-y-8">
+      {emailBudget && (
+        <div className="rounded-xl border border-indigo-800/40 bg-indigo-950/20 p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-indigo-300/80">
+            Email budget ({emailBudget.budgetMonth})
+          </p>
+          <p className="mt-2 text-lg font-bold text-white">
+            {emailBudget.monthlySent} / {emailBudget.monthlyBudget} sent
+            <span className="ml-2 text-sm font-normal text-gray-400">
+              ({emailBudget.monthlyRemaining} remaining · tier: {emailBudget.tier})
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-gray-500">Daily sent: {emailBudget.dailySent}</p>
+        </div>
+      )}
+
       {summary && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[

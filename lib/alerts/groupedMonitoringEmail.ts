@@ -96,7 +96,7 @@ export interface FlushGroupedAlertsResult {
   skipped: number;
 }
 
-export async function flushGroupedMonitoringAlerts(options?: {
+export async function flushLegacyGroupedAlerts(options?: {
   cronRunId?: string;
 }): Promise<FlushGroupedAlertsResult> {
   const supabase = createAdminClient();

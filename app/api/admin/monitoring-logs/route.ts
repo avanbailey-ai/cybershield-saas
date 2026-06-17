@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isOwner } from '@/lib/auth/owner';
+import { getEmailBudgetSnapshot } from '@/lib/alerts/emailBudget';
+import { getMonthlyEmailUsage } from '@/lib/alerts/emailAlertLog';
+import { EMAIL_BUDGET } from '@/lib/alerts/emailTypes';
 
 export async function GET(req: Request) {
   const supabase = await createClient();
@@ -18,7 +21,7 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient();
 
-  const [cronRunsRes, emailLogsRes, emailSummaryRes] = await Promise.all([
+  const [cronRunsRes, emailLogsRes, emailSummaryRes, budgetSnapshot, monthlyUsage] = await Promise.all([
     admin
       .from('cron_monitoring_runs')
       .select('*')
@@ -33,6 +36,8 @@ export async function GET(req: Request) {
       .from('email_alert_logs')
       .select('status, email_type, created_at')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+    getEmailBudgetSnapshot(),
+    getMonthlyEmailUsage(),
   ]);
 
   const last24h = emailSummaryRes.data ?? [];
@@ -48,6 +53,16 @@ export async function GET(req: Request) {
       sentLast24h: sent24h,
       skippedLast24h: skipped24h,
       failedLast24h: failed24h,
+    },
+    emailBudget: {
+      monthlyBudget: EMAIL_BUDGET.monthlyEmailBudget,
+      monthlySent: monthlyUsage.sent,
+      monthlySkipped: monthlyUsage.skipped,
+      monthlyFailed: monthlyUsage.failed,
+      monthlyRemaining: budgetSnapshot.monthlyRemaining,
+      dailySent: budgetSnapshot.dailySent,
+      tier: budgetSnapshot.tier,
+      budgetMonth: budgetSnapshot.budgetMonth,
     },
   });
 }
