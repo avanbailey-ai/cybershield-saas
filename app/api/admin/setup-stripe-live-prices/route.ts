@@ -19,8 +19,11 @@ const LIVE_PRODUCTS = {
  */
 export async function POST(request: Request) {
   const cronAuthorized = isWorkerAuthorized(request);
+  const setupToken = process.env.STRIPE_PRICE_SETUP_TOKEN?.trim();
+  const tokenAuthorized =
+    !!setupToken && request.headers.get('x-setup-token') === setupToken;
 
-  if (!cronAuthorized) {
+  if (!cronAuthorized && !tokenAuthorized) {
     const supabase = await createClient();
     const {
       data: { user },
