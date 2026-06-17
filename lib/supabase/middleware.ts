@@ -19,7 +19,7 @@ import { canAccessEnterprise } from "@/lib/auth/permissions";
 
 
 
-const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise"];
+const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise", "/checkout/complete"];
 
 const AUTH_PATHS = ["/login", "/signup", "/enterprise/login"];
 
@@ -238,7 +238,8 @@ export async function updateSession(request: NextRequest) {
 
         url.pathname = isEnterprisePortal || isEnterpriseOnboarding ? "/enterprise/login" : "/login";
 
-        url.searchParams.set("redirectTo", pathname);
+        const redirectTarget = `${pathname}${request.nextUrl.search}`;
+        url.searchParams.set("redirectTo", redirectTarget);
 
         return NextResponse.redirect(url);
 

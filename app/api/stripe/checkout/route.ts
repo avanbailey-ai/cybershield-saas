@@ -9,6 +9,7 @@ import { getPriceId } from '@/lib/billing/plans';
 import { rateLimitCheckout, rateLimitHeaders } from '@/lib/rateLimit/limiter';
 import { logCheckoutLatency } from '@/lib/observability/log';
 import { ensureUserOrg } from '@/lib/org/migrateExistingUsers';
+import { getSiteUrl } from '@/lib/site/getSiteUrl';
 
 export const runtime = 'nodejs';
 
@@ -124,9 +125,7 @@ export async function POST(req: Request) {
       console.warn('[checkout] no org resolved for user', user.id);
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL;
+    const baseUrl = getSiteUrl();
 
     if (!baseUrl) {
       return NextResponse.json(
@@ -148,7 +147,7 @@ export async function POST(req: Request) {
       success_url:
         plan === 'agency'
           ? `${baseUrl}/enterprise/onboarding?checkout=success`
-          : `${baseUrl}/dashboard/settings?checkout=processing`,
+          : `${baseUrl}/checkout/complete?checkout=processing`,
       cancel_url: `${baseUrl}/#pricing`,
       metadata: {
         userId: user.id,

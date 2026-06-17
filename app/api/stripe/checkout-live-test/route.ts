@@ -7,6 +7,7 @@ import { getMissingStripeEnv } from '@/lib/stripe/env';
 import { getOrCreateLiveCheckoutTestPriceId } from '@/lib/stripe/liveCheckoutTestPrice';
 import { getActiveOrgId } from '@/lib/org/context';
 import { ensureUserOrg } from '@/lib/org/migrateExistingUsers';
+import { getSiteUrl } from '@/lib/site/getSiteUrl';
 
 export const runtime = 'nodejs';
 
@@ -53,9 +54,7 @@ export async function POST() {
       console.warn('[checkout-live-test] no org resolved for user', user.id);
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL;
+    const baseUrl = getSiteUrl();
 
     if (!baseUrl) {
       return NextResponse.json(
@@ -88,7 +87,7 @@ export async function POST() {
     const session = await getStripe().checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/dashboard/settings?checkout=processing`,
+      success_url: `${baseUrl}/checkout/complete?checkout=processing`,
       cancel_url: `${baseUrl}/#pricing`,
       metadata: {
         userId: user.id,
