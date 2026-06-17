@@ -6,12 +6,15 @@ import { getSeverityCategory, getUrgencyMessage } from '@/lib/conversion/urgency
 import { computeSecurityCoverage } from '@/lib/conversion/coverage';
 import { useConversionOptional } from './ConversionProvider';
 import { usePaywallTiming } from '@/lib/analytics/usePaywallTiming';
+import { useBrainConfig } from '@/lib/analytics/useBrainConfig';
 import { trackEvent } from '@/lib/analytics/events';
 import { useScanResultViralTriggers } from '@/lib/viral/triggers';
 import { MAX_PUBLIC_SCANS_PER_DAY, getPublicScanCount } from '@/lib/conversion/limits';
 import { evaluateScanFunnel, buildPricingHref, saveFunnelSession } from '@/lib/funnel';
+import { buildPartialAiPreview } from '@/lib/conversion/partialAiPreview';
 import SecurityCoverageBar from './SecurityCoverageBar';
 import LockedFeaturePreview from './LockedFeaturePreview';
+import PartialAiInsightPreview from './PartialAiInsightPreview';
 
 export interface PublicScanResult {
   url: string;
@@ -70,6 +73,7 @@ export default function ScanResultPaywall({
 }: ScanResultPaywallProps) {
   const conversion = useConversionOptional();
   const { showPaywall, requireExplicitClick, revealPaywall } = usePaywallTiming();
+  const { config: brainConfig } = useBrainConfig();
   const displayScore = result.score ?? 0;
   const hasScore = result.score !== null && Number.isFinite(result.score);
   const { shareModal, openShare } = useScanResultViralTriggers({
@@ -109,6 +113,18 @@ export default function ScanResultPaywall({
   const paywallVisible = showPaywall;
   const coveragePercent = computeSecurityCoverage(topIssues.length, result.vulnerabilitiesCount);
   const scoreAtRisk = hasScore && result.score! < 70;
+  const showPartialAi = brainConfig.show_partial_ai_earlier;
+  const partialAiContent = useMemo(() => buildPartialAiPreview(result), [result]);
+  const showTopCta =
+    brainConfig.cta_placement === 'top' || brainConfig.cta_placement === 'both';
+  const showBottomCta =
+    brainConfig.cta_placement === 'bottom' || brainConfig.cta_placement === 'both';
+
+  const upgradeCtaLabel = scoreAtRisk
+    ? 'See Exact Fixes'
+    : isSecondScan
+      ? 'Start Monitoring This Website'
+      : 'Unlock Full Security Report';
 
   function navigateToPricing(plan: 'pro' | 'growth' = funnel.recommendedPlan) {
     window.location.href = buildPricingHref(plan);
@@ -181,6 +197,36 @@ export default function ScanResultPaywall({
           <p className="mt-2 text-sm text-gray-400">{urgency.subtext}</p>
         </div>
       </div>
+
+      {showTopCta && (
+        <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            onClick={() => handleProUpgrade(isSecondScan ? 'second_scan' : 'full_report')}
+            className="w-full rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 sm:w-auto"
+          >
+            {upgradeCtaLabel}
+          </button>
+          <Link
+            href={buildPricingHref(funnel.recommendedPlan)}
+            onClick={() =>
+              trackEvent('upgrade_clicked', {
+                domain: result.url,
+                trigger: 'top_cta_secondary',
+                score: displayScore,
+                plan: funnel.recommendedPlan,
+              })
+            }
+            className="w-full rounded-lg border border-gray-600 px-6 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white sm:w-auto text-center"
+          >
+            View pricing
+          </Link>
+        </div>
+      )}
+
+      {showPartialAi && (
+        <PartialAiInsightPreview content={partialAiContent} className="mt-6" />
+      )}
 
       {topIssues.length > 0 && (
         <div className="mt-8">
@@ -332,19 +378,31 @@ export default function ScanResultPaywall({
         </div>
       )}
 
-      {paywallVisible && (
+      {paywallVisible && showBottomCta && (
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <button
             type="button"
             onClick={() => handleProUpgrade(isSecondScan ? 'second_scan' : 'full_report')}
             className="w-full rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 sm:w-auto"
           >
-            Enable continuous protection
+            {showTopCta ? 'Enable continuous protection' : upgradeCtaLabel}
           </button>
           <button
             type="button"
             onClick={openShare}
             className="w-full rounded-lg border border-gray-700 px-6 py-3 text-sm font-medium text-gray-400 transition-colors hover:border-gray-600 hover:text-white sm:w-auto"
+          >
+            Share results
+          </button>
+        </div>
+      )}
+
+      {paywallVisible && !showBottomCta && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={openShare}
+            className="rounded-lg border border-gray-700 px-6 py-3 text-sm font-medium text-gray-400 transition-colors hover:border-gray-600 hover:text-white"
           >
             Share results
           </button>
