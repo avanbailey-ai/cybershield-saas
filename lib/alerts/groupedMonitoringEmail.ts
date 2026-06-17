@@ -202,7 +202,7 @@ export async function flushGroupedMonitoringAlerts(options?: {
         userId,
         orgId,
         recipient: profile.email,
-        emailType: 'immediate_critical_alert',
+        emailType: 'daily_monitoring_digest',
         subject: '(skipped)',
         websiteIds: [],
         alertIds: skippedIds.map((s) => s.id),
@@ -358,7 +358,7 @@ async function markAlertsSkipped(
   await logEmailAlert({
     userId,
     recipient,
-    emailType: 'immediate_critical_alert',
+    emailType: 'daily_monitoring_digest',
     subject: '(skipped)',
     websiteIds: [],
     alertIds,

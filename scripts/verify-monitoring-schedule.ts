@@ -8,7 +8,7 @@ import {
   isDueForScheduledScan,
   resolveScanModeForWebsite,
 } from '../lib/jobs/scanFrequency';
-import { shouldQueueAlertEmail } from '../lib/alerts/alertEmailRules';
+import { shouldQueueAlertEmail, isUnderAttackAlert, isBatchUnderAttack } from '../lib/alerts/alertEmailRules';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -69,5 +69,34 @@ assert(shouldQueueAlertEmail('critical'), 'Critical alerts queue for email');
 assert(shouldQueueAlertEmail('high'), 'High alerts queue for email');
 assert(!shouldQueueAlertEmail('medium'), 'Medium alerts are dashboard-only');
 assert(!shouldQueueAlertEmail('low'), 'Low alerts are dashboard-only');
+
+// Under-attack bypass signals
+assert(
+  isUnderAttackAlert({ severity: 'critical', type: 'ssl_changed' }),
+  'Critical SSL/HTTPS loss is under attack',
+);
+assert(
+  isUnderAttackAlert({ severity: 'high', type: 'security_score_drop', message: 'Score decreased (−18 points)' }),
+  'High score drop ≥15 is under attack',
+);
+assert(
+  !isUnderAttackAlert({ severity: 'high', type: 'security_issue' }),
+  'Generic high security issue is not under attack alone',
+);
+assert(
+  isBatchUnderAttack([
+    { severity: 'critical', type: 'security_issue', website_id: 'a' },
+    { severity: 'critical', type: 'security_issue', website_id: 'b' },
+  ]),
+  'Two critical alerts in batch triggers under attack',
+);
+assert(
+  isBatchUnderAttack([{ severity: 'high', type: 'risk_increase' }]),
+  'Risk increase triggers under attack via alert-level signal',
+);
+assert(
+  !isBatchUnderAttack([{ severity: 'high', type: 'security_issue' }]),
+  'Single generic high alert does not trigger batch under attack',
+);
 
 console.log('All monitoring schedule checks passed.');
