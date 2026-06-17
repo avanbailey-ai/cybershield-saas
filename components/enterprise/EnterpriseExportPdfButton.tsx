@@ -55,7 +55,7 @@ export default function EnterpriseExportPdfButton({
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      setSuccess(`Downloaded ${filename} — last 30 days of org scan data.`);
+      setSuccess('Security posture report downloaded.');
     } catch (err) {
       setError(
         err instanceof Error
@@ -81,8 +81,19 @@ export default function EnterpriseExportPdfButton({
       {disabled && !loading && (
         <p className="max-w-xs text-right text-xs text-gray-500">Requires organization admin access and scan data.</p>
       )}
-      {success && <p className="max-w-xs text-right text-xs text-emerald-400">{success}</p>}
-      {error && <p className="max-w-xs text-right text-xs text-red-400">{error}</p>}
+      {success && (
+        <div className="max-w-xs text-right">
+          <p className="text-xs text-emerald-400">{success}</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Includes the last 30 days of scans, alerts, and organization risk trends.
+          </p>
+        </div>
+      )}
+      {error && (
+        <p className="max-w-xs text-right text-xs text-red-400">
+          Couldn&apos;t export the report. Please try again.
+        </p>
+      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { computeRollingRiskScore } from './rollingRiskScore';
 import {
   classifyIssueSeverity,
   diffScanFindings,
-  isHighOrCriticalSeverity,
   type ScanFindingRow,
 } from './scanDiff';
 
@@ -73,7 +72,7 @@ export function detectWebsiteScoreDrop(
   };
 }
 
-/** New HIGH/CRITICAL findings vs previous scan on the same website. */
+/** New findings vs previous scan on the same website — labeled by actual severity. */
 export function detectNewCriticalFindings(
   previous: ScanFindingRow | null,
   current: ScanFindingRow,
@@ -81,19 +80,34 @@ export function detectNewCriticalFindings(
   const diff = diffScanFindings(previous, current);
   const anomalies: DetectedAnomaly[] = [];
 
-  for (const issue of diff.escalated) {
-    const severity = classifyIssueSeverity(issue);
-    if (!isHighOrCriticalSeverity(severity)) continue;
-
+  for (const issue of diff.added) {
+    const severity = resolveIssueSeverity(issue);
+    const title = issue.replace(/^\[(CRITICAL|HIGH|MEDIUM|LOW)\]\s*/i, '').trim();
     anomalies.push({
       type: 'new_critical_finding',
-      severity: severity === 'critical' ? 'critical' : 'high',
-      message: `New ${severity} finding: ${issue}`,
+      severity,
+      message: formatFindingMessage(issue, severity),
       websiteId: current.website_id,
     });
   }
 
   return anomalies;
+}
+
+function resolveIssueSeverity(issue: string): import('./scanDiff').FindingSeverity {
+  const prefix = issue.match(/^\[(CRITICAL|HIGH|MEDIUM|LOW)\]\s*/i);
+  if (prefix) {
+    return prefix[1]!.toLowerCase() as import('./scanDiff').FindingSeverity;
+  }
+  return classifyIssueSeverity(issue);
+}
+
+function formatFindingMessage(
+  issue: string,
+  severity: import('./scanDiff').FindingSeverity,
+): string {
+  const title = issue.replace(/^\[(CRITICAL|HIGH|MEDIUM|LOW)\]\s*/i, '').trim();
+  return `New ${severity}-severity finding: ${title}`;
 }
 
 /** High variance across recent org scan scores. */
@@ -119,7 +133,7 @@ export function detectScoreVolatility(
   return {
     type: 'volatility',
     severity: scoreVariance >= 150 ? 'high' : 'medium',
-    message: `Score volatility detected across last ${windowSize} scans (variance ${Math.round(scoreVariance)})`,
+    message: `Score volatility detected (variance ${Math.round(scoreVariance)})`,
     websiteId: null,
   };
 }
