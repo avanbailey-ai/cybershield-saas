@@ -7,7 +7,7 @@
     "dev": "next dev",
     "dev:clean": "node scripts/run-dev-reset.js --clean-only",
     "dev:fresh": "node scripts/run-dev-reset.js --fresh",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start",
     "lint": "next lint",
     "enforce:layers": "node scripts/enforce-layers.mjs",
