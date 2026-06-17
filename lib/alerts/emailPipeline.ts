@@ -199,7 +199,7 @@ export async function processPendingAlertEvents(options?: {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas-1o19.vercel.app';
-    const dashboardUrl = `${siteUrl}/dashboard/alerts`;
+    const dashboardUrl = `${siteUrl}/app/alerts`;
 
     const items = emailable.map((event) => ({
       domain: extractDomain(websiteUrl(event.websites) || event.finding_title),

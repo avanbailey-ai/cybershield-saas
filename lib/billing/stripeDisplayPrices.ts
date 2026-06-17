@@ -1,6 +1,7 @@
 import { getStripe } from '@/lib/stripe/stripe';
 import { isStripeConfigured, getStripePriceIds } from '@/lib/stripe/env';
 import { BILLED_PLANS, type BilledPlan } from './plans';
+import { MARKETING_FALLBACK_PRICES } from './marketingPrices';
 
 export { formatDisplayPrice, formatDisplayPriceMonthly } from './formatPrice';
 
@@ -12,16 +13,18 @@ type PriceCache = {
 let cache: PriceCache | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
+export { MARKETING_FALLBACK_PRICES } from './marketingPrices';
+
 /** Fetch display amounts (USD/mo) from Stripe — billing authority is Stripe, not these numbers. */
 export async function getPlanDisplayAmounts(): Promise<Partial<Record<BilledPlan, number>>> {
   if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
-    return cache.amounts;
+    return { ...MARKETING_FALLBACK_PRICES, ...cache.amounts };
   }
 
-  const amounts: Partial<Record<BilledPlan, number>> = {};
+  const amounts: Partial<Record<BilledPlan, number>> = { ...MARKETING_FALLBACK_PRICES };
 
   if (!isStripeConfigured()) {
-    return amounts;
+    return { ...MARKETING_FALLBACK_PRICES };
   }
 
   try {
@@ -44,5 +47,5 @@ export async function getPlanDisplayAmounts(): Promise<Partial<Record<BilledPlan
     console.error('[stripeDisplayPrices] fetch failed:', err);
   }
 
-  return amounts;
+  return { ...MARKETING_FALLBACK_PRICES, ...amounts };
 }

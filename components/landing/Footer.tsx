@@ -25,8 +25,20 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} CyberShield SaaS. All rights reserved.
           </p>
 
-          <div className="flex items-center gap-5">
-            <Link href="/pricing" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            <Link href="/terms" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Terms
+            </Link>
+            <Link href="/privacy" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Privacy
+            </Link>
+            <Link href="/refund" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Refunds
+            </Link>
+            <Link href="/contact" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Contact
+            </Link>
+            <Link href="/pricing" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Pricing
             </Link>
             <Link href="/enterprise/review" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">

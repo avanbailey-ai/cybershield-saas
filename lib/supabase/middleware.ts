@@ -19,7 +19,7 @@ import { canAccessEnterprise } from "@/lib/auth/permissions";
 
 
 
-const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise", "/checkout/complete"];
+const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise", "/checkout/complete", "/terms", "/privacy", "/refund", "/contact"];
 
 const AUTH_PATHS = ["/login", "/signup", "/enterprise/login"];
 
@@ -194,7 +194,16 @@ export async function updateSession(request: NextRequest) {
 
       }
 
+      const orgCtxForOnboarding = await resolveOrgSessionContextFromSession(
+        supabase as unknown as SessionSubscriptionClient,
+        user.id,
+        user.email,
+        cookieOrgId,
+      );
 
+      if (!isOwner(user.email) && !hasOrgMembership(orgCtxForOnboarding)) {
+        return supabaseResponse;
+      }
 
       const access = await getSubscriptionAccessFromSession(
         supabase as unknown as SessionSubscriptionClient,

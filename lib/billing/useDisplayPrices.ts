@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import type { BilledPlan } from './plans';
+import { MARKETING_FALLBACK_PRICES } from './marketingPrices';
 
 type DisplayPrices = Partial<Record<BilledPlan, number>>;
 
 export function useDisplayPrices() {
-  const [prices, setPrices] = useState<DisplayPrices>({});
+  const [prices, setPrices] = useState<DisplayPrices>({ ...MARKETING_FALLBACK_PRICES });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export function useDisplayPrices() {
         if (!res.ok) return;
         const data = (await res.json()) as { prices?: DisplayPrices };
         if (!cancelled && data.prices) {
-          setPrices(data.prices);
+          setPrices({ ...MARKETING_FALLBACK_PRICES, ...data.prices });
         }
       } catch {
         // Non-fatal — UI shows placeholder

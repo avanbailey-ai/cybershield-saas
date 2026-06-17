@@ -51,9 +51,9 @@ function ensureProduct(name, cents) {
 const { sk, pk } = readStripeConfig();
 if (!sk.startsWith('sk_test_') || !pk.startsWith('pk_test_')) throw new Error('Stripe test keys missing from config');
 
-const pricePro = ensureProduct('CyberShield Pro', 2900);
-const priceGrowth = ensureProduct('CyberShield Growth', 7900);
-const priceAgency = ensureProduct('CyberShield Agency', 19900);
+const pricePro = ensureProduct('CyberShield Pro', 7900);
+const priceGrowth = ensureProduct('CyberShield Growth', 14900);
+const priceAgency = ensureProduct('CyberShield Agency', 29900);
 
 const webhookUrl = `${previewUrl}/api/stripe/webhook`;
 const hooks = JSON.parse(run('webhook_endpoints list --limit 20'));

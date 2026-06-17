@@ -136,13 +136,6 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
       <DashboardHeader email={userEmail} title="Enterprise Overview" showPlanUsage={false} />
 
       <main className="min-w-0 flex-1 overflow-x-hidden px-5 py-5 sm:p-6">
-        <div
-          className="mb-5 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-4 py-3 text-center text-sm font-medium text-emerald-300"
-          data-testid="enterprise-command-center-version"
-        >
-          Enterprise Command Center v2 — Mobile QA
-        </div>
-
         <div className="flex flex-col gap-8 lg:gap-8">
           {/* 1. Executive posture summary */}
           <section className="order-1 min-w-0 rounded-2xl border border-indigo-800/40 bg-gradient-to-br from-indigo-950/40 to-gray-900/60 p-5 sm:p-6">

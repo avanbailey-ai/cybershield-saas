@@ -118,7 +118,7 @@ export async function sendWeeklyDigests(): Promise<{ sent: number; skipped: numb
     const html = weeklyDigestEmail({
       userEmail: profile.email!,
       websites: websiteData,
-      digestUrl: `${siteUrl}/dashboard/alerts`,
+      digestUrl: `${siteUrl}/app/alerts`,
     });
 
     const result = await sendEmail({ to: profile.email!, subject, html });

@@ -188,7 +188,7 @@ export function buildImmediateActions(input: {
       severity: alert.severity,
       reason: alert.message.slice(0, 120),
       ctaLabel: 'View alerts',
-      ctaHref: '/dashboard/alerts',
+      ctaHref: '/app/alerts',
     });
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fetchPostAuthRedirectPath } from "@/lib/auth/fetchPostAuthRedirectPath";
@@ -152,7 +153,15 @@ export default function SignupForm() {
       </Button>
 
       <p className="text-center text-xs text-gray-500">
-        By creating an account you agree to our Terms of Service and Privacy Policy.
+        By creating an account you agree to our{' '}
+        <Link href="/terms" className="text-gray-400 underline hover:text-gray-300">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href="/privacy" className="text-gray-400 underline hover:text-gray-300">
+          Privacy Policy
+        </Link>
+        .
       </p>
     </form>
   );

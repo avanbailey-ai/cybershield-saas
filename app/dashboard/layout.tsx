@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+import DashboardShell from "@/components/dashboard/DashboardShell";
 
 import { ConversionProvider } from "@/components/conversion/ConversionProvider";
 
@@ -92,19 +92,13 @@ export default async function DashboardLayout({
 
     <ConversionProvider>
 
-      <div className="flex h-screen overflow-hidden bg-[#0a0f1e]">
+      <DashboardShell showAdmin={owner} showEnterprise={showEnterprise}>
 
-        <DashboardSidebar showAdmin={owner} showEnterprise={showEnterprise} />
+        {children}
 
-        <div className="flex flex-1 flex-col overflow-hidden">
+      </DashboardShell>
 
-          {children}
-
-        </div>
-
-        <ReportProblemWidget userEmail={user.email} />
-
-      </div>
+      <ReportProblemWidget userEmail={user.email} />
 
     </ConversionProvider>
 

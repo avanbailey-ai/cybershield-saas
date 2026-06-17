@@ -14,6 +14,7 @@ import {
   isBatchUnderAttack,
   shouldQueueAlertEmail,
 } from '@/lib/alerts/alertEmailRules';
+import { checkEmailBudget } from '@/lib/alerts/emailBudget';
 
 type PendingAlert = {
   id: string;
@@ -248,6 +249,21 @@ export async function flushLegacyGroupedAlerts(options?: {
 
     const isAttackEmail = underAttack && dailyCapActive;
     const emailType = isAttackEmail ? 'immediate_attack_alert' : 'daily_monitoring_digest';
+
+    const budget = await checkEmailBudget(isAttackEmail ? 'critical_alert' : 'weekly_digest');
+    if (!budget.allowed) {
+      await markAlertsSkipped(
+        supabase,
+        emailable.map((a) => a.id),
+        'budget_exhausted',
+        options?.cronRunId,
+        userId,
+        profile.email,
+      );
+      result.skipped++;
+      continue;
+    }
+
     const emailTypeLabel = isAttackEmail
       ? 'Urgent security alert'
       : 'Daily monitoring digest';
@@ -256,7 +272,7 @@ export async function flushLegacyGroupedAlerts(options?: {
       : 'You are receiving this once-daily summary because CyberShield monitoring detected critical or high-risk issues on your websites. We limit monitoring emails to one digest per day unless an active attack is detected.';
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas-1o19.vercel.app';
-    const dashboardUrl = `${siteUrl}/dashboard/alerts`;
+    const dashboardUrl = `${siteUrl}/app/alerts`;
 
     const items = emailable.map((alert) => {
       const siteRow = websiteFromJoin(alert.websites);
