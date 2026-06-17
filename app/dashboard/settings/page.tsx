@@ -11,6 +11,8 @@ import { canAccessFeature } from "@/lib/auth/featureGate";
 import { getUserWithPlan } from "@/lib/billing/planService";
 import { getActiveOrgId } from "@/lib/org/context";
 import { getNotificationPreferences } from "@/lib/notifications/preferences";
+import LiveCheckoutTestTools from "@/components/dashboard/LiveCheckoutTestTools";
+import { canUseLiveCheckoutTest } from "@/lib/auth/liveCheckoutTest";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +105,17 @@ export default async function SettingsPage({
               />
             </CardContent>
           </Card>
+
+          {canUseLiveCheckoutTest(user.email) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Live Checkout Test (Internal)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LiveCheckoutTestTools userEmail={user.email ?? ""} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Billing & Plan */}
           <Card id="billing">
