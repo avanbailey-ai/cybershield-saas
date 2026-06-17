@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import EnterprisePortalSidebar from '@/components/enterprise/EnterprisePortalSidebar';
+import EnterprisePortalShell from '@/components/enterprise/EnterprisePortalShell';
 import { canAccessEnterprise } from '@/lib/auth/permissions';
 import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
@@ -44,10 +44,9 @@ export default async function EnterprisePortalLayout({ children }: { children: R
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0f1e]">
-      <EnterprisePortalSidebar showOwnerTools={isOwner(user.email)} />
-      <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
+    <>
+      <EnterprisePortalShell showOwnerTools={isOwner(user.email)}>{children}</EnterprisePortalShell>
       <ReportProblemWidget userEmail={user.email} />
-    </div>
+    </>
   );
 }

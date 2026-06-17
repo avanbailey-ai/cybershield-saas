@@ -54,6 +54,7 @@ const navItems = [
 
 interface EnterprisePortalSidebarProps {
   showOwnerTools?: boolean;
+  onNavigate?: () => void;
 }
 
 const ownerNavItem = {
@@ -66,7 +67,10 @@ const ownerNavItem = {
   ),
 };
 
-export default function EnterprisePortalSidebar({ showOwnerTools = false }: EnterprisePortalSidebarProps) {
+export default function EnterprisePortalSidebar({
+  showOwnerTools = false,
+  onNavigate,
+}: EnterprisePortalSidebarProps) {
   const pathname = usePathname();
   const items = showOwnerTools ? [...navItems, ownerNavItem] : navItems;
 
@@ -99,6 +103,7 @@ export default function EnterprisePortalSidebar({ showOwnerTools = false }: Ente
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={onNavigate}
                   className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                     isActive
                       ? 'bg-indigo-600/10 text-white'

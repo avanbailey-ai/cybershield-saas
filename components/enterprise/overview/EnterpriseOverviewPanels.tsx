@@ -1,11 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+function usePrefersMobileLayout() {
+  const [mobile, setMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const update = () => setMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  return mobile;
+}
 
 interface CollapsiblePanelProps {
   title: string;
   subtitle?: string;
   defaultOpen?: boolean;
+  collapseOnMobile?: boolean;
   children: React.ReactNode;
   badge?: string;
 }
@@ -14,30 +29,37 @@ export function CollapsiblePanel({
   title,
   subtitle,
   defaultOpen = false,
+  collapseOnMobile = false,
   children,
   badge,
 }: CollapsiblePanelProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const isMobile = usePrefersMobileLayout();
+  const resolvedDefault = collapseOnMobile && isMobile ? false : defaultOpen;
+  const [open, setOpen] = useState(resolvedDefault);
+
+  useEffect(() => {
+    setOpen(collapseOnMobile && isMobile ? false : defaultOpen);
+  }, [collapseOnMobile, defaultOpen, isMobile]);
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/50">
+    <div className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left"
+        className="flex w-full min-w-0 items-center justify-between gap-3 px-4 py-4 text-left sm:px-6"
       >
-        <div>
-          <div className="flex items-center gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold text-white">{title}</h3>
             {badge && (
               <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">{badge}</span>
             )}
           </div>
-          {subtitle && <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>}
+          {subtitle && <p className="mt-0.5 break-words text-sm text-gray-500">{subtitle}</p>}
         </div>
-        <span className="text-xs text-gray-500">{open ? 'Hide' : 'Show'}</span>
+        <span className="shrink-0 text-sm text-gray-500">{open ? 'Hide' : 'Show'}</span>
       </button>
-      {open && <div className="border-t border-gray-800 px-6 pb-6 pt-4">{children}</div>}
+      {open && <div className="border-t border-gray-800 px-4 pb-6 pt-4 sm:px-6">{children}</div>}
     </div>
   );
 }
@@ -80,12 +102,12 @@ export function IntelligenceSignalsClient({
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                <p className="mt-1 text-sm font-medium uppercase tracking-wide text-gray-500">
                   {signal.typeLabel}
                 </p>
-                <p className="mt-1 text-sm font-medium text-gray-100">{signal.title}</p>
-                <p className="mt-1 text-xs text-gray-400">{signal.detail}</p>
-                <p className="mt-1 text-xs text-gray-600">
+                <p className="mt-1 break-words text-sm font-medium text-gray-100">{signal.title}</p>
+                <p className="mt-1 break-words text-sm text-gray-400">{signal.detail}</p>
+                <p className="mt-1 text-sm text-gray-600">
                   {new Date(signal.latestAt).toLocaleString()}
                 </p>
               </div>
@@ -110,7 +132,7 @@ export function IntelligenceSignalsClient({
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
+          className="w-full rounded-lg border border-gray-700 px-4 py-2.5 text-sm font-medium text-indigo-400 hover:bg-gray-800/60 hover:text-indigo-300 sm:w-auto sm:border-0 sm:px-0 sm:py-0"
         >
           View all intelligence signals ({total})
         </button>
@@ -139,7 +161,7 @@ export function LowerPriorityAlerts({ alerts }: LowerPriorityAlertsProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="text-xs font-medium text-gray-400 hover:text-gray-300"
+        className="w-full rounded-lg border border-gray-700 px-4 py-2.5 text-left text-sm font-medium text-gray-400 hover:bg-gray-800/40 hover:text-gray-300 sm:w-auto sm:border-0 sm:px-0 sm:py-0"
       >
         {open ? 'Hide' : 'View'} lower priority findings ({alerts.length})
       </button>
