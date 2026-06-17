@@ -18,7 +18,6 @@ import {
   shouldEmailImmediately,
 } from './emailDecision';
 import { getEffectivePlan } from '@/lib/auth/permissions';
-import { flushLegacyGroupedAlerts } from './groupedMonitoringEmail';
 
 type PendingEvent = {
   id: string;
@@ -291,6 +290,25 @@ async function markEventSkipped(
     .from('alert_events')
     .update({ email_status: 'skipped', email_skip_reason: reason })
     .eq('id', eventId);
+  await syncLinkedAlertsSkipped(supabase, [eventId], reason);
+}
+
+async function syncLinkedAlertsSkipped(
+  supabase: ReturnType<typeof createAdminClient>,
+  eventIds: string[],
+  reason: string,
+): Promise<void> {
+  if (!eventIds.length) return;
+  const { data: links } = await supabase
+    .from('alert_events')
+    .select('alert_id')
+    .in('id', eventIds);
+  const alertIds = (links ?? []).map((r) => r.alert_id).filter(Boolean) as string[];
+  if (!alertIds.length) return;
+  await supabase
+    .from('alerts')
+    .update({ email_dispatch_status: 'skipped', email_skip_reason: reason })
+    .in('id', alertIds);
 }
 
 async function skipEvents(
@@ -311,6 +329,8 @@ async function skipEvents(
     .update({ email_status: 'skipped', email_skip_reason: reason })
     .in('id', ids);
 
+  await syncLinkedAlertsSkipped(supabase, ids, reason);
+
   await logEmailAlert({
     accountId,
     userId,
@@ -326,15 +346,14 @@ async function skipEvents(
   });
 }
 
-/** Cron + manual flush: new alert_events pipeline + legacy alerts table. */
+/** Cron + manual flush: alert_events pipeline (legacy alerts flush disabled — see recordAlertEvent sync). */
 export async function flushGroupedMonitoringAlerts(options?: {
   cronRunId?: string;
 }): Promise<{ attempted: number; sent: number; skipped: number }> {
   const events = await processPendingAlertEvents(options);
-  const legacy = await flushLegacyGroupedAlerts(options);
   return {
-    attempted: events.attempted + legacy.attempted,
-    sent: events.sent + legacy.sent,
-    skipped: events.skipped + legacy.skipped,
+    attempted: events.attempted,
+    sent: events.sent,
+    skipped: events.skipped,
   };
 }

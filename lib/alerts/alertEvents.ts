@@ -91,6 +91,23 @@ export async function recordAlertEvent(params: RecordAlertEventParams): Promise<
     return null;
   }
 
+  // Keep legacy alerts table in sync so the old grouped-email flush cannot double-send.
+  if (params.alertId) {
+    const legacyStatus = shouldImmediate ? 'pending' : 'skipped';
+    const legacySkipReason = shouldImmediate
+      ? null
+      : digestEligible
+        ? 'alert_events_digest'
+        : 'not_email_worthy';
+    await supabase
+      .from('alerts')
+      .update({
+        email_dispatch_status: legacyStatus,
+        email_skip_reason: legacySkipReason,
+      })
+      .eq('id', params.alertId);
+  }
+
   return data?.id ?? null;
 }
 
