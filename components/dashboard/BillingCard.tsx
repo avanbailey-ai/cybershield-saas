@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Plan, BilledPlan } from '@/lib/billing/plans';
 import { PLAN_LIMITS } from '@/lib/billing/plans';
+import { formatPlanSummary, getPlanMarketing } from '@/lib/billing/planFeatures';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPriceMonthly } from '@/lib/billing/formatPrice';
 import { usePlan } from '@/lib/billing/usePlan';
@@ -14,10 +15,15 @@ interface BillingCardProps {
 }
 
 function formatWebsiteDescription(plan: Plan): string {
+  if (plan === 'owner') {
+    return 'Owner agency entitlement · Agency-grade monitoring enabled';
+  }
+  if (plan === 'agency' && PLAN_LIMITS.agency.websites !== Infinity) {
+    return formatPlanSummary('agency');
+  }
+  const marketing = getPlanMarketing(plan);
   const limits = PLAN_LIMITS[plan];
-  const websites =
-    limits.websites === Infinity ? 'Unlimited websites' : `${limits.websites} website${limits.websites === 1 ? '' : 's'}`;
-  return `${websites} · ${limits.maxScansPerDay} scans/day`;
+  return `${marketing.websiteLabel} · ${marketing.monitoringLabel} · ${limits.maxScansPerDay === Infinity ? 'Unlimited' : limits.maxScansPerDay} manual deep scans/day`;
 }
 
 export default function BillingCard({ currentPlan, subscriptionStatus }: BillingCardProps) {
@@ -40,7 +46,10 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
   const atScanLimit = !usageLoading && scansRemaining === 0;
 
   const meta = {
-    name: PLAN_LIMITS[currentPlanResolved]?.name ?? PLAN_LIMITS.free.name,
+    name:
+      currentPlanResolved === 'owner'
+        ? 'Agency access granted'
+        : (PLAN_LIMITS[currentPlanResolved]?.name ?? PLAN_LIMITS.free.name),
     description: formatWebsiteDescription(currentPlanResolved),
   };
 
@@ -142,9 +151,9 @@ export default function BillingCard({ currentPlan, subscriptionStatus }: Billing
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-gray-200">Daily scan usage</p>
+              <p className="text-sm font-medium text-gray-200">Daily manual deep scan usage</p>
               <p className="mt-0.5 text-xs text-gray-500">
-                Resets at UTC midnight · {scansToday} / {displayLimit} used today
+                Automated monitoring checks are separate · Resets at UTC midnight · {scansToday} / {displayLimit} used today
               </p>
             </div>
             <span

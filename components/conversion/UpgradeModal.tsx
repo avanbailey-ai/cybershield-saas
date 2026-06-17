@@ -5,10 +5,9 @@ import Link from 'next/link';
 import {
   PLAN_LIMITS,
   BILLED_PLANS,
-  formatScanFrequency,
-  formatWebsiteLimit,
   type BilledPlan,
 } from '@/lib/billing/plans';
+import { getPlanMarketing } from '@/lib/billing/planFeatures';
 import { getUrgencyMessage } from '@/lib/conversion/urgency';
 import { getPersonalizedCta } from '@/lib/conversion/personalize';
 import { trackEvent, getSessionId } from '@/lib/analytics/events';
@@ -216,6 +215,7 @@ export default function UpgradeModal({
         <div className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6">
           {BILLED_PLANS.map((plan) => {
             const limits = PLAN_LIMITS[plan];
+            const marketing = getPlanMarketing(plan);
             const isHighlighted = plan === highlightPlan;
             const isGrowth = plan === 'growth';
             return (
@@ -232,21 +232,16 @@ export default function UpgradeModal({
                     {isGrowth ? 'Most Popular' : 'Recommended'}
                   </span>
                 )}
-                <h3 className="text-base font-bold text-white sm:text-lg">
-                  {isGrowth ? 'Continuous Protection' : limits.name}
-                </h3>
-                {isGrowth && (
-                  <p className="mt-0.5 text-xs text-blue-400/80">Recommended for live websites</p>
-                )}
+                <h3 className="text-base font-bold text-white sm:text-lg">{limits.name}</h3>
+                <p className="mt-0.5 text-xs text-gray-500">{marketing.tagline}</p>
                 <p className="mt-1 text-2xl font-bold text-white">
                   {formatDisplayPrice(prices[plan])}
                   <span className="text-sm font-normal text-gray-500">/mo</span>
                 </p>
                 <ul className="mt-3 flex-1 space-y-1.5 text-sm text-gray-400">
-                  <li>{formatWebsiteLimit(limits.websites)}</li>
-                  <li>{limits.maxScansPerDay} scans/day</li>
-                  <li>{formatScanFrequency(limits.scanFrequency)}</li>
-                  {isGrowth && <li className="text-gray-300">Change detection included</li>}
+                  <li>{marketing.websiteLabel}</li>
+                  <li>{marketing.monitoringLabel}</li>
+                  <li>{marketing.deepScanLabel}</li>
                 </ul>
                 {isHighlighted ? (
                   <button

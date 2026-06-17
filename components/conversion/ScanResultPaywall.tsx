@@ -16,6 +16,7 @@ import { buildPartialAiPreview } from '@/lib/conversion/partialAiPreview';
 import SecurityCoverageBar from './SecurityCoverageBar';
 import LockedFeaturePreview from './LockedFeaturePreview';
 import PartialAiInsightPreview from './PartialAiInsightPreview';
+import PaywallUpgradeCards from './PaywallUpgradeCards';
 
 export interface PublicScanResult {
   url: string;
@@ -228,6 +229,16 @@ export default function ScanResultPaywall({
         <PartialAiInsightPreview content={partialAiContent} className="mt-6" />
       )}
 
+      {paywallVisible && (
+        <PaywallUpgradeCards
+          recommendedPlan={funnel.recommendedPlan}
+          onSelectPlan={(plan) => {
+            window.location.href = buildPricingHref(plan);
+          }}
+          className="mt-6"
+        />
+      )}
+
       {topIssues.length > 0 && (
         <div className="mt-8">
           <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -258,7 +269,7 @@ export default function ScanResultPaywall({
             Your site scored below 70 — vulnerabilities need attention
           </p>
           <p className="mt-1 text-xs text-red-200/80">
-            Attackers scan for exactly these gaps. Pro provides daily monitoring and step-by-step remediation guidance.
+            Attackers scan for exactly these gaps. Pro unlocks the full report, monitoring, and step-by-step fix guidance.
           </p>
           <button
             type="button"

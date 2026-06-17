@@ -22,11 +22,11 @@ export default function EnterpriseHeader() {
           <Link href="/enterprise/case-studies" className="hidden text-gray-400 hover:text-white sm:inline">
             Case Studies
           </Link>
-          <Link
-            href="/enterprise/lead"
-            className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500"
-          >
-            Contact Sales
+          <Link href="/enterprise/review" className="text-gray-400 hover:text-white">
+            Request Security Review
+          </Link>
+          <Link href="/enterprise/login" className="text-gray-400 hover:text-white">
+            Enterprise Login
           </Link>
         </nav>
       </div>

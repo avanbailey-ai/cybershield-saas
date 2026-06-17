@@ -34,19 +34,19 @@ export const PLANS: Record<PlanId, Plan> = {
   pro: {
     id: 'pro',
     name: 'Pro',
-    websiteLimit: 25,
+    websiteLimit: 10,
     scanFrequency: 'daily',
   },
   growth: {
     id: 'growth',
     name: 'Growth',
-    websiteLimit: 100,
-    scanFrequency: 'daily',
+    websiteLimit: 50,
+    scanFrequency: 'hourly',
   },
   agency: {
     id: 'agency',
     name: 'Agency',
-    websiteLimit: null,
+    websiteLimit: 250,
     scanFrequency: 'hourly',
   },
   owner: {

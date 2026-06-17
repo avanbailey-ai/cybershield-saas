@@ -40,7 +40,7 @@ export default async function EnterprisePortalLayout({ children }: { children: R
       orgCtx.role,
     )
   ) {
-    redirect('/app');
+    redirect('/enterprise/review?access=required');
   }
 
   return (

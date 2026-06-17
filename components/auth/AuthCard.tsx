@@ -7,6 +7,9 @@ interface AuthCardProps {
   footerText: string;
   footerLinkText: string;
   footerLinkHref: string;
+  secondaryFooterText?: string;
+  secondaryFooterLinkText?: string;
+  secondaryFooterLinkHref?: string;
   panelHeadline: string;
   panelDescription: string;
   panelBullets: string[];
@@ -19,6 +22,9 @@ export default function AuthCard({
   footerText,
   footerLinkText,
   footerLinkHref,
+  secondaryFooterText,
+  secondaryFooterLinkText,
+  secondaryFooterLinkHref,
   panelHeadline,
   panelDescription,
   panelBullets,
@@ -88,6 +94,17 @@ export default function AuthCard({
               {footerLinkText}
             </Link>
           </p>
+          {secondaryFooterText && secondaryFooterLinkText && secondaryFooterLinkHref ? (
+            <p className="mt-3 text-center text-sm text-gray-500">
+              {secondaryFooterText}{" "}
+              <Link
+                href={secondaryFooterLinkHref}
+                className="font-medium text-amber-400 hover:text-amber-300 transition-colors"
+              >
+                {secondaryFooterLinkText}
+              </Link>
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

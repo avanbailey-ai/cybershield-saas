@@ -43,6 +43,7 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
   const scanScoreRaw = searchParams.get('score');
   const scanScore = scanScoreRaw ? parseInt(scanScoreRaw, 10) : null;
   const fromScan = scanDomain.length > 0;
+  const needsEnterpriseAccess = searchParams.get('access') === 'required';
   const prefilledMessage = searchParams.get('message')?.trim() ?? '';
 
   const [name, setName] = useState('');
@@ -237,7 +238,20 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
     <div className="min-h-screen bg-[#0a0f1e]">
       <EnterpriseHeader />
       <main className="mx-auto max-w-2xl px-4 py-12">
-        {(fromScan || isReview) && (
+        {needsEnterpriseAccess && (
+          <div className="mb-6 rounded-xl border border-blue-500/30 bg-blue-500/10 p-5">
+            <h2 className="text-lg font-semibold text-white">Enterprise access required</h2>
+            <p className="mt-2 text-sm text-gray-300">
+              Your account does not have enterprise portal access yet. Enterprise access is created
+              after a security review. Submit the form below to request access, or{' '}
+              <Link href="/dashboard" className="font-medium text-blue-400 hover:text-blue-300">
+                return to your dashboard
+              </Link>{' '}
+              if you only need self-serve monitoring.
+            </p>
+          </div>
+        )}
+        {(fromScan || isReview) && !needsEnterpriseAccess && (
           <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-center">
             <h2 className="text-xl font-semibold text-white">
               Security Review Recommended

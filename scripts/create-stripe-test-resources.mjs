@@ -54,9 +54,9 @@ async function ensureProduct(name, amountCents) {
   return price.id;
 }
 
-const proPrice = await ensureProduct('CyberShield Pro', 2900);
-const growthPrice = await ensureProduct('CyberShield Growth', 7900);
-const agencyPrice = await ensureProduct('CyberShield Agency', 19900);
+const proPrice = await ensureProduct('CyberShield Pro', 7900);
+const growthPrice = await ensureProduct('CyberShield Growth', 14900);
+const agencyPrice = await ensureProduct('CyberShield Agency', 29900);
 
 const webhookUrl = `${previewUrl}/api/stripe/webhook`;
 const hooks = JSON.parse(run('webhook_endpoints list --limit 20'));

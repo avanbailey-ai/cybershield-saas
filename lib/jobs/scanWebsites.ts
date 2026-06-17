@@ -3,7 +3,6 @@ import { getEffectivePlan } from '@/lib/auth/permissions';
 import { getUserWithPlan } from '@/lib/billing/planService';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
 import { enforceScanLimit } from '@/lib/billing/enforceScan';
-import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
 import {
   getEligibleFrequencyMinutes,
   isDueForScheduledScan,
@@ -111,29 +110,15 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
       continue;
     }
 
-    const enforceResult = await enforceScanLimit(website.user_id, website.org_id);
+    const enforceResult = await enforceScanLimit(website.user_id, website.org_id, {
+      skipDailyLimit: true,
+    });
     if (!enforceResult.allowed) {
       blocked++;
       logSchedulerDecision({
         ...baseLog,
         action: 'blocked',
         reason: enforceResult.reason ?? 'scan_limit',
-      });
-      continue;
-    }
-
-    const usageCheck = await checkAndIncrementScanUsage(
-      website.user_id,
-      plan,
-      website.org_id,
-    );
-
-    if (!usageCheck.allowed) {
-      blocked++;
-      logSchedulerDecision({
-        ...baseLog,
-        action: 'blocked',
-        reason: usageCheck.reason ?? 'daily_limit_reached',
       });
       continue;
     }

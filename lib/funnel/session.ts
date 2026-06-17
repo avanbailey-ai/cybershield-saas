@@ -52,7 +52,7 @@ export function readFunnelSession(): FunnelSessionState | null {
 }
 
 export function buildPricingHref(
-  plan: 'pro' | 'growth' = 'pro',
+  plan: 'pro' | 'growth' | 'agency' = 'pro',
   overrides?: Partial<FunnelSessionState>,
 ): string {
   const stored = readFunnelSession();

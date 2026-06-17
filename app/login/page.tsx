@@ -35,6 +35,9 @@ export default function LoginPage() {
       footerText="Don't have an account?"
       footerLinkText="Create one free"
       footerLinkHref="/signup"
+      secondaryFooterText="Enterprise customer?"
+      secondaryFooterLinkText="Enterprise sign in"
+      secondaryFooterLinkHref="/enterprise/login"
       panelHeadline="Welcome Back"
       panelDescription="Access your security monitoring dashboard and stay ahead of threats."
       panelBullets={bullets}

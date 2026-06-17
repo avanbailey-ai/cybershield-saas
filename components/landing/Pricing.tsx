@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   PLAN_LIMITS,
-  formatScanFrequency,
-  formatWebsiteLimit,
   type BilledPlan,
 } from '@/lib/billing/plans';
+import { getPlanMarketing, ENTERPRISE_MARKETING } from '@/lib/billing/planFeatures';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 import { trackEvent } from '@/lib/conversion/track';
@@ -30,38 +29,25 @@ const smbPlans = [
     price: '',
     period: '/mo',
     description:
-      'Full vulnerability reports, daily scans, and automated fix guidance — everything your scan revealed, unlocked.',
-    roiLine: 'Fixes the issues your scan found automatically.',
-    features: [
-      formatWebsiteLimit(PLAN_LIMITS.pro.websites),
-      `${PLAN_LIMITS.pro.maxScansPerDay} scans/day`,
-      formatScanFrequency(PLAN_LIMITS.pro.scanFrequency),
-      'Full reports & email alerts',
-      'Attack surface & exploit modeling',
-      'Daily automated scans',
-    ],
-    cta: 'Enable continuous protection',
+      'Unlock the full report and start daily monitoring with fix guidance for the issues your scan revealed.',
+    roiLine: 'Pro unlocks full reports, monitoring, and step-by-step fix guidance.',
+    features: getPlanMarketing('pro').bullets,
+    cta: 'Start Monitoring',
     highlighted: true,
     stripePlan: 'pro' as const,
   },
   {
     id: 'growth' as const,
-    name: 'Continuous Protection',
-    subtitle: 'For multiple live sites',
+    name: 'Growth',
+    subtitle: 'For growing teams',
     badge: null,
     price: '',
     period: '/mo',
-    description: 'Daily scans, alerts, and change detection for teams managing several websites.',
-    roiLine: 'One prevented breach pays for years of monitoring.',
-    features: [
-      formatWebsiteLimit(PLAN_LIMITS.growth.websites),
-      `${PLAN_LIMITS.growth.maxScansPerDay} scans/day`,
-      formatScanFrequency(PLAN_LIMITS.growth.scanFrequency),
-      'Full vulnerability reports',
-      'Email alerts when risks change',
-      'Change detection & trend tracking',
-    ],
-    cta: 'Enable continuous protection',
+    description:
+      'Continuous protection with hourly monitoring, change detection, and trend tracking.',
+    roiLine: 'Hourly monitoring catches new risks between deep scans.',
+    features: getPlanMarketing('growth').bullets,
+    cta: 'Enable Continuous Protection',
     highlighted: false,
     stripePlan: 'growth' as const,
   },
@@ -141,7 +127,7 @@ function PricingInner() {
     const hostname = hostnameFromUrl(funnelState.scanned_site);
     const issues = funnelState.issue_count;
     if (issues > 0) {
-      return `Your site has ${issues} issue${issues !== 1 ? 's' : ''} — Pro fixes this automatically`;
+      return `Your site has ${issues} issue${issues !== 1 ? 's' : ''} — Pro unlocks the full report and fix guidance`;
     }
     if (funnelState.score < 70) {
       return `${hostname} scored ${funnelState.score}/100 — enable protection before attackers find these gaps`;
@@ -219,7 +205,7 @@ function PricingInner() {
             </div>
           )}
           <p className="mx-auto mt-4 max-w-xl text-gray-400">
-            Your free scan showed the gaps. Pro unlocks full reports, daily monitoring, and automated
+            Your free scan showed the gaps. Pro unlocks full reports, daily monitoring, and step-by-step
             fix guidance.
           </p>
           {trustSignals && (
@@ -326,36 +312,49 @@ function PricingInner() {
 
         <PlanComparisonTable />
 
+        <div className="mt-16 rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-950/20 to-gray-950 p-8 sm:p-10">
+          <div className="mx-auto flex max-w-4xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-purple-400/80">Agency</p>
+              <h3 className="mt-2 text-2xl font-bold text-white">{PLAN_LIMITS.agency.name}</h3>
+              <p className="mt-2 text-sm text-gray-400">{getPlanMarketing('agency').tagline}</p>
+              <ul className="mt-4 space-y-2 text-sm text-gray-400">
+                {getPlanMarketing('agency').bullets.slice(0, 4).map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="text-purple-400">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="shrink-0 text-center sm:text-right">
+              <p className="text-3xl font-bold text-white">{formatDisplayPrice(prices.agency)}<span className="text-sm font-normal text-gray-500">/mo</span></p>
+              <button
+                type="button"
+                onClick={() => handleCheckoutClick('agency')}
+                disabled={loading !== null}
+                className="mt-4 rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-purple-500 disabled:opacity-60"
+              >
+                {loading === 'agency' ? 'Redirecting…' : 'Upgrade to Agency'}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-16 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-950/20 to-gray-950 p-8 sm:p-10">
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
-              Enterprise & regulated teams
+              {ENTERPRISE_MARKETING.title}
             </p>
-            <h3 className="mt-3 text-2xl font-bold text-white">Request Security Review</h3>
-            <p className="mt-3 text-sm leading-relaxed text-gray-400">
-              For larger organizations, agencies, and compliance-focused teams that need audit trails,
-              SSO support, multi-tenant management, and dedicated security review.
-            </p>
-            <p className="mt-2 text-sm text-gray-500">
-              No self-serve pricing — we scope coverage around your websites, team structure, compliance
-              needs, and monitoring requirements.
-            </p>
+            <h3 className="mt-3 text-2xl font-bold text-white">{ENTERPRISE_MARKETING.headline}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-gray-400">{ENTERPRISE_MARKETING.body}</p>
+            <p className="mt-2 text-sm text-gray-500">{ENTERPRISE_MARKETING.pricingNote}</p>
             <ul className="mt-6 inline-flex flex-col gap-2 text-left text-sm text-gray-400">
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">✓</span> SOC2-ready audit logs & compliance reporting
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">✓</span> Multi-tenant organization management
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">✓</span> SSO/SAML implementation path
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">✓</span> Dedicated security review & custom SLA
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">✓</span> Priority support for regulated environments
-              </li>
+              {ENTERPRISE_MARKETING.bullets.map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="text-amber-400">✓</span> {item}
+                </li>
+              ))}
             </ul>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -367,7 +366,13 @@ function PricingInner() {
                 onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_review' })}
                 className="rounded-lg bg-amber-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
               >
-                Request Security Review
+                {ENTERPRISE_MARKETING.cta}
+              </Link>
+              <Link
+                href="/enterprise/login"
+                className="rounded-lg border border-gray-700 px-8 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+              >
+                Enterprise Login
               </Link>
             </div>
           </div>

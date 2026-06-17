@@ -9,8 +9,8 @@ import { PLAN_LIMITS } from '@/lib/billing/plans';
  * |--------|------------------------------------|--------------|---------------|--------|
  * | Free   | daily_scan (usage-capped)          | 24h          | —             | —      |
  * | Pro    | daily_scan, weekly_deep_scan       | 24h          | 7d            | —      |
- * | Growth | daily_scan, weekly_deep_scan       | 12h          | 7d            | —      |
- * | Agency | daily_scan, weekly_deep_scan, hourly_monitor | 24h | 7d     | 5m     |
+ * | Growth | daily_scan, weekly_deep_scan       | 1h           | 7d            | —      |
+ * | Agency | daily_scan, weekly_deep_scan, hourly_monitor | 1h (default) | 7d | 5m (priority) |
  *
  * Production cron: /api/scan/enqueue-or-process-batch (vercel.json every 5 minutes).
  * Requires Vercel Pro for native 5-minute cron; Hobby is daily-only — use external
@@ -36,8 +36,11 @@ const BASE_INTERVAL_MS: Record<ScanScheduleMode, number> = {
 const PLAN_INTERVAL_MS: Partial<
   Record<Plan, Partial<Record<ScanScheduleMode, number>>>
 > = {
-  growth: { daily_scan: 12 * MS.hour },
-  agency: { hourly_monitor: 5 * MS.minute },
+  growth: { daily_scan: MS.hour },
+  agency: {
+    daily_scan: MS.hour,
+    hourly_monitor: 5 * MS.minute,
+  },
   owner: { hourly_monitor: 5 * MS.minute },
 };
 

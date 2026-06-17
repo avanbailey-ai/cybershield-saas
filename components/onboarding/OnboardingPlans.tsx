@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   PLAN_LIMITS,
-  formatScanFrequency,
-  formatWebsiteLimit,
   type BilledPlan,
 } from '@/lib/billing/plans';
+import { getPlanMarketing } from '@/lib/billing/planFeatures';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPrice } from '@/lib/billing/formatPrice';
 import { trackEvent } from '@/lib/analytics/events';
@@ -16,9 +15,9 @@ const PAID_PLANS: BilledPlan[] = ['pro', 'growth', 'agency'];
 const RECOMMENDED: BilledPlan = 'growth';
 
 const OUTCOMES: Record<BilledPlan, string> = {
-  pro: 'Daily scans and alerts — ideal for getting started.',
-  growth: 'Daily monitoring with priority scans — best for most teams.',
-  agency: 'Hourly scans and unlimited sites for agencies.',
+  pro: getPlanMarketing('pro').tagline,
+  growth: getPlanMarketing('growth').tagline,
+  agency: getPlanMarketing('agency').tagline,
 };
 
 export default function OnboardingPlans() {
@@ -116,9 +115,9 @@ export default function OnboardingPlans() {
                 <span className="text-sm font-normal text-gray-500">/mo</span>
               </p>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-gray-400">
-                <li>{formatWebsiteLimit(limits.websites)}</li>
-                <li>{limits.maxScansPerDay} scans per day</li>
-                <li>{formatScanFrequency(limits.scanFrequency)}</li>
+                {getPlanMarketing(plan).bullets.slice(0, 3).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
               <button
                 onClick={() => handleUpgrade(plan)}

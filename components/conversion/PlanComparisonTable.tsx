@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PLAN_LIMITS, formatScanFrequency, formatWebsiteLimit } from '@/lib/billing/plans';
+import { PLAN_LIMITS, formatDeepScanLimit } from '@/lib/billing/plans';
+import { getPlanMarketing } from '@/lib/billing/planFeatures';
 import { useDisplayPrices } from '@/lib/billing/useDisplayPrices';
 import { formatDisplayPriceMonthly } from '@/lib/billing/formatPrice';
 import { getLastScannedDomain } from '@/lib/conversion/limits';
@@ -14,18 +15,36 @@ const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string 
     feature: 'Websites',
     values: {
       free: '1 scan only',
-      pro: formatWebsiteLimit(PLAN_LIMITS.pro.websites),
-      growth: formatWebsiteLimit(PLAN_LIMITS.growth.websites),
-      agency: formatWebsiteLimit(PLAN_LIMITS.agency.websites),
+      pro: getPlanMarketing('pro').websiteLabel,
+      growth: getPlanMarketing('growth').websiteLabel,
+      agency: getPlanMarketing('agency').websiteLabel,
     },
   },
   {
-    feature: 'Scan frequency',
+    feature: 'Monitoring frequency',
     values: {
-      free: 'One-time',
-      pro: formatScanFrequency(PLAN_LIMITS.pro.scanFrequency),
-      growth: formatScanFrequency(PLAN_LIMITS.growth.scanFrequency),
-      agency: formatScanFrequency(PLAN_LIMITS.agency.scanFrequency),
+      free: 'None',
+      pro: getPlanMarketing('pro').monitoringLabel,
+      growth: getPlanMarketing('growth').monitoringLabel,
+      agency: getPlanMarketing('agency').monitoringLabel,
+    },
+  },
+  {
+    feature: 'Deep scans',
+    values: {
+      free: 'One-time preview',
+      pro: getPlanMarketing('pro').deepScanLabel,
+      growth: getPlanMarketing('growth').deepScanLabel,
+      agency: getPlanMarketing('agency').deepScanLabel,
+    },
+  },
+  {
+    feature: 'Manual deep scan quota',
+    values: {
+      free: '1 per website',
+      pro: formatDeepScanLimit(PLAN_LIMITS.pro.maxScansPerDay),
+      growth: formatDeepScanLimit(PLAN_LIMITS.growth.maxScansPerDay),
+      agency: formatDeepScanLimit(PLAN_LIMITS.agency.maxScansPerDay),
     },
   },
   {
@@ -44,11 +63,6 @@ const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string 
     values: { free: false, pro: true, growth: true, agency: true },
   },
   {
-    feature: 'Continuous monitoring',
-    freeNote: 'Not enabled on Free plan',
-    values: { free: false, pro: true, growth: true, agency: true },
-  },
-  {
     feature: 'Priority support',
     values: { free: false, pro: false, growth: false, agency: true },
   },
@@ -59,7 +73,7 @@ const PLAN_IDS: PlanId[] = ['free', 'pro', 'growth', 'agency'];
 const PLAN_LABELS: Record<PlanId, string> = {
   free: 'First Scan',
   pro: PLAN_LIMITS.pro.name,
-  growth: 'Continuous Protection',
+  growth: PLAN_LIMITS.growth.name,
   agency: PLAN_LIMITS.agency.name,
 };
 
@@ -79,7 +93,7 @@ function CellValue({ value, isFree }: { value: string | boolean; isFree?: boolea
 }
 
 export default function PlanComparisonTable() {
-  const [recommendedPlan, setRecommendedPlan] = useState<'pro' | 'growth'>('growth');
+  const [recommendedPlan, setRecommendedPlan] = useState<'pro' | 'growth'>('pro');
   const { prices } = useDisplayPrices();
 
   function planPrice(id: PlanId): string {
@@ -143,6 +157,9 @@ export default function PlanComparisonTable() {
           ))}
         </tbody>
       </table>
+      <p className="border-t border-gray-800 bg-gray-900/40 px-4 py-3 text-xs text-gray-500">
+        Automated monitoring checks run on schedule and are separate from manual deep scan quotas.
+      </p>
     </div>
   );
 }

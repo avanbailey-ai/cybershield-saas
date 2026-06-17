@@ -6,7 +6,12 @@ const faqs = [
   {
     question: "How does monitoring work?",
     answer:
-      "CyberShield runs automated checks against your websites on a scheduled basis — scanning SSL certificates, HTTP security headers, open ports, DNS records, and known vulnerability signatures. Results are aggregated into a security score and stored for trend analysis.",
+      "Pro includes daily automated monitoring checks plus weekly deep scans. Growth adds hourly monitoring checks and change detection. Agency includes 5-minute monitoring for priority websites and hourly monitoring for remaining sites. Manual deep scans have separate daily quotas and do not count scheduled monitoring checks.",
+  },
+  {
+    question: "How often are websites checked?",
+    answer:
+      "Pro runs daily monitoring checks with weekly deep scans. Growth runs hourly monitoring checks with weekly deep scans. Agency runs 5-minute monitoring for priority websites and hourly checks for the rest. You can also run manual deep scans from the dashboard within your plan quota.",
   },
   {
     question: "Does CyberShield perform penetration testing?",
@@ -14,14 +19,9 @@ const faqs = [
       "No. CyberShield is a passive monitoring and reconnaissance platform. We analyze publicly observable signals and known vulnerability patterns. We do not perform active exploitation or intrusive penetration testing against your systems.",
   },
   {
-    question: "How often are websites checked?",
-    answer:
-      "Pro plan websites receive daily automated scans (with optional weekly deep scans). Growth runs daily scans on a faster 12-hour cadence. Agency customers receive hourly monitoring with priority scan queues. You can also trigger manual scans at any time from the dashboard.",
-  },
-  {
     question: "Can I monitor multiple websites?",
     answer:
-      "Yes. Paid plans support monitoring multiple websites from a single dashboard. Pro includes up to 25 websites, Growth up to 100, and Agency includes unlimited websites.",
+      "Yes. Pro includes 10 websites, Growth includes 50, and Agency includes 250 websites. Enterprise plans use custom limits after a security review.",
   },
   {
     question: "Is there a free option?",

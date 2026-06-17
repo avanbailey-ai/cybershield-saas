@@ -26,6 +26,15 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-5">
+            <Link href="/pricing" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Pricing
+            </Link>
+            <Link href="/enterprise/review" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Security Review
+            </Link>
+            <Link href="/enterprise/login" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Enterprise Login
+            </Link>
             <Link href="/enterprise/pricing" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
               Enterprise
             </Link>
