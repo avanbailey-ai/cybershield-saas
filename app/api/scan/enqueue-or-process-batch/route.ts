@@ -5,7 +5,9 @@
  * scans, claims pending jobs, and processes a bounded batch (default 10).
  * Idempotent and multi-instance safe.
  *
- * Scheduled via vercel.json (daily). Auth: CRON_SECRET bearer or x-cron-secret.
+ * Scheduled via vercel.json (every 5 minutes). Auth: CRON_SECRET bearer or x-cron-secret.
+ * Vercel Hobby allows daily cron only — on Hobby, point cron-job.org (or similar) at this
+ * URL every 5 minutes with Authorization: Bearer CRON_SECRET.
  */
 
 import { NextResponse } from 'next/server';

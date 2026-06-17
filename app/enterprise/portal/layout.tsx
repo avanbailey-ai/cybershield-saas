@@ -30,6 +30,7 @@ export default async function EnterprisePortalLayout({ children }: { children: R
   );
 
   if (
+    !isOwner(user.email) &&
     !canAccessEnterprise(
       {
         email: user.email,

@@ -4,7 +4,11 @@ import { getUserWithPlan } from '@/lib/billing/planService';
 import { enqueueScan } from '@/lib/scanner/orchestrator';
 import { enforceScanLimit } from '@/lib/billing/enforceScan';
 import { checkAndIncrementScanUsage } from '@/lib/usage/checkScanLimit';
-import { isDueForScheduledScan } from './scanFrequency';
+import {
+  getEligibleFrequencyMinutes,
+  isDueForScheduledScan,
+  resolveScanModeForWebsite,
+} from './scanFrequency';
 
 export interface ScheduledScanResult {
   examined: number;
@@ -14,18 +18,35 @@ export interface ScheduledScanResult {
   errors: number;
 }
 
+export interface SchedulerDecisionLog {
+  orgId: string | null;
+  websiteId: string;
+  effectivePlan: string;
+  lastScanAt: string | null;
+  scanAgeMinutes: number | null;
+  eligibleFrequencyMinutes: number;
+  action: 'enqueued' | 'skipped' | 'blocked' | 'error';
+  reason: string;
+}
+
+function scanAgeMinutes(lastScannedAt: string | null): number | null {
+  if (!lastScannedAt) return null;
+  return Math.round((Date.now() - new Date(lastScannedAt).getTime()) / 60_000);
+}
+
+function logSchedulerDecision(entry: SchedulerDecisionLog): void {
+  console.log('[scheduler]', JSON.stringify(entry));
+}
+
 /**
  * Enqueues monitored websites (is_active) whose next_scan_at is due.
  * Called by /api/scan/enqueue-or-process-batch before the worker batch runs.
- *
- * Note: Production cron runs every 6 hours; `hourly_monitor` next_scan_at may be sooner than enqueue cadence.
  */
 export async function runScheduledScans(): Promise<ScheduledScanResult> {
   const supabase = createAdminClient();
 
   const now = new Date().toISOString();
 
-  // Primary path: next_scan_at due; legacy rows without next_scan_at still evaluated in-loop.
   const { data: websites, error } = await supabase
     .from('websites')
     .select('id, url, user_id, org_id, last_scanned_at, next_scan_at, scan_frequency, is_active')
@@ -57,6 +78,20 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
       userWithPlanCache.set(cacheKey, userWithPlan);
     }
 
+    const mode = resolveScanModeForWebsite(plan, website.scan_frequency);
+    const eligibleFrequencyMinutes = mode ? getEligibleFrequencyMinutes(plan, mode) : 0;
+    const lastScanAt = website.last_scanned_at;
+    const ageMinutes = scanAgeMinutes(lastScanAt);
+
+    const baseLog = {
+      orgId: website.org_id,
+      websiteId: website.id,
+      effectivePlan: plan,
+      lastScanAt,
+      scanAgeMinutes: ageMinutes,
+      eligibleFrequencyMinutes,
+    };
+
     if (
       !isDueForScheduledScan(plan, {
         nextScanAt: website.next_scan_at,
@@ -66,21 +101,23 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
       })
     ) {
       skipped++;
+      logSchedulerDecision({
+        ...baseLog,
+        action: 'skipped',
+        reason: mode
+          ? `not_due (next_scan_at=${website.next_scan_at ?? 'legacy'})`
+          : 'no_eligible_scan_mode',
+      });
       continue;
     }
 
     const enforceResult = await enforceScanLimit(website.user_id, website.org_id);
     if (!enforceResult.allowed) {
       blocked++;
-      console.log('[scan-limit] scan_blocked', {
-        userId: website.user_id,
-        orgId: website.org_id,
-        websiteId: website.id,
-        plan,
-        reason: enforceResult.reason,
-        scansUsed: enforceResult.scansUsed,
-        scansLimit: enforceResult.scansLimit,
-        source: 'cron',
+      logSchedulerDecision({
+        ...baseLog,
+        action: 'blocked',
+        reason: enforceResult.reason ?? 'scan_limit',
       });
       continue;
     }
@@ -93,15 +130,10 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
 
     if (!usageCheck.allowed) {
       blocked++;
-      console.log('[scan-limit] scan_blocked', {
-        userId: website.user_id,
-        orgId: website.org_id,
-        websiteId: website.id,
-        plan,
+      logSchedulerDecision({
+        ...baseLog,
+        action: 'blocked',
         reason: usageCheck.reason ?? 'daily_limit_reached',
-        scansUsed: usageCheck.scansUsed,
-        scansLimit: usageCheck.scansLimit,
-        source: 'cron',
       });
       continue;
     }
@@ -116,12 +148,25 @@ export async function runScheduledScans(): Promise<ScheduledScanResult> {
 
     if (result.queued) {
       queued++;
-      console.log(`[cron] Queued ${website.url}`);
+      logSchedulerDecision({
+        ...baseLog,
+        action: 'enqueued',
+        reason: 'due_for_scan',
+      });
     } else if (result.reason === 'error') {
       errors++;
-      console.error(`[cron] Failed to enqueue ${website.url}:`, result.error);
+      logSchedulerDecision({
+        ...baseLog,
+        action: 'error',
+        reason: result.error ?? 'enqueue_failed',
+      });
     } else {
       skipped++;
+      logSchedulerDecision({
+        ...baseLog,
+        action: 'skipped',
+        reason: result.reason ?? 'not_queued',
+      });
     }
   }
 

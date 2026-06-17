@@ -10,14 +10,17 @@ import { PLAN_LIMITS } from '@/lib/billing/plans';
  * | Free   | daily_scan (usage-capped)          | 24h          | —             | —      |
  * | Pro    | daily_scan, weekly_deep_scan       | 24h          | 7d            | —      |
  * | Growth | daily_scan, weekly_deep_scan       | 12h          | 7d            | —      |
- * | Agency | daily_scan, weekly_deep_scan, hourly_monitor | 24h | 7d     | 1h     |
+ * | Agency | daily_scan, weekly_deep_scan, hourly_monitor | 24h | 7d     | 5m     |
  *
- * Production cron: `/api/scan/enqueue-or-process-batch` runs every 6 hours (cron schedule: every 6 hours at minute 0). Agency `hourly_monitor` schedules hourly `next_scan_at`; actual enqueue cadence follows the cron interval.
+ * Production cron: /api/scan/enqueue-or-process-batch (vercel.json every 5 minutes).
+ * Requires Vercel Pro for native 5-minute cron; Hobby is daily-only — use external
+ * scheduler with CRON_SECRET if on Hobby (see route comment).
  */
 
 export type ScanScheduleMode = 'daily_scan' | 'weekly_deep_scan' | 'hourly_monitor';
 
 const MS = {
+  minute: 60 * 1000,
   hour: 60 * 60 * 1000,
   day: 24 * 60 * 60 * 1000,
   week: 7 * 24 * 60 * 60 * 1000,
@@ -29,11 +32,13 @@ const BASE_INTERVAL_MS: Record<ScanScheduleMode, number> = {
   hourly_monitor: MS.hour,
 };
 
-/** Plan-specific interval overrides (Growth = faster daily detection). */
+/** Plan-specific interval overrides (Growth = faster daily; Agency = 5-minute monitor). */
 const PLAN_INTERVAL_MS: Partial<
   Record<Plan, Partial<Record<ScanScheduleMode, number>>>
 > = {
   growth: { daily_scan: 12 * MS.hour },
+  agency: { hourly_monitor: 5 * MS.minute },
+  owner: { hourly_monitor: 5 * MS.minute },
 };
 
 export function getAllowedScanModes(plan: Plan): ScanScheduleMode[] {
@@ -55,6 +60,9 @@ export function getDefaultScanMode(plan: Plan): ScanScheduleMode | null {
   if (plan === 'free' && PLAN_LIMITS.free.scanFrequency === 'manual') {
     return null;
   }
+  if (plan === 'agency' || plan === 'owner') {
+    return 'hourly_monitor';
+  }
   return 'daily_scan';
 }
 
@@ -64,6 +72,10 @@ export function isScanModeAllowed(plan: Plan, mode: ScanScheduleMode): boolean {
 
 export function getScanIntervalMs(plan: Plan, mode: ScanScheduleMode): number {
   return PLAN_INTERVAL_MS[plan]?.[mode] ?? BASE_INTERVAL_MS[mode];
+}
+
+export function getEligibleFrequencyMinutes(plan: Plan, mode: ScanScheduleMode): number {
+  return Math.round(getScanIntervalMs(plan, mode) / MS.minute);
 }
 
 export function resolveScanModeForWebsite(

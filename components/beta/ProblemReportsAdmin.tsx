@@ -80,7 +80,14 @@ export default function ProblemReportsAdmin() {
   }
 
   if (reports.length === 0) {
-    return <p className="text-sm text-gray-400">No beta problem reports yet.</p>;
+    return (
+      <div className="rounded-xl border border-gray-800 bg-gray-900/60 px-5 py-8 text-center">
+        <p className="text-sm font-medium text-gray-200">No beta reports yet.</p>
+        <p className="mt-2 text-sm text-gray-500">
+          Reports submitted through the Report a Problem button will appear here.
+        </p>
+      </div>
+    );
   }
 
   return (
