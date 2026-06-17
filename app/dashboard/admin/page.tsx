@@ -92,6 +92,12 @@ export default async function AdminPage() {
                 Sales CRM →
               </a>
               <a
+                href="/dashboard/admin/beta-reports"
+                className="text-xs font-medium text-amber-400 hover:text-amber-300"
+              >
+                Beta Reports →
+              </a>
+              <a
                 href="/dashboard/admin/analytics"
                 className="text-xs font-medium text-blue-400 hover:text-blue-300"
               >

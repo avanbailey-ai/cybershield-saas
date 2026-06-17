@@ -7,6 +7,7 @@ import EnterpriseHeader from '@/components/enterprise/EnterpriseHeader';
 import TrustSignals from '@/components/enterprise/TrustSignals';
 import { getSessionId, trackEvent } from '@/lib/analytics/events';
 import { normalizeDomain } from '@/lib/cache/scanCache';
+import { validateEnterpriseLead, isValidLeadDomain } from '@/lib/sales/leadValidation';
 
 const COMPANY_SIZES = ['1-10', '11-50', '51-200', '201-500', '500+'] as const;
 
@@ -75,17 +76,37 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
 
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
+    const trimmedCompany = company.trim();
+    const trimmedDomain = domain.trim();
+    const trimmedMessage = message.trim();
 
-    if (!trimmedName) {
-      setError('Please enter your full name.');
+    const validation = validateEnterpriseLead(
+      {
+        name: trimmedName,
+        email: trimmedEmail,
+        company: trimmedCompany || undefined,
+        domain: trimmedDomain || undefined,
+        message: trimmedMessage || undefined,
+      },
+      {
+        requireDomain: isReview,
+        requireMessage: isReview,
+      },
+    );
+
+    if (!validation.valid) {
+      setError(validation.firstError ?? 'Please check your form and try again.');
       setLoading(false);
       return;
     }
 
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Please enter a valid work email address.');
-      setLoading(false);
-      return;
+    if (trimmedDomain) {
+      const normalized = normalizeDomain(trimmedDomain);
+      if (!isValidLeadDomain(normalized)) {
+        setError('Please enter a valid website domain (e.g. example.com).');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -93,14 +114,15 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          email,
-          company: company || undefined,
-          domain: domain || undefined,
+          name: trimmedName,
+          email: trimmedEmail,
+          company: trimmedCompany || undefined,
+          domain: trimmedDomain || undefined,
           company_size: companySize || undefined,
           security_needs: securityNeeds,
-          message: message || undefined,
+          message: trimmedMessage || undefined,
           session_id: getSessionId(),
+          source: isReview ? 'scan_review' : 'lead',
           last_scan_score: scanScore ?? undefined,
           risk_level:
             scanScore != null

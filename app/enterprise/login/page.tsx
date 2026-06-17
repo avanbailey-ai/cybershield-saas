@@ -32,11 +32,11 @@ export default function EnterpriseLoginPage() {
     <AuthCard
       title="Enterprise sign in"
       subtitle="Access your organization security portal."
-      footerText="Need a team account?"
-      footerLinkText="Contact sales"
-      footerLinkHref="/enterprise/lead"
+      footerText="Need enterprise access?"
+      footerLinkText="Request a security review"
+      footerLinkHref="/enterprise/review"
       panelHeadline="Enterprise Portal"
-      panelDescription="Monitor security posture across your organization from a dedicated enterprise workspace."
+      panelDescription="Enterprise access is provisioned after a security review. Sign in here if your organization already has portal access."
       panelBullets={bullets}
     >
       <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>

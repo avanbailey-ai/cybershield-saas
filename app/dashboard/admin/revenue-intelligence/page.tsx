@@ -8,6 +8,7 @@ import { getFunnelMetrics } from '@/lib/analytics/autopilot';
 import { getLatestInsights } from '@/lib/brain/insights';
 import { getBrainConfig } from '@/lib/brain/optimizer';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
+import { isQualifiableLead } from '@/lib/sales/leadValidation';
 
 const RevenueIntelligenceClient = dynamic(
   () => import('@/components/analytics/RevenueIntelligenceClient'),
@@ -32,13 +33,14 @@ export default async function RevenueIntelligencePage() {
 
   const admin = createAdminClient();
 
-  const [funnel, insights, brainConfig, profilesRes, pipelineRes, viralRes, signupCountRes, displayAmounts] =
+  const [funnel, insights, brainConfig, profilesRes, pipelineRes, leadsRes, viralRes, signupCountRes, displayAmounts] =
     await Promise.all([
       getFunnelMetrics(30),
       getLatestInsights(),
       getBrainConfig(),
       admin.from('profiles').select('plan, subscription_status, churn_risk_score'),
-      admin.from('enterprise_pipeline').select('value_estimate'),
+      admin.from('enterprise_pipeline').select('lead_id, value_estimate'),
+      admin.from('enterprise_leads').select('id, status, company, email, domain, message'),
       admin
         .from('viral_events')
         .select('event_type')
@@ -72,10 +74,13 @@ export default async function RevenueIntelligencePage() {
     (p) => (p.churn_risk_score ?? 0) > 70,
   ).length;
 
-  const enterprisePipelineValue = (pipelineRes.data ?? []).reduce(
-    (sum, row) => sum + Number(row.value_estimate ?? 0),
-    0,
-  );
+  const leadsById = new Map((leadsRes.data ?? []).map((lead) => [lead.id, lead]));
+
+  const enterprisePipelineValue = (pipelineRes.data ?? []).reduce((sum, row) => {
+    const lead = leadsById.get(row.lead_id);
+    if (!lead || !isQualifiableLead(lead)) return sum;
+    return sum + Number(row.value_estimate ?? 0);
+  }, 0);
 
   const viralEvents = viralRes.data ?? [];
   const referralConverted = viralEvents.filter((e) => e.event_type === 'referral_converted').length;

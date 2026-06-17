@@ -333,18 +333,28 @@ function PricingInner() {
             </p>
             <h3 className="mt-3 text-2xl font-bold text-white">Request Security Review</h3>
             <p className="mt-3 text-sm leading-relaxed text-gray-400">
-              Compliance reporting, audit trails, SSO, and dedicated security support. No self-serve
-              pricing — our team scopes coverage to your environment.
+              For larger organizations, agencies, and compliance-focused teams that need audit trails,
+              SSO support, multi-tenant management, and dedicated security review.
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              No self-serve pricing — we scope coverage around your websites, team structure, compliance
+              needs, and monitoring requirements.
             </p>
             <ul className="mt-6 inline-flex flex-col gap-2 text-left text-sm text-gray-400">
               <li className="flex items-center gap-2">
                 <span className="text-amber-400">✓</span> SOC2-ready audit logs & compliance reporting
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-amber-400">✓</span> Multi-tenant org management & SSO path
+                <span className="text-amber-400">✓</span> Multi-tenant organization management
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-amber-400">✓</span> SSO/SAML implementation path
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-amber-400">✓</span> Dedicated security review & custom SLA
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-amber-400">✓</span> Priority support for regulated environments
               </li>
             </ul>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -358,13 +368,6 @@ function PricingInner() {
                 className="rounded-lg bg-amber-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
               >
                 Request Security Review
-              </Link>
-              <Link
-                href="/enterprise/lead"
-                onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_lead' })}
-                className="rounded-lg border border-gray-700 px-8 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
-              >
-                Talk to sales
               </Link>
             </div>
           </div>

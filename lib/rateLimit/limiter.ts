@@ -36,6 +36,7 @@ const CHECKOUT_LIMIT: RateLimitConfig = { maxRequests: 5, windowMs: 60_000 };
 const WEBHOOK_LIMIT: RateLimitConfig = { maxRequests: 200, windowMs: 60_000 };
 const BETA_REPORT_PUBLIC_LIMIT: RateLimitConfig = { maxRequests: 5, windowMs: 15 * 60_000 };
 const BETA_REPORT_AUTH_LIMIT: RateLimitConfig = { maxRequests: 20, windowMs: 15 * 60_000 };
+const ENTERPRISE_LEAD_LIMIT: RateLimitConfig = { maxRequests: 5, windowMs: 15 * 60_000 };
 
 function checkLimit(key: string, config: RateLimitConfig): RateLimitResult {
   const now = Date.now();
@@ -85,6 +86,10 @@ export function rateLimitWebhook(sourceIp: string): RateLimitResult {
 export function rateLimitBetaReport(identifier: string, authenticated: boolean): RateLimitResult {
   const config = authenticated ? BETA_REPORT_AUTH_LIMIT : BETA_REPORT_PUBLIC_LIMIT;
   return checkLimit(`beta-report:${identifier}`, config);
+}
+
+export function rateLimitEnterpriseLead(identifier: string): RateLimitResult {
+  return checkLimit(`enterprise-lead:${identifier}`, ENTERPRISE_LEAD_LIMIT);
 }
 
 export function rateLimitHeaders(result: RateLimitResult): Record<string, string> {
