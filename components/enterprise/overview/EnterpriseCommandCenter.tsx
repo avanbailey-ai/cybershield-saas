@@ -76,7 +76,7 @@ function severityBadgeClass(severity: string): string {
 }
 
 const mobileActionButtonClass =
-  "inline-flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium sm:w-auto sm:py-2";
+  "inline-flex min-h-[48px] w-full items-center justify-center rounded-lg px-4 py-3.5 text-sm font-medium sm:w-auto sm:min-h-0 sm:py-2";
 
 export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterProps) {
   const {
@@ -135,19 +135,19 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
     <div className="flex min-w-0 flex-1 flex-col overflow-auto">
       <DashboardHeader email={userEmail} title="Enterprise Overview" showPlanUsage={false} />
 
-      <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6">
+      <main className="min-w-0 flex-1 overflow-x-hidden px-5 py-5 sm:p-6">
         <div
-          className="mb-4 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-4 py-2 text-center text-sm font-medium text-emerald-300"
+          className="mb-5 rounded-lg border border-emerald-700/40 bg-emerald-950/30 px-4 py-3 text-center text-sm font-medium text-emerald-300"
           data-testid="enterprise-command-center-version"
         >
           Enterprise Command Center v2 — Mobile QA
         </div>
 
-        <div className="flex flex-col gap-6 lg:gap-8">
+        <div className="flex flex-col gap-8 lg:gap-8">
           {/* 1. Executive posture summary */}
-          <section className="order-1 min-w-0 rounded-2xl border border-indigo-800/40 bg-gradient-to-br from-indigo-950/40 to-gray-900/60 p-4 sm:p-6">
+          <section className="order-1 min-w-0 rounded-2xl border border-indigo-800/40 bg-gradient-to-br from-indigo-950/40 to-gray-900/60 p-5 sm:p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 space-y-3">
+              <div className="min-w-0 space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="break-words text-xl font-bold text-white sm:text-2xl">
                     {orgName ?? "Your Organization"}
@@ -163,21 +163,23 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
                     </span>
                   )}
                 </div>
-                <p className="break-words text-sm leading-relaxed text-gray-300">{riskOverview.summary}</p>
+                <p className="line-clamp-4 break-words text-sm leading-relaxed text-gray-300 sm:line-clamp-none">
+                  {riskOverview.summary}
+                </p>
                 <div className="flex flex-col gap-2 text-sm text-gray-400 sm:flex-row sm:flex-wrap sm:gap-4">
                   {rollingRiskScore !== null && (
                     <span>
-                      Rolling score: <strong className="text-white">{rollingRiskScore}/100</strong>
+                      Score: <strong className="text-white">{rollingRiskScore}/100</strong>
                     </span>
                   )}
                   {lastScanTime && (
-                    <span>
+                    <span className="hidden sm:inline">
                       Last scan: <strong className="text-gray-200">{lastScanTime}</strong>
                     </span>
                   )}
                 </div>
               </div>
-              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto">
+              <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap lg:w-auto">
                 {isAdmin && orgId && (
                   <>
                     <div className="w-full sm:w-auto [&_button]:w-full sm:[&_button]:w-auto">
@@ -203,44 +205,48 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
               </div>
             </div>
 
-            <div className="mt-6 border-t border-indigo-800/30 pt-5 lg:hidden">
-              <h3 className="mb-1 text-sm font-semibold text-white">Security Posture</h3>
-              <p className="mb-4 text-sm text-gray-500">Executive summary for your organization</p>
-              <dl className="space-y-3 text-sm">
-                <div>
-                  <dt className="text-sm uppercase tracking-wide text-gray-500">Primary risk driver</dt>
-                  <dd className="mt-1 break-words text-gray-200">{riskOverview.primaryDriver}</dd>
-                </div>
-                {riskOverview.affectedSite && (
+            <div className="mt-6 lg:hidden">
+              <CollapsiblePanel
+                title="Security details"
+                subtitle="Risk drivers and recommended next steps"
+                collapseOnMobile
+              >
+                <dl className="space-y-4 text-sm">
                   <div>
-                    <dt className="text-sm uppercase tracking-wide text-gray-500">Most affected site</dt>
-                    <dd className="mt-1 break-words text-gray-200">{riskOverview.affectedSite}</dd>
+                    <dt className="text-sm uppercase tracking-wide text-gray-500">Primary risk driver</dt>
+                    <dd className="mt-1 break-words text-gray-200">{riskOverview.primaryDriver}</dd>
+                  </div>
+                  {riskOverview.affectedSite && (
+                    <div>
+                      <dt className="text-sm uppercase tracking-wide text-gray-500">Most affected site</dt>
+                      <dd className="mt-1 break-words text-gray-200">{riskOverview.affectedSite}</dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="text-sm uppercase tracking-wide text-gray-500">Next step</dt>
+                    <dd className="mt-1 break-words text-gray-300">{riskOverview.nextStep}</dd>
+                  </div>
+                </dl>
+                {topDrivers.length > 0 && (
+                  <div className="mt-5 border-t border-indigo-800/30 pt-4">
+                    <p className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-500">Top risk drivers</p>
+                    <ul className="flex flex-wrap gap-2">
+                      {topDrivers.map((driver) => (
+                        <li key={driver} className="rounded-full bg-gray-900/60 px-3 py-1.5 text-sm text-gray-300">
+                          {driver}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
-                <div>
-                  <dt className="text-sm uppercase tracking-wide text-gray-500">Recommended next step</dt>
-                  <dd className="mt-1 break-words text-gray-300">{riskOverview.nextStep}</dd>
-                </div>
-              </dl>
-              {topDrivers.length > 0 && (
-                <div className="mt-5 border-t border-indigo-800/30 pt-4">
-                  <p className="mb-2 text-sm font-medium uppercase tracking-wide text-gray-500">Top risk drivers</p>
-                  <ul className="flex flex-wrap gap-2">
-                    {topDrivers.map((driver) => (
-                      <li key={driver} className="rounded-full bg-gray-900/60 px-3 py-1 text-sm text-gray-300">
-                        {driver}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              </CollapsiblePanel>
             </div>
           </section>
 
           {totalSitesMonitored === 0 && (
-            <div className="order-2 rounded-xl border border-dashed border-indigo-700/40 bg-indigo-950/20 px-5 py-6 text-center lg:order-2">
+            <div className="order-2 rounded-xl border border-dashed border-indigo-700/40 bg-indigo-950/20 px-5 py-8 text-center lg:order-2">
               <p className="text-sm font-medium text-indigo-200">No monitored sites yet</p>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-2 hidden text-sm text-gray-500 sm:block">
                 Add websites and run scans to populate your security command center.
               </p>
               <Link
@@ -264,18 +270,20 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
 
           {/* 2. Immediate Actions */}
           <section className="order-2 min-w-0 lg:order-4">
-            <h3 className="mb-1 text-sm font-semibold text-white">Immediate Actions</h3>
-            <p className="mb-4 text-sm text-gray-500">Top priorities based on current posture and alerts</p>
+            <h3 className="mb-3 text-base font-semibold text-white sm:mb-1 sm:text-sm">Immediate Actions</h3>
+            <p className="mb-5 hidden text-sm text-gray-500 sm:mb-4 sm:block">
+              Top priorities based on current posture and alerts
+            </p>
             {immediateActions.length === 0 ? (
-              <div className="rounded-xl border border-gray-800 bg-gray-900/40 px-5 py-6 text-sm text-gray-500">
+              <div className="rounded-xl border border-gray-800 bg-gray-900/40 px-5 py-8 text-sm text-gray-500">
                 All monitored sites are stable. No urgent actions right now.
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-4">
                 {immediateActions.map((action) => (
                   <li
                     key={action.id}
-                    className="flex min-w-0 flex-col gap-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex min-w-0 flex-col gap-4 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -351,17 +359,19 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
           </div>
 
           {/* 3. Sites at Risk */}
-          <section className="order-3 min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-4 sm:p-6 lg:order-6">
-            <h3 className="mb-1 text-sm font-semibold text-white">Sites at Risk</h3>
-            <p className="mb-4 text-sm text-gray-500">Critical and high-risk monitored properties</p>
+          <section className="order-3 min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6 lg:order-6">
+            <h3 className="mb-3 text-base font-semibold text-white sm:mb-1 sm:text-sm">Sites at Risk</h3>
+            <p className="mb-5 hidden text-sm text-gray-500 sm:mb-4 sm:block">
+              Critical and high-risk monitored properties
+            </p>
             {sitesAtRisk.length === 0 ? (
               <p className="text-sm text-gray-500">No sites currently flagged as high or critical risk.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-4">
                 {sitesAtRisk.slice(0, 5).map((site) => (
                   <li
                     key={site.websiteId}
-                    className="flex min-w-0 flex-col gap-3 rounded-lg bg-gray-800/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex min-w-0 flex-col gap-4 rounded-lg bg-gray-800/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-3"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-200">{site.label ?? site.domain}</p>
@@ -398,11 +408,11 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
           </div>
 
           {/* 5. Recent Alerts */}
-          <section className="order-5 min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-4 sm:p-6 lg:order-7">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <section className="order-5 min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6 lg:order-7">
+            <div className="mb-5 flex flex-col gap-4 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-white">Recent Alerts</h3>
-                <p className="text-sm text-gray-500">Critical and high issues requiring attention</p>
+                <h3 className="text-base font-semibold text-white sm:text-sm">Recent Alerts</h3>
+                <p className="hidden text-sm text-gray-500 sm:block">Critical and high issues requiring attention</p>
               </div>
               <Link
                 href="/app/alerts"
@@ -414,9 +424,9 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
             {urgentAlerts.length === 0 ? (
               <p className="text-sm text-gray-500">No critical alerts right now.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-4">
                 {urgentAlerts.slice(0, 5).map((alert) => (
-                  <li key={alert.id} className="rounded-lg border border-gray-800 bg-gray-950/30 px-4 py-3">
+                  <li key={alert.id} className="rounded-lg border border-gray-800 bg-gray-950/30 px-4 py-4 sm:py-3">
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="break-words text-sm text-gray-200">{alert.title}</p>
@@ -438,11 +448,11 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
           </section>
 
           {/* 6. Recent Scans */}
-          <section className="order-6 min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-4 sm:p-6 lg:order-10">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <section className="order-6 min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6 lg:order-10">
+            <div className="mb-5 flex flex-col gap-4 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-white">Monitoring Activity</h3>
-                <p className="text-sm text-gray-500">Latest scan per website</p>
+                <h3 className="text-base font-semibold text-white sm:text-sm">Monitoring Activity</h3>
+                <p className="hidden text-sm text-gray-500 sm:block">Latest scan per website</p>
               </div>
               {isAdmin && (
                 <Link
@@ -456,11 +466,11 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
             {latestScansPerSite.length === 0 ? (
               <p className="text-sm text-gray-500">No completed scans yet.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-4">
                 {latestScansPerSite.map((scan) => (
                   <li
                     key={scan.websiteId}
-                    className="flex min-w-0 flex-col gap-3 rounded-lg bg-gray-800/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex min-w-0 flex-col gap-4 rounded-lg bg-gray-800/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-3"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-200">{scan.label ?? scan.domain}</p>
@@ -489,7 +499,7 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
           <section className="order-7 min-w-0 lg:order-8">
             <CollapsiblePanel
               title="Trends & Intelligence"
-              subtitle="Grouped monitoring signals — deduplicated for clarity"
+              subtitle="Grouped monitoring signals"
               badge={intelligenceGrouped.total > 0 ? String(intelligenceGrouped.total) : undefined}
               defaultOpen={intelligenceGrouped.total > 0 && intelligenceGrouped.total <= 3}
               collapseOnMobile
@@ -503,14 +513,14 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
           </section>
 
           {/* 8. Reports / PDF export */}
-          <section className="order-8 min-w-0 flex flex-col gap-4 rounded-xl border border-gray-800 bg-gray-900/40 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:order-11">
+          <section className="order-8 min-w-0 flex flex-col gap-4 rounded-xl border border-gray-800 bg-gray-900/40 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-5 lg:order-11">
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-white">Reports</h3>
-              <p className="break-words text-sm text-gray-500">
+              <h3 className="text-base font-semibold text-white sm:text-sm">Reports</h3>
+              <p className="hidden break-words text-sm text-gray-500 sm:block">
                 Export posture data for stakeholders or open detailed reports.
               </p>
             </div>
-            <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row">
+            <div className="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-row sm:gap-2">
               <Link
                 href="/app/reports"
                 className={`${mobileActionButtonClass} border border-gray-700 text-gray-300 hover:text-white`}
@@ -532,12 +542,12 @@ export default function EnterpriseCommandCenter(props: EnterpriseCommandCenterPr
               subtitle="Metrics, risk distribution, and client groups"
               collapseOnMobile
             >
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
                   {metricCards.map((card) => (
-                    <div key={card.label} className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-3">
+                    <div key={card.label} className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-4 sm:p-3">
                       <p className="text-sm font-medium uppercase tracking-wider text-gray-500">{card.label}</p>
-                      <p className={`mt-2 truncate text-xl font-bold ${card.tone}`}>{card.value}</p>
+                      <p className={`mt-3 truncate text-2xl font-bold sm:mt-2 sm:text-xl ${card.tone}`}>{card.value}</p>
                     </div>
                   ))}
                 </div>
@@ -608,10 +618,10 @@ function MonitoringHealthSection({
   prioritySlotsLimit: number | null;
 }) {
   return (
-    <section className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-4 sm:p-6">
-      <h3 className="mb-1 text-sm font-semibold text-white">Monitoring Health</h3>
-      <p className="mb-4 text-sm text-gray-500">Automated monitoring status</p>
-      <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+    <section className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6">
+      <h3 className="mb-3 text-base font-semibold text-white sm:mb-1 sm:text-sm">Monitoring Health</h3>
+      <p className="mb-5 hidden text-sm text-gray-500 sm:mb-4 sm:block">Automated monitoring status</p>
+      <dl className="grid grid-cols-1 gap-5 text-sm sm:grid-cols-2 sm:gap-4">
         <div>
           <dt className="text-sm text-gray-500">Last cron run</dt>
           <dd className="mt-1 break-words font-medium text-white">

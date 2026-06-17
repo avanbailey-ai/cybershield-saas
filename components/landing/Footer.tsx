@@ -3,7 +3,7 @@ import TrustSignals from "@/components/enterprise/TrustSignals";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-gray-800 py-10 px-4">
+    <footer className="border-t border-gray-800 px-5 py-12 sm:px-4 sm:py-10">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8">
           <TrustSignals compact />

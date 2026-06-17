@@ -15,7 +15,7 @@ export default function DashboardHeader({
   const initial = email.charAt(0).toUpperCase();
 
   return (
-    <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-800 bg-gray-950 px-6">
+    <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-800 bg-gray-950 px-5 sm:px-6">
       <h1 className="text-base font-semibold text-white">{title}</h1>
 
       <div className="flex items-center gap-3">

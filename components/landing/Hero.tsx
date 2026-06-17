@@ -2,14 +2,14 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-[85vh] items-center overflow-hidden px-4 pt-16">
+    <section className="relative flex min-h-[72vh] items-center overflow-hidden px-5 pt-20 sm:min-h-[85vh] sm:px-4 sm:pt-16">
       <div className="absolute inset-0 grid-bg opacity-40" />
       <div className="absolute left-1/4 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-blue-600/8 blur-3xl" />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl">
-        <div className="grid items-center gap-12 lg:grid-cols-2">
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-800/50 bg-blue-950/30 px-3 py-1 text-xs font-medium text-blue-400">
+        <div className="grid items-center gap-10 sm:gap-12 lg:grid-cols-2">
+          <div className="space-y-6 sm:space-y-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-800/50 bg-blue-950/30 px-3 py-1.5 text-sm font-medium text-blue-400 sm:mb-6">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
@@ -17,44 +17,42 @@ export default function Hero() {
               Free instant security scan — no signup
             </div>
 
-            <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:mb-6 sm:text-5xl lg:text-6xl">
               Is Your Website{" "}
               <span className="text-blue-400">Exposed Right Now?</span>
             </h1>
 
-            <p className="mb-8 max-w-xl text-lg leading-relaxed text-gray-400">
-              Find out in 30 seconds. CyberShield scans your site for SSL gaps,
-              missing headers, and attack surface risks — then shows exactly what
-              attackers could exploit.
+            <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
+              Find out in 30 seconds. CyberShield scans SSL, headers, and attack surface risks — and shows what attackers could exploit.
             </p>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
               <a
                 href="#scan"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0a0f1e]"
+                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0a0f1e]"
               >
                 Scan your website for free
                 <ArrowRightIcon className="h-4 w-4" />
               </a>
               <a
                 href="#how-it-works"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-700 px-7 py-3.5 text-base font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-gray-700 px-7 py-3.5 text-base font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
               >
                 See How It Works
               </a>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <CheckIcon className="h-4 w-4 text-green-500/80" />
+            <div className="flex flex-col gap-3 text-sm text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+              <span className="flex items-center gap-2">
+                <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
                 No credit card required
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckIcon className="h-4 w-4 text-green-500/80" />
+              <span className="flex items-center gap-2">
+                <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
                 Results in under 30 seconds
               </span>
-              <span className="flex items-center gap-1.5">
-                <CheckIcon className="h-4 w-4 text-green-500/80" />
+              <span className="hidden items-center gap-2 sm:flex">
+                <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
                 Trusted by developers & agencies
               </span>
             </div>

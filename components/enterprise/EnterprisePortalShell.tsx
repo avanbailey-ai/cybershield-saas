@@ -47,12 +47,12 @@ export default function EnterprisePortalShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-800 bg-gray-950 px-4 lg:hidden">
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-800 bg-gray-950 px-5 lg:hidden">
           <button
             type="button"
             aria-label="Open navigation menu"
             onClick={() => setMobileNavOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-gray-300 hover:bg-gray-800"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />

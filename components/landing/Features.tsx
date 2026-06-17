@@ -68,32 +68,31 @@ const iconMap: Record<string, ReactNode> = {
 
 export default function Features() {
   return (
-    <section className="relative py-24 px-4">
+    <section className="relative px-5 py-16 sm:px-4 sm:py-24">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-14 text-center">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-blue-500">
+        <div className="mb-10 text-center sm:mb-14">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-500">
             Platform Features
           </p>
-          <h2 className="mb-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
             Everything you need to stay secure
           </h2>
-          <p className="mx-auto max-w-2xl text-gray-400">
-            CyberShield gives your team the visibility and tools to maintain a strong security
-            posture across all your web properties.
+          <p className="mx-auto max-w-2xl text-base text-gray-400 sm:text-gray-400">
+            Monitoring, scoring, and alerts across all your web properties.
           </p>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group rounded-xl border border-gray-800 bg-gray-900/50 p-6 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900"
+              className="group rounded-xl border border-gray-800 bg-gray-900/50 p-6 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 sm:p-6"
             >
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 group-hover:bg-blue-600/15">
                 {iconMap[feature.icon]}
               </div>
               <h3 className="mb-2 text-base font-semibold text-white">{feature.title}</h3>
-              <p className="text-sm text-gray-400 leading-relaxed">{feature.description}</p>
+              <p className="text-base leading-relaxed text-gray-400 sm:text-sm">{feature.description}</p>
             </div>
           ))}
         </div>

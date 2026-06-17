@@ -46,20 +46,20 @@ export function CollapsiblePanel({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full min-w-0 items-center justify-between gap-3 px-4 py-4 text-left sm:px-6"
+        className="flex w-full min-w-0 items-center justify-between gap-4 px-5 py-4 text-left sm:px-6"
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-white">{title}</h3>
+            <h3 className="text-base font-semibold text-white sm:text-sm">{title}</h3>
             {badge && (
               <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">{badge}</span>
             )}
           </div>
-          {subtitle && <p className="mt-0.5 break-words text-sm text-gray-500">{subtitle}</p>}
+          {subtitle && <p className="mt-1 hidden break-words text-sm text-gray-500 sm:block">{subtitle}</p>}
         </div>
         <span className="shrink-0 text-sm text-gray-500">{open ? 'Hide' : 'Show'}</span>
       </button>
-      {open && <div className="border-t border-gray-800 px-4 pb-6 pt-4 sm:px-6">{children}</div>}
+      {open && <div className="border-t border-gray-800 px-5 pb-6 pt-5 sm:px-6">{children}</div>}
     </div>
   );
 }
@@ -93,12 +93,12 @@ export function IntelligenceSignalsClient({
   }
 
   return (
-    <div className="space-y-3">
-      <ul className="space-y-2">
+    <div className="space-y-4">
+      <ul className="space-y-4">
         {visible.map((signal) => (
           <li
             key={signal.id}
-            className="rounded-lg border border-gray-800 bg-gray-950/40 px-4 py-3"
+            className="rounded-lg border border-gray-800 bg-gray-950/40 px-4 py-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -132,7 +132,7 @@ export function IntelligenceSignalsClient({
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="w-full rounded-lg border border-gray-700 px-4 py-2.5 text-sm font-medium text-indigo-400 hover:bg-gray-800/60 hover:text-indigo-300 sm:w-auto sm:border-0 sm:px-0 sm:py-0"
+          className="min-h-[48px] w-full rounded-lg border border-gray-700 px-4 py-3.5 text-sm font-medium text-indigo-400 hover:bg-gray-800/60 hover:text-indigo-300 sm:w-auto sm:border-0 sm:px-0 sm:py-0"
         >
           View all intelligence signals ({total})
         </button>
@@ -157,11 +157,11 @@ export function LowerPriorityAlerts({ alerts }: LowerPriorityAlertsProps) {
   if (alerts.length === 0) return null;
 
   return (
-    <div className="mt-4">
+    <div className="mt-5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full rounded-lg border border-gray-700 px-4 py-2.5 text-left text-sm font-medium text-gray-400 hover:bg-gray-800/40 hover:text-gray-300 sm:w-auto sm:border-0 sm:px-0 sm:py-0"
+        className="min-h-[48px] w-full rounded-lg border border-gray-700 px-4 py-3.5 text-left text-sm font-medium text-gray-400 hover:bg-gray-800/40 hover:text-gray-300 sm:w-auto sm:border-0 sm:px-0 sm:py-0"
       >
         {open ? 'Hide' : 'View'} lower priority findings ({alerts.length})
       </button>
