@@ -8,7 +8,7 @@ import { getEffectivePlan } from '@/lib/auth/permissions';
 import { getUserWithPlan } from '@/lib/billing/planService';
 import type { RiskLevel, UserPlan, HeaderChecks } from '@/types';
 import SecurityTrendPanel from '@/components/dashboard/SecurityTrendPanel';
-import SecurityFindingCard from '@/components/report/SecurityFindingCard';
+import SecurityFindingsPanel from '@/components/report/SecurityFindingsPanel';
 import SecurityOverviewPanel from '@/components/report/SecurityOverviewPanel';
 import SecurityPostureTimeline from '@/components/report/SecurityPostureTimeline';
 import SecurityReportEmptyState from '@/components/report/SecurityReportEmptyState';
@@ -223,19 +223,13 @@ export default async function ReportPage({ params }: PageProps) {
             {intelligence.findings.length === 0 ? (
               <SecurityReportEmptyState report={intelligence} />
             ) : (
-              <section className="mb-6">
-                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-                  Security Intelligence Findings ({intelligence.findings.length})
-                </h2>
-                <div className="space-y-4">
-                  {intelligence.findings.map((finding) => (
-                    <SecurityFindingCard key={finding.id} finding={finding} />
-                  ))}
-                </div>
-              </section>
+              <SecurityFindingsPanel findings={intelligence.findings} />
             )}
 
-            <SecurityRecommendationsPanel recommendations={intelligence.recommendations} />
+            <SecurityRecommendationsPanel
+              recommendations={intelligence.recommendations}
+              findings={intelligence.findings}
+            />
 
             {headers && (
               <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
