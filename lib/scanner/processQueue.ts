@@ -490,6 +490,7 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
         url: website.url,
         scanResult,
         jobId: job.id,
+        scanSource: job.source,
       });
       await addTraceStep(traceId ?? 'unknown', 'db_save', 'worker', { scanId: scanRecordId });
 

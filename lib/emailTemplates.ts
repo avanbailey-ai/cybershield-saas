@@ -307,6 +307,68 @@ export function monitoringAlertEmail(data: {
 </html>`;
 }
 
+export function groupedMonitoringAlertEmail(data: {
+  websiteCount: number;
+  items: Array<{
+    domain: string;
+    severity: string;
+    issue: string;
+    whyItMatters: string;
+    reportUrl?: string;
+  }>;
+  dashboardUrl: string;
+  emailTypeLabel: string;
+  reason: string;
+}): string {
+  const severityColor = (severity: string) =>
+    severity === 'critical'
+      ? '#dc2626'
+      : severity === 'high'
+        ? '#ea580c'
+        : severity === 'medium'
+          ? '#ca8a04'
+          : '#16a34a';
+
+  const itemsHtml = data.items
+    .map(
+      (item, index) => `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px;">
+      <p style="margin:0 0 8px;color:#64748b;font-size:13px;font-weight:600;">${index + 1}. ${escapeHtml(item.domain)}</p>
+      <p style="margin:0 0 4px;color:#374151;font-size:14px;"><strong>Severity:</strong> <span style="color:${severityColor(item.severity)};text-transform:capitalize;">${escapeHtml(item.severity)}</span></p>
+      <p style="margin:0 0 4px;color:#374151;font-size:14px;"><strong>Issue:</strong> ${escapeHtml(item.issue)}</p>
+      <p style="margin:0;color:#64748b;font-size:14px;line-height:1.5;"><strong>Why it matters:</strong> ${escapeHtml(item.whyItMatters)}</p>
+    </div>`,
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:system-ui,-apple-system,sans-serif;background:#f9fafb;margin:0;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#0f172a;padding:24px 32px;">
+      <p style="color:#94a3b8;margin:0;font-size:12px;letter-spacing:1px;text-transform:uppercase;">${escapeHtml(data.emailTypeLabel)}</p>
+      <h1 style="color:#ffffff;margin:8px 0 0;font-size:22px;font-weight:700;">CyberShield monitoring update</h1>
+    </div>
+    <div style="padding:32px;">
+      <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 16px;">
+        CyberShield completed monitoring for your websites.
+      </p>
+      <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 20px;">
+        <strong>${data.websiteCount}</strong> website${data.websiteCount === 1 ? '' : 's'} currently need attention:
+      </p>
+      ${itemsHtml}
+      <a href="${data.dashboardUrl}" style="display:block;background:#2563eb;color:#fff;text-decoration:none;padding:14px 24px;border-radius:8px;text-align:center;font-weight:600;margin-bottom:24px;">
+        View full details in your CyberShield dashboard
+      </a>
+      <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.5;text-align:center;">
+        ${escapeHtml(data.reason)}
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')

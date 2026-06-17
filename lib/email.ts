@@ -6,7 +6,9 @@ interface EmailPayload {
   html: string;
 }
 
-export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
+export async function sendEmail(
+  payload: EmailPayload,
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('[Email] RESEND_API_KEY not set — skipping email send');
     return { success: false, error: 'RESEND_API_KEY not configured' };
@@ -15,7 +17,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: 'CyberShield <alerts@resend.dev>',
       to: payload.to,
       subject: payload.subject,
@@ -27,7 +29,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{ success: boole
       return { success: false, error: error.message };
     }
 
-    return { success: true };
+    return { success: true, messageId: data?.id };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[Email] Exception:', msg);

@@ -7,7 +7,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assessRisk } from '@/lib/riskEngine';
-import { sendMonitoringAlert } from '@/lib/sendAlertEmail';
+import { markAlertPendingEmail, flushGroupedMonitoringAlerts } from '@/lib/alerts/groupedMonitoringEmail';
 import { generateAndStoreReport, extractDomain } from '@/lib/ai/storeReport';
 import { updateLeaderboard } from '@/lib/leaderboard/update';
 import { triggerScanEmailFunnel } from '@/lib/email/funnel';
@@ -60,6 +60,7 @@ export function postProcessScanSideEffects(params: {
   previousSecurityScore: number | null;
   currentSnapshot: ReturnType<typeof buildSnapshotFromScanResult>;
   newRiskScore: number;
+  scanSource?: string;
 }): void {
   void (async () => {
     const {
@@ -74,6 +75,7 @@ export function postProcessScanSideEffects(params: {
       previousSecurityScore,
       currentSnapshot,
       newRiskScore,
+      scanSource,
     } = params;
 
     const supabase = createAdminClient();
@@ -103,26 +105,7 @@ export function postProcessScanSideEffects(params: {
           }).select('id').single();
 
           if (sslAlert?.id) {
-            try {
-              const emailResult = await sendMonitoringAlert(sslAlert.id, {
-                changeDetails: [
-                  {
-                    label: 'ssl status',
-                    severity: 'critical',
-                    summary: 'HTTPS/SSL is not detected on this website',
-                    before: previousScanRow?.ssl_valid ? 'HTTPS enabled' : 'HTTPS not detected',
-                    after: 'HTTPS not detected',
-                  },
-                ],
-              });
-              if (!emailResult.sent && !emailResult.skipped) {
-                console.error(
-                  `[POST-PROCESS] SSL alert email not sent for alert=${sslAlert.id} reason=${emailResult.reason ?? 'unknown'}`,
-                );
-              }
-            } catch (err) {
-              console.error('[POST-PROCESS] SSL alert email failed (non-fatal):', err);
-            }
+            await markAlertPendingEmail(sslAlert.id, 'critical');
           }
         } catch (err) {
           console.error('[POST-PROCESS] SSL alert creation failed (non-fatal):', err);
@@ -140,6 +123,18 @@ export function postProcessScanSideEffects(params: {
           .limit(1);
 
         if (!existingSecIssue || existingSecIssue.length === 0) {
+          const { data: recentOpenIssue } = await supabase
+            .from('alerts')
+            .select('id')
+            .eq('website_id', websiteId)
+            .eq('type', 'security_issue')
+            .eq('resolved', false)
+            .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+            .limit(1);
+
+          if (recentOpenIssue && recentOpenIssue.length > 0) {
+            // Unchanged low-score finding — dashboard only, no repeat alert/email
+          } else {
           const severity: 'critical' | 'high' = scanResult.score < 40 ? 'critical' : 'high';
           const { data: alert } = await supabase.from('alerts').insert({
             user_id: userId,
@@ -154,31 +149,8 @@ export function postProcessScanSideEffects(params: {
           }).select('id').single();
 
           if (alert?.id) {
-            try {
-              const emailResult = await sendMonitoringAlert(alert.id, {
-                currentScore: scanResult.score,
-                previousScore: previousSecurityScore ?? undefined,
-                changeDetails: [
-                  {
-                    label: 'security score',
-                    severity,
-                    summary: scanResult.explanation,
-                    before:
-                      previousSecurityScore !== null
-                        ? `${previousSecurityScore}/100`
-                        : 'No prior baseline',
-                    after: `${scanResult.score}/100`,
-                  },
-                ],
-              });
-              if (!emailResult.sent && !emailResult.skipped) {
-                console.error(
-                  `[POST-PROCESS] Alert email not sent for alert=${alert.id} reason=${emailResult.reason ?? 'unknown'}`,
-                );
-              }
-            } catch (err) {
-              console.error('[POST-PROCESS] Alert email failed (non-fatal):', err);
-            }
+            await markAlertPendingEmail(alert.id, severity);
+          }
           }
         }
       } catch (err) {
@@ -216,28 +188,7 @@ export function postProcessScanSideEffects(params: {
           }).select('id').single();
 
           if (scoreDropAlert?.id) {
-            try {
-              const emailResult = await sendMonitoringAlert(scoreDropAlert.id, {
-                previousScore: previousSecurityScore,
-                currentScore: scanResult.score,
-                changeDetails: [
-                  {
-                    label: 'security score',
-                    severity,
-                    summary: `Score dropped by ${dropAmount} points since the last scan`,
-                    before: `${previousSecurityScore}/100`,
-                    after: `${scanResult.score}/100`,
-                  },
-                ],
-              });
-              if (!emailResult.sent && !emailResult.skipped) {
-                console.error(
-                  `[POST-PROCESS] Score drop email not sent for alert=${scoreDropAlert.id} reason=${emailResult.reason ?? 'unknown'}`,
-                );
-              }
-            } catch (err) {
-              console.error('[POST-PROCESS] Score drop email failed (non-fatal):', err);
-            }
+            await markAlertPendingEmail(scoreDropAlert.id, severity);
           }
         }
       } catch (err) {
@@ -255,7 +206,7 @@ export function postProcessScanSideEffects(params: {
 
       if (!existingRiskIncrease || existingRiskIncrease.length === 0) {
         try {
-          await supabase.from('alerts').insert({
+          const { data: riskAlert } = await supabase.from('alerts').insert({
             user_id: userId,
             website_id: websiteId,
             scan_id: scanId,
@@ -266,7 +217,11 @@ export function postProcessScanSideEffects(params: {
             severity: 'high',
             is_read: false,
             resolved: false,
-          });
+          }).select('id').single();
+
+          if (riskAlert?.id) {
+            await markAlertPendingEmail(riskAlert.id, 'high');
+          }
         } catch (err) {
           console.error('[POST-PROCESS] Risk increase alert creation failed (non-fatal):', err);
         }
@@ -334,16 +289,7 @@ export function postProcessScanSideEffects(params: {
               }).select('id').single();
 
               if (changeAlert?.id) {
-                try {
-                  const emailResult = await sendMonitoringAlert(changeAlert.id, { changeDetails });
-                  if (!emailResult.sent && !emailResult.skipped) {
-                    console.error(
-                      `[POST-PROCESS] Change alert email not sent for alert=${changeAlert.id} type=${alertType} reason=${emailResult.reason ?? 'unknown'}`,
-                    );
-                  }
-                } catch (err) {
-                  console.error('[POST-PROCESS] Change alert email failed (non-fatal):', err);
-                }
+                await markAlertPendingEmail(changeAlert.id, alertSeverity);
               }
             } catch (err) {
               console.error(
@@ -415,6 +361,14 @@ export function postProcessScanSideEffects(params: {
       console.error('[POST-PROCESS] Email funnel failed (non-fatal):', err);
     }
 
+    if (scanSource !== 'cron') {
+      try {
+        await flushGroupedMonitoringAlerts();
+      } catch (err) {
+        console.error('[POST-PROCESS] Grouped alert flush failed (non-fatal):', err);
+      }
+    }
+
     console.log(`[POST-PROCESS] Side effects complete — scanId=${scanId}`);
   })().catch((err) =>
     console.error('[POST-PROCESS] Side effects failed (non-fatal):', err),
@@ -435,8 +389,9 @@ async function postProcessScanCore(params: {
   } | null;
   orgId: string | null;
   currentSnapshot: ReturnType<typeof buildSnapshotFromScanResult>;
+  scanKind?: string | null;
 }): Promise<void> {
-  const { scanId, websiteId, userId, url, scanResult, websiteRow, orgId, currentSnapshot } = params;
+  const { scanId, websiteId, userId, url, scanResult, websiteRow, orgId, currentSnapshot, scanKind } = params;
 
   console.log(
     `[POST-PROCESS] ${new Date().toISOString()} — scanId=${scanId} websiteId=${websiteId} score=${scanResult.score} riskLevel=${scanResult.riskLevel}`,
@@ -478,6 +433,7 @@ async function postProcessScanCore(params: {
     risk_score: number;
     last_scanned_at: string;
     next_scan_at?: string;
+    last_deep_scan_at?: string;
   } = {
     risk_score: newRiskScore,
     last_scanned_at: now,
@@ -498,6 +454,10 @@ async function postProcessScanCore(params: {
     }
   }
 
+  if (!scanResult.error && scanKind === 'deep_scan') {
+    websiteUpdate.last_deep_scan_at = now;
+  }
+
   await supabase.from('websites').update(websiteUpdate).eq('id', websiteId);
 
   console.log(`[POST-PROCESS] Scan record and website updated for scanId=${scanId}`);
@@ -516,8 +476,9 @@ export async function postProcessScan(params: {
   url: string;
   scanResult: ScanResult;
   jobId?: string;
+  scanSource?: string;
 }): Promise<PostProcessScanResult> {
-  const { scanId, websiteId, userId, url, scanResult, jobId } = params;
+  const { scanId, websiteId, userId, url, scanResult, jobId, scanSource } = params;
 
   console.log(
     `[POST-PROCESS] scan start scanId=${scanId} jobId=${jobId ?? 'none'} hasError=${!!scanResult.error}`,
@@ -557,6 +518,12 @@ export async function postProcessScan(params: {
       pageSnapshot: scanResult.pageSnapshot,
     });
 
+    const { data: scanRow } = await supabase
+      .from('scans')
+      .select('scan_kind')
+      .eq('id', scanId)
+      .maybeSingle();
+
     await postProcessScanCore({
       scanId,
       websiteId,
@@ -566,6 +533,7 @@ export async function postProcessScan(params: {
       websiteRow,
       orgId,
       currentSnapshot,
+      scanKind: scanRow?.scan_kind ?? null,
     });
 
     if (orgId && !scanResult.error) {
@@ -591,6 +559,7 @@ export async function postProcessScan(params: {
       previousSecurityScore,
       currentSnapshot,
       newRiskScore,
+      scanSource,
     });
 
     console.log(`[POST-PROCESS] scan completion scanId=${scanId} status=${queueStatus}`);

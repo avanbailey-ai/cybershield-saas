@@ -73,6 +73,9 @@ export async function enqueueScan(params: {
   /** Caller already ran checkAndIncrementScanUsage — skips duplicate increment only. */
   usagePreChecked?: boolean;
 
+  /** Cron monitoring vs weekly deep scan classification. */
+  monitoringScanKind?: 'monitoring_check' | 'deep_scan';
+
 }): Promise<EnqueueResult> {
 
   const {
@@ -83,6 +86,7 @@ export async function enqueueScan(params: {
     traceId = null,
     idempotencyKey,
     usagePreChecked = false,
+    monitoringScanKind,
   } = params;
 
   let orgId = params.orgId ?? null;
@@ -602,6 +606,9 @@ export async function enqueueScan(params: {
         status: 'pending',
 
         started_at: new Date().toISOString(),
+
+        scan_kind:
+          monitoringScanKind ?? (source === 'cron' ? 'monitoring_check' : 'deep_scan'),
 
       })
 

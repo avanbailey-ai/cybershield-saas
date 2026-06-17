@@ -98,6 +98,12 @@ export default async function AdminPage() {
                 Beta Reports →
               </a>
               <a
+                href="/dashboard/admin/monitoring"
+                className="text-xs font-medium text-cyan-400 hover:text-cyan-300"
+              >
+                Monitoring Logs →
+              </a>
+              <a
                 href="/dashboard/admin/analytics"
                 className="text-xs font-medium text-blue-400 hover:text-blue-300"
               >
