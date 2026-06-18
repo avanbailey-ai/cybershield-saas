@@ -161,7 +161,7 @@ export default async function ReportPage({ params }: PageProps) {
             </svg>
             Back to Dashboard
           </Link>
-          <span className="text-xs text-gray-600">Enterprise Security Report</span>
+          <span className="text-xs text-gray-600">Security Report</span>
         </div>
       </header>
 
@@ -291,8 +291,7 @@ export default async function ReportPage({ params }: PageProps) {
               Not enabled on Free plan
             </p>
             <p className="mb-6 text-xs text-gray-500">
-              Hidden risks detected: intelligence cards, exploit scenarios, remediation steps, and
-              security trend charts require continuous protection.
+              Detailed findings, remediation steps, and security trend charts require a paid monitoring plan.
             </p>
             <Link
               href="/pricing"

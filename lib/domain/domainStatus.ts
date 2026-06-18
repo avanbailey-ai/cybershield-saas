@@ -70,10 +70,12 @@ export function domainExpiryAlertMessage(
   return `The domain ${domain} expires on ${expiryDate} (${thresholdDays} day${thresholdDays === 1 ? '' : 's'} remaining).${registrarLine} Renew before expiry so visitors can still reach your site.`;
 }
 
-/** Which thresholds are crossed for current days-until-expiry. */
+/** Most urgent threshold crossed for current days-until-expiry (single alert per check). */
 export function crossedDomainExpiryThresholds(daysUntilExpiry: number): number[] {
   const thresholds = [60, 30, 14, 7, 0];
-  return thresholds.filter((t) => daysUntilExpiry <= t);
+  const crossed = thresholds.filter((t) => daysUntilExpiry <= t);
+  if (crossed.length === 0) return [];
+  return [Math.min(...crossed)];
 }
 
 export function domainExpirySummary(

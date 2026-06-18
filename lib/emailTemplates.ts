@@ -84,6 +84,8 @@ export function weeklyDigestEmail(data: {
     scanId: string;
   }>;
   digestUrl: string;
+  allClearMessage?: string;
+  sslHealthyMessage?: string;
 }): string {
   const overallAvg = data.websites.length > 0
     ? Math.round(data.websites.reduce((sum, s) => sum + s.score, 0) / data.websites.length)
@@ -125,6 +127,16 @@ export function weeklyDigestEmail(data: {
 
     <!-- Body -->
     <div style="padding:32px;">
+      ${data.allClearMessage ? `
+      <div style="background:#ecfdf5;border-left:4px solid #16a34a;padding:16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+        <p style="margin:0;color:#166534;font-size:14px;line-height:1.5;">${escapeHtml(data.allClearMessage)}</p>
+      </div>
+      ` : ''}
+      ${data.sslHealthyMessage ? `
+      <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+        <p style="margin:0;color:#1e40af;font-size:14px;line-height:1.5;">${escapeHtml(data.sslHealthyMessage)}</p>
+      </div>
+      ` : ''}
       <p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 24px;">
         Here&apos;s how your websites are performing this week. Stay on top of these scores to keep your business safe online.
       </p>

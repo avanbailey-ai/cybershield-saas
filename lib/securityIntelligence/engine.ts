@@ -81,37 +81,22 @@ export type {
 /** Build enterprise summary text from findings — deterministic. */
 
 function buildSummary(
-
   scan: ScanResult,
-
   securityScore: number,
-
   riskLevel: string,
-
-  attackSurfaceLevel: string,
-
+  _attackSurfaceLevel: string,
   findingCount: number,
-
 ): string {
 
   const parts: string[] = [
-
-    `Security score: ${securityScore}/100 (${riskLevel} risk).`,
-
-    `Attack surface: ${attackSurfaceLevel}.`,
-
+    `Your site scored ${securityScore}/100 (${riskLevel} risk).`,
+    scan.ssl ? 'HTTPS is enabled.' : 'HTTPS is not enabled — visitors may see security warnings.',
   ];
 
-  parts.push(scan.ssl ? 'HTTPS is enabled.' : 'HTTPS is not enabled — traffic is unencrypted.');
-
   if (findingCount > 0) {
-
-    parts.push(`${findingCount} finding(s) across transport, headers, and attack surface.`);
-
+    parts.push(`${findingCount} item(s) to review across connection security, headers, and page setup.`);
   } else {
-
-    parts.push('No major findings detected.');
-
+    parts.push('No major issues detected — keep monitoring for changes.');
   }
 
   return parts.join(' ');

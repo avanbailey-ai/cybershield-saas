@@ -86,6 +86,15 @@ export async function sendWeeklyDigests(): Promise<{ sent: number; skipped: numb
       continue;
     }
 
+    const sslCertsRes = await supabase
+      .from('ssl_certificates')
+      .select('website_id, days_until_expiry')
+      .in('website_id', websites.map((w) => w.id));
+
+    const sslHealthy =
+      (sslCertsRes.data?.length ?? 0) > 0 &&
+      (sslCertsRes.data ?? []).every((c) => (c.days_until_expiry ?? 0) > 7);
+
     const websiteData = await Promise.all(
       websites.map(async (site) => {
         const { data: scan } = await supabase
@@ -114,11 +123,17 @@ export async function sendWeeklyDigests(): Promise<{ sent: number; skipped: numb
       continue;
     }
 
-    const subject = 'Your weekly CyberShield security digest';
+    const subject = hasMeaningfulChange
+      ? 'Your weekly CyberShield security digest'
+      : 'CyberShield weekly update — all clear';
     const html = weeklyDigestEmail({
       userEmail: profile.email!,
       websites: websiteData,
       digestUrl: `${siteUrl}/app/alerts`,
+      allClearMessage: !hasMeaningfulChange
+        ? 'No important changes detected this week across your monitored websites.'
+        : undefined,
+      sslHealthyMessage: sslHealthy ? 'SSL certificates remain healthy on all monitored sites.' : undefined,
     });
 
     const result = await sendEmail({ to: profile.email!, subject, html });

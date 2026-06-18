@@ -2,22 +2,22 @@ const steps = [
   {
     number: "01",
     title: "Add Your Website",
-    description: "Enter your website URL and CyberShield begins configuring your monitoring profile.",
+    description: "Enter your website URL and CyberShield begins configuring monitoring for SSL, domain, and security checks.",
   },
   {
     number: "02",
-    title: "CyberShield Analyzes Security Signals",
-    description: "We scan SSL certificates, HTTP headers, open ports, DNS records, and known vulnerabilities.",
+    title: "CyberShield Runs Checks",
+    description: "We scan SSL certificates, HTTP security headers, and page structure — then keep checking on your plan's schedule.",
   },
   {
     number: "03",
-    title: "Receive Alerts & Insights",
-    description: "Get instant notifications when threats are detected, with clear remediation guidance.",
+    title: "Review the Health Center",
+    description: "See security score, SSL/domain status, uptime, and recent changes in one place per website.",
   },
   {
     number: "04",
-    title: "Improve Security Posture",
-    description: "Track your security score over time, close gaps, and demonstrate improvement to stakeholders.",
+    title: "Get Alerts When It Matters",
+    description: "Email alerts and digests when certificates expire, headers change, or scores drop — with clear next steps.",
   },
 ];
 
@@ -41,7 +41,6 @@ export default function HowItWorks() {
         <div className="grid gap-10 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4">
           {steps.map((step, idx) => (
             <div key={step.number} className="relative flex flex-col">
-              {/* Connector line */}
               {idx < steps.length - 1 && (
                 <div className="absolute left-full top-5 hidden h-px w-full bg-gray-800 lg:block" style={{ width: "calc(100% - 2.5rem)", left: "2.5rem" }} />
               )}

@@ -74,6 +74,12 @@ export default function SignupForm() {
           // Non-blocking
         }
 
+        try {
+          await fetch("/api/user/ensure-org", { method: "POST", credentials: "include" });
+        } catch {
+          // Non-blocking — dashboard layout also ensures org
+        }
+
         router.push(
           redirectTo && redirectTo.startsWith("/")
             ? redirectTo

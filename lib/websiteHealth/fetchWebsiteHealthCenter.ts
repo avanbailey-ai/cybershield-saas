@@ -167,12 +167,12 @@ export async function fetchWebsiteHealthCenter(
           : 'Domain registration looks healthy.';
 
   const monitoringMeta = extractMonitoringMeta(latestScan?.scan_snapshot);
-  const uptimeStatus =
-    monitoringMeta?.httpStatus != null
-      ? uptimeStatusFromHttp(monitoringMeta.httpStatus)
-      : latestScan
-        ? 'online'
-        : 'unknown';
+  const hasHttpCheck = monitoringMeta?.httpStatus != null;
+  const uptimeStatus = hasHttpCheck
+    ? uptimeStatusFromHttp(monitoringMeta!.httpStatus)
+    : latestScan?.scan_kind === 'monitoring_check' || latestScan
+      ? ('pending' as UptimeStatus)
+      : ('pending' as UptimeStatus);
 
   const recentChanges =
     changeTimeline != null ? fetchImportantTimelineEvents(changeTimeline, 5) : [];

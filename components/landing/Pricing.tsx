@@ -130,7 +130,7 @@ function PricingInner() {
       return `Your site has ${issues} issue${issues !== 1 ? 's' : ''} — Pro unlocks the full report and fix guidance`;
     }
     if (funnelState.score < 70) {
-      return `${hostname} scored ${funnelState.score}/100 — enable protection before attackers find these gaps`;
+      return `${hostname} scored ${funnelState.score}/100 — enable monitoring to catch issues early`;
     }
     return `Protect ${hostname} with continuous monitoring`;
   }, [funnelState]);

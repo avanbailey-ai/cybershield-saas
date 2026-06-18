@@ -20,7 +20,8 @@ assert(sslHealthFromDays(0) === 'critical', 'expired critical');
 assert(sslHealthFromDays(null) === 'unknown', 'null unknown');
 
 assert(crossedExpiryThresholds(25).join(',') === '30', '25 crosses 30 only');
-assert(crossedExpiryThresholds(3).join(',') === '30,14,7,3', '3 crosses down to 3');
+assert(crossedExpiryThresholds(3).join(',') === '3', '3 crosses most urgent 3 only');
+assert(crossedExpiryThresholds(2).join(',') === '3', '2 days crosses 3 only');
 assert(crossedExpiryThresholds(-1).includes(0), 'expired includes 0');
 
 assert(severityForExpiryThreshold(0) === 'critical', '0 critical');

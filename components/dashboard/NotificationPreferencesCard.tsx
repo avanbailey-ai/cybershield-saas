@@ -11,19 +11,24 @@ const PREF_META: Array<{
   description: string;
 }> = [
   {
-    key: 'vulnerabilityAlerts',
-    label: 'Email alerts for new vulnerabilities',
-    description: 'Get notified when scans find new issues or security changes on your sites.',
+    key: 'criticalAlerts',
+    label: 'Monitoring & critical alerts',
+    description: 'Immediate emails when CyberShield detects critical SSL, security, or website changes.',
   },
   {
     key: 'weeklyDigest',
     label: 'Weekly security digest',
-    description: 'A summary of scores and risk levels for all monitored websites.',
+    description: 'A summary of scores and changes for all monitored websites.',
   },
   {
-    key: 'criticalThreats',
-    label: 'Critical threat notifications',
-    description: 'Immediate emails for critical-severity findings that need urgent action.',
+    key: 'monthlyReport',
+    label: 'Monthly security report',
+    description: 'A monthly overview of your security posture across monitored sites.',
+  },
+  {
+    key: 'allClearUpdates',
+    label: 'All-clear updates',
+    description: 'Occasional emails when no important changes were detected — reassurance your sites stayed healthy.',
   },
 ];
 

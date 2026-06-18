@@ -23,7 +23,7 @@ export default function Hero() {
             </h1>
 
             <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              Find out in 30 seconds. CyberShield scans SSL, headers, and attack surface risks — and shows what attackers could exploit.
+              Find out in 30 seconds. CyberShield checks SSL, security headers, and website health — then monitors changes on an ongoing basis.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
@@ -77,17 +77,17 @@ export default function Hero() {
                 <p className="text-green-400">[✓] DNS records resolved (4 records found)</p>
                 <p className="mt-1 text-gray-400">[*] Checking SSL certificate...</p>
                 <p className="text-green-400">[✓] SSL valid — expires in 87 days</p>
-                <p className="mt-1 text-gray-400">[*] Scanning HTTP headers...</p>
+                <p className="mt-1 text-gray-400">[*] Checking security headers...</p>
                 <p className="text-yellow-400">[!] Missing: Content-Security-Policy</p>
                 <p className="text-yellow-400">[!] Missing: X-Frame-Options</p>
-                <p className="mt-1 text-gray-400">[*] Checking for open ports...</p>
-                <p className="text-green-400">[✓] No unexpected open ports detected</p>
-                <p className="mt-1 text-gray-400">[*] Running malware signature check...</p>
-                <p className="text-green-400">[✓] No malware signatures found</p>
+                <p className="mt-1 text-gray-400">[*] Recording monitoring baseline...</p>
+                <p className="text-green-400">[✓] SSL certificate valid — expires in 87 days</p>
+                <p className="mt-1 text-gray-400">[*] Checking domain registration...</p>
+                <p className="text-green-400">[✓] Domain registration healthy</p>
                 <p className="mt-3 text-gray-500">─────────────────────────────────</p>
                 <p className="mt-1 font-semibold text-white">
                   Security Score:{" "}
-                  <span className="text-yellow-400">B (72/100)</span>
+                  <span className="text-yellow-400">72/100</span>
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
                   2 warnings · 0 critical issues · Scan complete in 3.2s

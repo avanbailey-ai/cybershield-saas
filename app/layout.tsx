@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s | CyberShield SaaS",
   },
   description:
-    "Enterprise-grade cybersecurity monitoring platform. Protect your web assets with real-time threat detection and security scoring.",
+    "Website security monitoring for small businesses. SSL, domain, and change detection with clear fix guidance.",
   keywords: ["cybersecurity", "monitoring", "security", "SaaS", "web protection"],
 };
 

@@ -40,8 +40,9 @@ export const PLAN_MARKETING: Record<Plan, PlanMarketingProfile> = {
     deepScanLabel: 'Weekly deep scans + manual deep scans',
     bullets: [
       'Full security reports',
+      'Health Center per website',
+      'SSL & domain expiry alerts',
       'Email alerts',
-      'Fix guidance and security history',
       'Daily monitoring checks',
       'Weekly deep scans',
     ],
@@ -53,8 +54,8 @@ export const PLAN_MARKETING: Record<Plan, PlanMarketingProfile> = {
     deepScanLabel: 'Weekly deep scans + manual deep scans',
     bullets: [
       'Everything in Pro',
-      'Change detection',
-      'Trend tracking',
+      'Change timeline',
+      'Hourly monitoring checks',
       'Priority risk alerts',
       'Team-ready dashboard',
     ],

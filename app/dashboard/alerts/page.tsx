@@ -30,7 +30,7 @@ export default async function AlertsPage() {
 
   const { data: alerts } = await supabase
     .from('alerts')
-    .select(`id, title, message, severity, is_read, created_at, website_id, scan_id, websites(url, label)`)
+    .select(`id, title, message, severity, type, is_read, created_at, website_id, scan_id, websites(url, label)`)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 

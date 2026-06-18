@@ -27,7 +27,7 @@ assert(domainHealthFromDays(0) === 'critical', 'expired critical');
 assert(domainHealthFromDays(null) === 'unknown', 'null unknown');
 
 assert(crossedDomainExpiryThresholds(55).join(',') === '60', '55 crosses 60 only');
-assert(crossedDomainExpiryThresholds(7).join(',') === '60,30,14,7', '7 crosses down to 7');
+assert(crossedDomainExpiryThresholds(7).join(',') === '7', '7 crosses most urgent 7 only');
 assert(crossedDomainExpiryThresholds(-1).includes(0), 'expired includes 0');
 
 assert(severityForDomainExpiryThreshold(0) === 'critical', '0 critical');

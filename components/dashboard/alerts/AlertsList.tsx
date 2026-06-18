@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { groupAlertsForDisplay } from "@/lib/alerts/groupAlertsForDisplay";
 
 export interface AlertRow {
   id: string;
@@ -12,6 +13,7 @@ export interface AlertRow {
   created_at: string;
   website_id: string | null;
   scan_id: string | null;
+  type?: string | null;
   websites: { url: string; label: string | null } | { url: string; label: string | null }[] | null;
 }
 
@@ -37,19 +39,25 @@ function timeAgo(dateStr: string): string {
 export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[] }) {
   const [alerts, setAlerts] = useState<AlertRow[]>(initialAlerts);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  async function markAsRead(id: string) {
+  const displayGroups = groupAlertsForDisplay(alerts);
+
+  async function markAsRead(ids: string[]) {
+    const id = ids[0]!;
     setMarkingId(id);
     try {
-      const res = await fetch("/api/alerts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (res.ok) {
-        setAlerts((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, is_read: true } : a))
-        );
+      for (const alertId of ids) {
+        const res = await fetch("/api/alerts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: alertId }),
+        });
+        if (res.ok) {
+          setAlerts((prev) =>
+            prev.map((a) => (a.id === alertId ? { ...a, is_read: true } : a))
+          );
+        }
       }
     } finally {
       setMarkingId(null);
@@ -59,11 +67,20 @@ export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[
   async function markAllAsRead() {
     const unread = alerts.filter((a) => !a.is_read);
     for (const alert of unread) {
-      await markAsRead(alert.id);
+      await markAsRead([alert.id]);
     }
   }
 
   const unreadCount = alerts.filter((a) => !a.is_read).length;
+
+  function toggleExpanded(groupId: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }
 
   if (alerts.length === 0) {
     return (
@@ -110,63 +127,100 @@ export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[
       )}
 
       <div className="space-y-3">
-        {alerts.map((alert) => (
-          <div
-            key={alert.id}
-            className={`rounded-xl border p-5 transition-colors ${
-              alert.is_read
-                ? "border-gray-800 bg-gray-900/20"
-                : "border-gray-700 bg-gray-900/60"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${severityBadgeClass(alert.severity)}`}>
-                    {alert.severity}
-                  </span>
-                  {!alert.is_read && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-400 border border-blue-500/20">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                      New
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-500">{timeAgo(alert.created_at)}</span>
-                </div>
-                <h3 className={`mt-2 text-sm font-semibold ${alert.is_read ? "text-gray-400" : "text-white"}`}>
-                  {alert.title}
-                </h3>
-                <p className="mt-1 text-xs text-gray-500">{alert.message}</p>
-                {alert.scan_id && (
-                  <Link
-                    href={`/report/${alert.scan_id}`}
-                    className="mt-2 inline-block text-xs text-blue-400 hover:text-blue-300"
-                  >
-                    View report →
-                  </Link>
-                )}
-                {alert.websites && (() => {
-                  const site = Array.isArray(alert.websites) ? alert.websites[0] : alert.websites;
-                  return site ? (
-                    <p className="mt-2 text-xs text-gray-600">
-                      {site.label ?? site.url}
-                    </p>
-                  ) : null;
-                })()}
-              </div>
+        {displayGroups.map((group) => {
+          const isExpanded = expandedGroups.has(group.id);
+          const unreadInGroup = group.rawAlerts.filter((a) => !a.is_read);
+          const site = group.website_id
+            ? alerts.find((a) => a.id === group.rawAlerts[0]?.id)?.websites
+            : null;
+          const siteInfo = site
+            ? Array.isArray(site)
+              ? site[0]
+              : site
+            : null;
 
-              {!alert.is_read && (
-                <button
-                  onClick={() => markAsRead(alert.id)}
-                  disabled={markingId === alert.id}
-                  className="flex-shrink-0 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-60"
-                >
-                  {markingId === alert.id ? "…" : "Mark read"}
-                </button>
-              )}
+          return (
+            <div
+              key={group.id}
+              className={`rounded-xl border p-5 transition-colors ${
+                group.is_read
+                  ? "border-gray-800 bg-gray-900/20"
+                  : "border-gray-700 bg-gray-900/60"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${severityBadgeClass(group.severity)}`}>
+                      {group.severity}
+                    </span>
+                    {group.categoryLabel && (
+                      <span className="inline-flex rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400 border border-gray-700">
+                        {group.categoryLabel}
+                      </span>
+                    )}
+                    {!group.is_read && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-400 border border-blue-500/20">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                        New
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-500">{timeAgo(group.created_at)}</span>
+                  </div>
+                  <h3 className={`mt-2 text-sm font-semibold ${group.is_read ? "text-gray-400" : "text-white"}`}>
+                    {group.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-gray-500">{group.message}</p>
+
+                  {group.expandable && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(group.id)}
+                      className="mt-2 text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      {isExpanded ? "Hide details" : `Show ${group.rawAlerts.length} individual alerts`}
+                    </button>
+                  )}
+
+                  {group.expandable && isExpanded && (
+                    <ul className="mt-3 space-y-2 border-t border-gray-800 pt-3">
+                      {group.rawAlerts.map((raw) => (
+                        <li key={raw.id} className="rounded-lg border border-gray-800 bg-gray-900/40 px-3 py-2">
+                          <p className="text-xs font-medium text-gray-300">{raw.title}</p>
+                          <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{raw.message}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {group.scanId && (
+                    <Link
+                      href={`/report/${group.scanId}`}
+                      className="mt-2 inline-block text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      View report →
+                    </Link>
+                  )}
+                  {siteInfo && (
+                    <p className="mt-2 text-xs text-gray-600">
+                      {siteInfo.label ?? siteInfo.url}
+                    </p>
+                  )}
+                </div>
+
+                {!group.is_read && (
+                  <button
+                    onClick={() => markAsRead(unreadInGroup.map((a) => a.id))}
+                    disabled={markingId !== null}
+                    className="flex-shrink-0 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-60"
+                  >
+                    {markingId ? "…" : "Mark read"}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

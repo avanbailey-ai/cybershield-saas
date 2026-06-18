@@ -70,8 +70,10 @@ export function expiryAlertMessage(
   return `The TLS certificate for ${hostname} expires on ${expiryDate} (${thresholdDays} day${thresholdDays === 1 ? '' : 's'} remaining).${issuerLine} Plan renewal before expiry to avoid downtime and trust warnings.`;
 }
 
-/** Which thresholds are crossed for current days-until-expiry. */
+/** Most urgent threshold crossed for current days-until-expiry (single alert per check). */
 export function crossedExpiryThresholds(daysUntilExpiry: number): number[] {
   const thresholds = [30, 14, 7, 3, 0];
-  return thresholds.filter((t) => daysUntilExpiry <= t);
+  const crossed = thresholds.filter((t) => daysUntilExpiry <= t);
+  if (crossed.length === 0) return [];
+  return [Math.min(...crossed)];
 }

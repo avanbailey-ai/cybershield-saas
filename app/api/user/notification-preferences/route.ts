@@ -1,28 +1,33 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
-  rowToNotificationPreferences,
+  getNotificationPreferences,
+  updateNotificationPreferences,
   type NotificationPreferences,
 } from '@/lib/notifications/preferences';
+import { getActiveOrgId } from '@/lib/org/context';
 
 type PatchBody = Partial<{
-  vulnerabilityAlerts: boolean;
+  criticalAlerts: boolean;
   weeklyDigest: boolean;
+  monthlyReport: boolean;
+  allClearUpdates: boolean;
+  /** @deprecated */
+  vulnerabilityAlerts: boolean;
+  /** @deprecated */
   criticalThreats: boolean;
 }>;
 
-function toDbPatch(body: PatchBody): Record<string, boolean> {
-  const patch: Record<string, boolean> = {};
-  if (typeof body.vulnerabilityAlerts === 'boolean') {
-    patch.notify_vulnerability_alerts = body.vulnerabilityAlerts;
-  }
-  if (typeof body.weeklyDigest === 'boolean') {
-    patch.notify_weekly_digest = body.weeklyDigest;
-  }
-  if (typeof body.criticalThreats === 'boolean') {
-    patch.notify_critical_threats = body.criticalThreats;
+function normalizePatch(body: PatchBody): Partial<NotificationPreferences> {
+  const patch: Partial<NotificationPreferences> = {};
+  if (typeof body.criticalAlerts === 'boolean') patch.criticalAlerts = body.criticalAlerts;
+  if (typeof body.weeklyDigest === 'boolean') patch.weeklyDigest = body.weeklyDigest;
+  if (typeof body.monthlyReport === 'boolean') patch.monthlyReport = body.monthlyReport;
+  if (typeof body.allClearUpdates === 'boolean') patch.allClearUpdates = body.allClearUpdates;
+  if (typeof body.criticalThreats === 'boolean') patch.criticalAlerts = body.criticalThreats;
+  if (typeof body.vulnerabilityAlerts === 'boolean' && patch.criticalAlerts === undefined) {
+    patch.criticalAlerts = body.vulnerabilityAlerts;
   }
   return patch;
 }
@@ -37,18 +42,9 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('notify_vulnerability_alerts, notify_weekly_digest, notify_critical_threats')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error('[notification-preferences] GET failed', error.message);
-    return NextResponse.json(DEFAULT_NOTIFICATION_PREFERENCES);
-  }
-
-  return NextResponse.json(rowToNotificationPreferences(data));
+  const orgId = await getActiveOrgId(user.id);
+  const preferences = await getNotificationPreferences(user.id, orgId);
+  return NextResponse.json(preferences);
 }
 
 export async function PATCH(req: Request) {
@@ -68,24 +64,17 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const patch = toDbPatch(body);
+  const patch = normalizePatch(body);
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: 'No valid preference fields provided' }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('profiles')
-    .update(patch)
-    .eq('id', user.id)
-    .select('notify_vulnerability_alerts, notify_weekly_digest, notify_critical_threats')
-    .single();
-
-  if (error) {
-    console.error('[notification-preferences] PATCH failed', error.message);
+  try {
+    const orgId = await getActiveOrgId(user.id);
+    const preferences = await updateNotificationPreferences(user.id, patch, orgId);
+    return NextResponse.json({ ok: true, preferences });
+  } catch (err) {
+    console.error('[notification-preferences] PATCH failed', err);
     return NextResponse.json({ error: 'Failed to save preferences' }, { status: 500 });
   }
-
-  const preferences: NotificationPreferences = rowToNotificationPreferences(data);
-  return NextResponse.json({ ok: true, preferences });
 }

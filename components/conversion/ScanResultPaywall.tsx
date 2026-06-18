@@ -349,43 +349,32 @@ export default function ScanResultPaywall({
           </p>
 
           <LockedFeaturePreview
-            title="Attack surface mapping"
-            description="Full endpoint inventory, exposed admin panels, and open port analysis — not available on Free."
-            ctaLabel="Enable continuous protection"
-            onCtaClick={() => handleEnableProtection('attack_surface')}
-            previewLines={[
-              'Exposed API endpoint: /api/v1/admin',
-              'Subdomain enumeration: 12 assets found',
-              'Open port 8080 detected on production',
-              'Debug endpoint accessible externally',
-            ]}
-          />
-
-          <LockedFeaturePreview
-            title="Change detection"
-            description="Continuous monitoring alerts you when SSL, headers, or endpoints change between scans."
+            title="Change timeline"
+            description="See grouped changes between scans — SSL, headers, scripts, and page structure."
             ctaLabel="Enable continuous protection"
             onCtaClick={() => handleEnableProtection('change_detection')}
             previewLines={[
-              'Website change detected since last scan',
-              'New endpoint exposed in attack surface',
-              'SSL certificate rotation pending',
-              'Security header removed from response',
+              'Security protection changed — HSTS header removed',
+              'Website asset update — 4 scripts refreshed',
+              'SSL status changed — certificate renewed',
             ]}
           />
 
           <LockedFeaturePreview
-            title="Exploit modeling"
-            description="See how attackers could chain your vulnerabilities into a breach scenario."
-            ctaLabel={scoreAtRisk ? 'Fix vulnerabilities automatically' : 'Enable continuous protection'}
-            onCtaClick={() => handleEnableProtection('exploit_modeling')}
+            title="Health Center"
+            description="SSL expiry, domain registration, uptime, and alerts in one dashboard per site."
+            ctaLabel="Enable continuous protection"
+            onCtaClick={() => handleEnableProtection('health_center')}
             previewLines={[
-              'SQL injection vector → database access path',
-              'Missing CSP → XSS payload delivery scenario',
-              'Header misconfiguration → session hijack chain',
-              'Remediation priority ranked by exploitability',
+              'SSL certificate — healthy, 87 days until expiry',
+              'Domain registration — healthy',
+              'Uptime — online (HTTP 200)',
             ]}
           />
+
+          <p className="text-center text-xs text-gray-600">
+            Preview examples above are illustrative — upgrade to see real monitoring data for your site.
+          </p>
         </div>
       )}
 

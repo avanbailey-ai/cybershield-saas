@@ -42,7 +42,7 @@ export default async function SettingsPage({
   const subscriptionStatus = userWithPlan.subscription_status ?? null;
   const params = await searchParams;
   const upgradeFeature = params.upgrade ?? null;
-  const notificationPreferences = await getNotificationPreferences(user.id);
+  const notificationPreferences = await getNotificationPreferences(user.id, orgId);
   const emailAlertsAvailable = canAccessFeature(
     {
       email: user.email,

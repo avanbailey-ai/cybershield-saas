@@ -21,9 +21,9 @@ interface ScanInputProps {
 }
 
 const SCAN_STAGES = [
-  { label: 'Mapping your attack surface…', progress: 25 },
-  { label: 'Checking SSL, headers, and open ports…', progress: 55 },
-  { label: 'Modeling exploit scenarios…', progress: 85 },
+  { label: 'Checking SSL and security headers…', progress: 35 },
+  { label: 'Building your monitoring baseline…', progress: 70 },
+  { label: 'Calculating your security score…', progress: 95 },
 ] as const;
 
 function ScanInputInner(_props: ScanInputProps) {

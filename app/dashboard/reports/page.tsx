@@ -85,7 +85,7 @@ export default async function ReportsPage() {
         <div className="mb-6">
           <h2 className="text-xl font-bold text-white">Security Reports</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Enterprise security intelligence reports from your website scans.
+            Security reports from your website scans with scores, findings, and fix guidance.
           </p>
         </div>
 
@@ -182,7 +182,7 @@ export default async function ReportsPage() {
                       finding{intelligence.findings.length !== 1 ? 's' : ''}
                     </span>
                     <span>
-                      Attack surface:{' '}
+                      Page exposure:{' '}
                       <span className="font-medium text-gray-300">
                         {intelligence.attackSurfaceLevel}
                       </span>
@@ -203,7 +203,7 @@ export default async function ReportsPage() {
                     href={`/report/${scan.id}`}
                     className="mt-4 inline-flex text-xs font-medium text-blue-400 hover:text-blue-300"
                   >
-                    View full intelligence report →
+                    View full security report →
                   </Link>
                 </div>
               );

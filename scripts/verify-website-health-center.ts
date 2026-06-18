@@ -28,6 +28,7 @@ assert(uptimeStatusFromHttp(null) === 'unknown', 'null unknown');
 assert(uptimeStatusFromHttp(null, true) === 'offline', 'failed scan offline');
 
 assert(uptimeStatusLabel('online') === 'Online', 'online label');
+assert(uptimeStatusLabel('pending') === 'Monitoring pending', 'pending label');
 assert(securityScoreLabel(95) === 'Excellent', '95 excellent');
 assert(securityScoreLabel(null) === 'Not scanned', 'null not scanned');
 assert(securityScoreBadgeClass(95).includes('green'), '95 green badge');
@@ -40,6 +41,7 @@ assert(domainExpirySummary(45, domainHealthFromDays(45)) === '45 days until doma
 assert(domainExpirySummary(null, 'unknown') === 'Not checked yet', 'domain unknown summary');
 
 assert(sslExpirySummary(14, sslHealthFromDays(14)) === '14 days until expiry', '14 days summary');
+assert(sslExpirySummary(90, sslHealthFromDays(90)) === 'All monitored certificates healthy', 'healthy ssl summary');
 assert(sslExpirySummary(null, 'unknown') === 'Not checked yet', 'ssl unknown');
 
 console.log('All Website Health Center checks passed.');

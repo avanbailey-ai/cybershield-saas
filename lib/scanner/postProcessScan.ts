@@ -30,12 +30,12 @@ import {
 import {
   buildMonitoringChangeDetails,
   detectScanChanges,
-  formatChangeAlert,
   groupChangesByMonitoringAlertType,
   maxChangeSeverity,
   shouldAlertOnChanges,
   type MonitoringAlertType,
 } from './diffDetection';
+import { alertCopyFromScanChanges } from '@/lib/alerts/alertCopyFromTimeline';
 import { finalizeScanQueueJob, type ScanQueueFinalizeResult } from './finalizeScan';
 import { updateOrgIntelligence } from '@/lib/enterprise/updateOrgIntelligence';
 import { LIGHTWEIGHT_CHANGE_TYPES } from './scanTypes';
@@ -334,7 +334,11 @@ export function postProcessScanSideEffects(params: {
 
             if (existingChangeAlert && existingChangeAlert.length > 0) continue;
 
-            const { title, message } = formatChangeAlert(url, typeChanges);
+            const copy = alertCopyFromScanChanges(url, scanId, typeChanges);
+            const title = copy.title;
+            const message = copy.recommendation
+              ? `${copy.message}\n\nRecommended next step: ${copy.recommendation}`
+              : copy.message;
             const alertSeverity = maxChangeSeverity(typeChanges);
             const changeDetails = buildMonitoringChangeDetails(
               previousSnapshot,

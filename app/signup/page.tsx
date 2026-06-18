@@ -11,10 +11,10 @@ export const metadata: Metadata = {
 };
 
 const bullets = [
-  "Continuous 24/7 monitoring",
-  "Real-time threat alerts",
-  "Security scoring & reports",
-  "SSL certificate monitoring",
+  "Health Center for every website",
+  "SSL & domain expiry monitoring",
+  "Change timeline & email alerts",
+  "Daily to hourly monitoring (by plan)",
 ];
 
 export default function SignupPage() {

@@ -23,6 +23,7 @@ import {
   sslExpirySummary,
   uptimeStatusBadgeClass,
   uptimeStatusLabel,
+  computeHealthVerdict,
 } from '@/lib/websiteHealth/healthStatus';
 
 interface WebsiteHealthCenterProps {
@@ -94,6 +95,34 @@ function dataHasScore(text: string): boolean {
 export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealthCenterProps) {
   const { website, security, ssl, domain, uptime, monitoring, recentChanges, alerts } = data;
 
+  const hasCriticalAlerts = alerts.recent.some((a) => a.severity === 'critical');
+  const verdict = computeHealthVerdict({
+    securityScore: security.score,
+    sslStatus: ssl.status,
+    domainStatus: domain.status,
+    uptimeStatus: uptime.status,
+    unreadAlerts: alerts.unreadCount,
+    hasCriticalAlerts,
+  });
+
+  const verdictBannerClass =
+    verdict.verdict === 'all_clear'
+      ? 'border-green-500/30 bg-green-500/10'
+      : verdict.verdict === 'minor_issues'
+        ? 'border-yellow-500/30 bg-yellow-500/10'
+        : verdict.verdict === 'attention_needed'
+          ? 'border-orange-500/30 bg-orange-500/10'
+          : 'border-red-500/30 bg-red-500/10';
+
+  const verdictTextClass =
+    verdict.verdict === 'all_clear'
+      ? 'text-green-300'
+      : verdict.verdict === 'minor_issues'
+        ? 'text-yellow-300'
+        : verdict.verdict === 'attention_needed'
+          ? 'text-orange-300'
+          : 'text-red-300';
+
   const monitoringDetail = monitoring.enabled
     ? monitoring.priorityMonitoring
       ? 'Priority monitoring — checked every 5 minutes'
@@ -123,6 +152,19 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
         </p>
         <p className="mt-2 text-sm text-gray-500">
           One place to see security, SSL, uptime, and alerts for this site.
+        </p>
+      </div>
+
+      <div className={`rounded-xl border p-5 ${verdictBannerClass}`}>
+        <p className={`text-sm font-semibold ${verdictTextClass}`}>{verdict.label}</p>
+        <p className="mt-1 text-sm text-gray-300">{verdict.reason}</p>
+        {verdict.affectedSystems.length > 0 && (
+          <p className="mt-2 text-xs text-gray-500">
+            Affected: {verdict.affectedSystems.join(' · ')}
+          </p>
+        )}
+        <p className="mt-2 text-xs text-gray-400">
+          <span className="font-medium text-gray-300">Next step:</span> {verdict.nextStep}
         </p>
       </div>
 

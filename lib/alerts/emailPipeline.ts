@@ -18,6 +18,7 @@ import {
   shouldEmailImmediately,
 } from './emailDecision';
 import { getEffectivePlan } from '@/lib/auth/permissions';
+import { emailWhyItMattersFromCopy } from './alertCopyFromTimeline';
 
 type PendingEvent = {
   id: string;
@@ -204,9 +205,10 @@ export async function processPendingAlertEvents(options?: {
       domain: extractDomain(websiteUrl(event.websites) || event.finding_title),
       severity: event.severity,
       issue: event.finding_title,
-      whyItMatters: event.is_worsened
-        ? 'This issue worsened since the last check.'
-        : 'CyberShield detected a new critical issue during monitoring.',
+      whyItMatters: emailWhyItMattersFromCopy(
+        { message: event.finding_title, recommendation: '' },
+        event.is_worsened,
+      ),
       reportUrl: event.scan_id ? `${siteUrl}/report/${event.scan_id}` : dashboardUrl,
     }));
 

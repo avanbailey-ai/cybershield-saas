@@ -60,15 +60,15 @@ export function riskScoreColor(level: RiskLevel | string | null): string {
 export function categoryLabel(category: FindingCategory): string {
   switch (category) {
     case 'transport':
-      return 'Transport';
+      return 'Connection security';
     case 'headers':
-      return 'Headers';
+      return 'Security headers';
     case 'attack_surface':
-      return 'Attack Surface';
+      return 'Page exposure';
     case 'authentication':
-      return 'Authentication';
+      return 'Login & forms';
     case 'third_party':
-      return 'Third Party';
+      return 'Third-party scripts';
   }
 }
 

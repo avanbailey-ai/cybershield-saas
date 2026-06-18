@@ -78,7 +78,7 @@ function FindingDetails({ finding }: { finding: SecurityIntelligenceCard }) {
 
       <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
         <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-400/90">
-          How an attacker could use it
+          What this could mean for your site
         </h4>
         <p className="text-sm leading-relaxed text-amber-100/80">{finding.exploitScenario}</p>
       </div>

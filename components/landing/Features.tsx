@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 
 const features = [
   {
-    icon: "globe",
-    title: "Website Monitoring",
-    description: "Your sites are checked every 6 hours. You get alerted when something changes — not when you remember to check.",
+    icon: "health",
+    title: "Health Center",
+    description: "One dashboard per website — security score, SSL, domain, uptime, and alerts in a single view.",
   },
   {
     icon: "shield",
@@ -13,30 +13,30 @@ const features = [
   },
   {
     icon: "lock",
-    title: "SSL & Certificate Monitoring",
-    description: "Get notified before certificates expire. Never lose traffic to a browser security warning again.",
+    title: "SSL & Domain Monitoring",
+    description: "Get notified before certificates or domain registrations expire. Avoid browser warnings and downtime.",
   },
   {
-    icon: "scan",
-    title: "Threat Detection",
-    description: "We scan for the misconfigurations attackers look for first — and tell you how to fix them.",
+    icon: "timeline",
+    title: "Change Timeline",
+    description: "See what changed between scans — headers, scripts, SSL, and page structure — grouped in plain language.",
   },
   {
     icon: "chart",
-    title: "Historical Reporting",
-    description: "See your security posture improve over time. Track which fixes made the biggest impact.",
+    title: "Continuous Monitoring",
+    description: "Pro checks daily, Growth hourly, Agency priority sites every 5 minutes. Deep scans run weekly.",
   },
   {
     icon: "bell",
-    title: "Instant Alerts",
-    description: "When your score drops, you know within hours — not after your users start complaining.",
+    title: "Email Alerts & Digests",
+    description: "Get notified when something important changes, plus weekly and monthly summaries.",
   },
 ];
 
 const iconMap: Record<string, ReactNode> = {
-  globe: (
+  health: (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
     </svg>
   ),
   shield: (
@@ -49,9 +49,9 @@ const iconMap: Record<string, ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
     </svg>
   ),
-  scan: (
+  timeline: (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
   chart: (
@@ -78,7 +78,7 @@ export default function Features() {
             Everything you need to stay secure
           </h2>
           <p className="mx-auto max-w-2xl text-base text-gray-400 sm:text-gray-400">
-            Monitoring, scoring, and alerts across all your web properties.
+            Health Center, monitoring, scoring, and alerts across all your web properties.
           </p>
         </div>
 
