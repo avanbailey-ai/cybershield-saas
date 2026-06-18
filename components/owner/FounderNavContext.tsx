@@ -7,27 +7,40 @@ import {
   type FounderSectionId,
   resolveFounderSection,
 } from '@/lib/owner/founderNav';
+import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
 
 interface FounderNavContextValue {
   section: FounderSectionId;
   setSection: (id: FounderSectionId) => void;
   email: string;
+  founderData: FounderOsV6Data;
+  refreshFounderData: () => Promise<void>;
+  setFounderData: (data: FounderOsV6Data) => void;
 }
 
 const FounderNavContext = createContext<FounderNavContextValue | null>(null);
 
 export function FounderNavProvider({
   email,
+  initialFounderData,
   children,
 }: {
   email: string;
+  initialFounderData: FounderOsV6Data;
   children: ReactNode;
 }) {
   const [section, setSectionState] = useState<FounderSectionId>('home');
+  const [founderData, setFounderData] = useState(initialFounderData);
 
   const setSection = useCallback((id: FounderSectionId) => {
     setSectionState(id);
     window.history.replaceState(null, '', `#${id}`);
+  }, []);
+
+  const refreshFounderData = useCallback(async () => {
+    const res = await fetch('/api/owner/founder-os');
+    const json = await res.json();
+    if (json.data) setFounderData(json.data);
   }, []);
 
   useEffect(() => {
@@ -37,7 +50,9 @@ export function FounderNavProvider({
   }, []);
 
   return (
-    <FounderNavContext.Provider value={{ section, setSection, email }}>
+    <FounderNavContext.Provider
+      value={{ section, setSection, email, founderData, refreshFounderData, setFounderData }}
+    >
       {children}
     </FounderNavContext.Provider>
   );

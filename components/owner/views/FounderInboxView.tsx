@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FounderInboxList } from '../AutopilotCommandCenter';
-import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
+import { useFounderNav } from '../FounderNavContext';
 import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
 
 const INBOX_GROUPS: { id: string; label: string; types: FounderInboxItem['type'][] }[] = [
@@ -12,16 +12,10 @@ const INBOX_GROUPS: { id: string; label: string; types: FounderInboxItem['type']
   { id: 'signups', label: 'Review signups', types: ['signup'] },
 ];
 
-export default function FounderInboxView({ initial }: { initial: FounderOsV6Data }) {
-  const [data, setData] = useState(initial);
+export default function FounderInboxView() {
+  const { founderData: data, refreshFounderData } = useFounderNav();
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<string>('all');
-
-  const refresh = useCallback(async () => {
-    const res = await fetch('/api/owner/founder-os');
-    const json = await res.json();
-    if (json.data) setData(json.data);
-  }, []);
 
   async function approve(id: string, meta?: Record<string, unknown>) {
     setBusy(true);
@@ -31,7 +25,7 @@ export default function FounderInboxView({ initial }: { initial: FounderOsV6Data
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve', ids: [id], meta }),
       });
-      await refresh();
+      await refreshFounderData();
     } finally {
       setBusy(false);
     }

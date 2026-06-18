@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { getCustomerHealth, type CustomerHealthRecord } from './customerHealth';
+import { isInternalCustomerEmail } from './founderCustomerFilters';
 
 export interface RevenueAtRiskItem {
   userId: string;
@@ -21,29 +22,46 @@ export interface RevenueAtRiskSummary {
 
 const MS_DAY = 86400000;
 
-function daysSince(iso: string | null | undefined): number {
-  if (!iso) return 999;
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / MS_DAY);
 }
 
 function customerToRiskItem(c: CustomerHealthRecord): RevenueAtRiskItem | null {
+  if (isInternalCustomerEmail(c.email)) return null;
+  if (c.mrr <= 0 && c.plan === 'free') return null;
+
   const reasons: string[] = [];
   const actions: string[] = [];
 
-  for (const r of c.reasons) {
-    if (!r.ok) reasons.push(r.label);
-  }
+  const paymentPastDue = c.reasons.some((r) => !r.ok && r.label.includes('Payment past due'));
+  const inactive =
+    daysSince(c.lastActivityAt) !== null && (daysSince(c.lastActivityAt) ?? 0) > 30;
 
   if (c.status === 'Critical') {
-    reasons.push('Critical health score');
+    for (const r of c.reasons) {
+      if (!r.ok) reasons.push(r.label);
+    }
     actions.push('Immediate founder outreach');
   } else if (c.status === 'At Risk') {
-    reasons.push('At-risk health score');
+    for (const r of c.reasons) {
+      if (!r.ok && !r.label.includes('No scans in 30+ days')) reasons.push(r.label);
+    }
+    if (reasons.length === 0) {
+      reasons.push('At-risk health score');
+    }
     actions.push('Review in customer success center');
+  } else if (paymentPastDue) {
+    reasons.push('Payment past due');
+    actions.push('Resolve billing issue');
+  } else {
+    return null;
   }
 
-  if (daysSince(c.lastActivityAt) > 30) {
-    reasons.push('Inactive 30+ days');
+  if (inactive && c.status !== 'Healthy') {
+    if (!reasons.some((r) => r.includes('Inactive') || r.includes('login'))) {
+      reasons.push('Inactive 30+ days');
+    }
     actions.push('Send re-engagement campaign');
   }
 
@@ -61,23 +79,18 @@ function customerToRiskItem(c: CustomerHealthRecord): RevenueAtRiskItem | null {
 
 export async function getRevenueAtRisk(): Promise<RevenueAtRiskSummary> {
   const admin = createAdminClient();
-  const [health, displayAmounts, subsRes, scansRes] = await Promise.all([
+  const [health, displayAmounts, subsRes] = await Promise.all([
     getCustomerHealth(),
     getPlanDisplayAmounts(),
     admin
       .from('subscriptions')
       .select('user_id, status, plan')
       .in('status', ['past_due', 'canceled', 'unpaid']),
-    admin
-      .from('scans')
-      .select('user_id', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 30 * MS_DAY).toISOString()),
   ]);
 
   const affectedMap = new Map<string, RevenueAtRiskItem>();
 
   for (const c of health.customers) {
-    if (c.mrr <= 0 && c.plan === 'free') continue;
     const item = customerToRiskItem(c);
     if (item) affectedMap.set(c.userId, item);
   }
@@ -89,6 +102,9 @@ export async function getRevenueAtRisk(): Promise<RevenueAtRiskSummary> {
       plan === 'free' ? 0 : (displayAmounts[plan as keyof typeof displayAmounts] ?? 0);
     if (mrr <= 0) continue;
 
+    const healthRecord = health.customers.find((c) => c.userId === userId);
+    if (healthRecord && isInternalCustomerEmail(healthRecord.email)) continue;
+
     const existing = affectedMap.get(userId);
     const paymentReason = `Subscription ${sub.status}`;
     if (existing) {
@@ -99,7 +115,7 @@ export async function getRevenueAtRisk(): Promise<RevenueAtRiskSummary> {
     } else {
       affectedMap.set(userId, {
         userId,
-        email: health.customers.find((c) => c.userId === userId)?.email ?? 'Customer',
+        email: healthRecord?.email ?? 'Customer',
         plan,
         mrr,
         reasons: [paymentReason],
@@ -117,9 +133,6 @@ export async function getRevenueAtRisk(): Promise<RevenueAtRiskSummary> {
   }
   if ((health.critical ?? 0) > 0) {
     globalActions.push(`Address ${health.critical} critical health account(s)`);
-  }
-  if ((scansRes.count ?? 0) === 0 && health.customers.length > 0) {
-    globalActions.push('No customer scans in 30 days — run engagement campaign');
   }
   if (globalActions.length === 0) {
     globalActions.push('Revenue base is stable — focus on expansion');

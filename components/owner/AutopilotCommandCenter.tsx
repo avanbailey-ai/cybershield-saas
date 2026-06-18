@@ -20,7 +20,7 @@ export default function AutopilotCommandCenter({
   onApproveOne: (id: string) => void;
   busy?: boolean;
 }) {
-  const total = autopilot.outreachDrafts + autopilot.expansionOpportunities;
+  const total = autopilot.items.length;
 
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">

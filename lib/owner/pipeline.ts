@@ -2,6 +2,7 @@ import type { LeadScore, OwnerProspect } from './types';
 import type { ProspectPipelineState } from './discovery/types';
 import { planFitDisplayName, confidenceLabel, contactStatusLabel } from './salesIntelligence';
 import { activeProspects } from './prospectFilters';
+import { hasOutreachContact, resolveProspectScores } from './prospectDisplay';
 
 export { planFitDisplayName, confidenceLabel, contactStatusLabel };
 
@@ -30,7 +31,10 @@ export function pipelineStateFromScan(input: {
     return 'new_discovery';
   }
 
-  if (input.leadScore === 'HOT') return 'outreach_ready';
+  if (input.leadScore === 'HOT' && (input.opportunityScore ?? 0) >= 25) {
+    return 'outreach_ready';
+  }
+  if (input.leadScore === 'HOT') return 'qualified';
   if (input.leadScore === 'WARM') return 'qualified';
   if ((input.opportunityScore ?? 0) >= 50) return 'qualified';
   return 'new_discovery';
@@ -70,14 +74,20 @@ export function prospectsForTab(
 ): OwnerProspect[] {
   const states = TAB_STATES[tab];
   return prospects
+    .map(resolveProspectScores)
     .filter((p) => {
       if (p.deleted_at) return false;
       if (!includeHidden && tab !== 'archived') {
         if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
       }
+      if (tab === 'outreach_ready' && !hasOutreachContact(p)) return false;
       return states.includes(p.pipeline_state ?? 'new_discovery');
     })
-    .sort((a, b) => (b.opportunity_score ?? b.opportunity_priority ?? 0) - (a.opportunity_score ?? a.opportunity_priority ?? 0));
+    .sort(
+      (a, b) =>
+        (b.opportunity_score ?? b.opportunity_priority ?? 0) -
+        (a.opportunity_score ?? a.opportunity_priority ?? 0),
+    );
 }
 
 export function countByStage(prospects: OwnerProspect[]): Record<ProspectTabId, number> {
@@ -93,8 +103,15 @@ export function hasActiveProspects(prospects: OwnerProspect[]): boolean {
 }
 
 export function recommendedAction(p: OwnerProspect): { label: string; action: string } {
-  if (p.pipeline_state === 'outreach_ready' || p.lead_score === 'HOT') {
+  const resolved = resolveProspectScores(p);
+  if (
+    (resolved.pipeline_state === 'outreach_ready' || resolved.lead_score === 'HOT') &&
+    hasOutreachContact(resolved)
+  ) {
     return { label: 'Generate outreach', action: 'outreach' };
+  }
+  if (resolved.pipeline_state === 'outreach_ready' && !hasOutreachContact(resolved)) {
+    return { label: 'Find contact first', action: 'contact' };
   }
   if (!p.contact_email_found && !p.contact_phone_found && p.scan_status === 'completed') {
     return { label: 'Find contact', action: 'contact' };
@@ -135,8 +152,9 @@ export function securityScoreLabel(p: OwnerProspect): string {
 }
 
 export function opportunityScoreLabel(p: OwnerProspect): string {
-  if (p.opportunity_score === null) return '—';
-  return `${p.opportunity_score}/100`;
+  const score = resolveProspectScores(p).opportunity_score;
+  if (score === null || score === undefined) return '—';
+  return `${score}/100`;
 }
 
 export function planFitLabel(p: OwnerProspect): string | null {

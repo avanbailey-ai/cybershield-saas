@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
+import { formatInactivityDays, isInternalCustomerEmail } from './founderCustomerFilters';
 
 export type CustomerHealthStatus = 'Healthy' | 'At Risk' | 'Critical';
 
@@ -33,8 +34,8 @@ export interface CustomerHealthSummary {
 
 const MS_DAY = 86400000;
 
-function daysSince(iso: string | null | undefined): number {
-  if (!iso) return 999;
+function daysSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
   return Math.floor((Date.now() - new Date(iso).getTime()) / MS_DAY);
 }
 
@@ -122,6 +123,9 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
   const customers: CustomerHealthRecord[] = [];
 
   for (const p of profiles) {
+    const email = (p.email as string) ?? '';
+    if (isInternalCustomerEmail(email)) continue;
+
     const userId = p.id as string;
     const plan = (p.plan as string) ?? 'free';
     if (plan === 'free' && p.subscription_status !== 'trialing') continue;
@@ -144,28 +148,37 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
     const actions: string[] = [];
     let score = 50;
 
-    if (loginDays <= 7) {
+    if (loginDays !== null && loginDays <= 7) {
       score += 15;
       reasons.push({ ok: true, label: 'Logged in within 7 days' });
-    } else if (loginDays <= 30) {
+    } else if (loginDays !== null && loginDays <= 30) {
       score += 5;
       reasons.push({ ok: true, label: 'Active within 30 days' });
     } else {
-      score -= loginDays > 60 ? 25 : 15;
-      reasons.push({ ok: false, label: `No login for ${loginDays} days` });
-      actions.push('Send re-engagement email');
+      const inactiveDays = loginDays ?? 999;
+      score -= inactiveDays > 60 ? 25 : 15;
+      reasons.push({
+        ok: false,
+        label: formatInactivityDays(inactiveDays),
+      });
+      if (inactiveDays > 30) actions.push('Send re-engagement email');
     }
 
-    if (scanDays <= 7) {
+    if (scanDays !== null && scanDays <= 7) {
       score += 15;
       reasons.push({ ok: true, label: 'Recent scan activity' });
-    } else if (scanDays <= 30) {
+    } else if (scanDays !== null && scanDays <= 30) {
       score += 5;
       reasons.push({ ok: true, label: 'Scanned within 30 days' });
+    } else if (siteInfo.active > 0 && scanDays === null) {
+      score += 5;
+      reasons.push({ ok: true, label: 'Active monitoring (no manual scans needed)' });
     } else {
-      score -= 20;
-      reasons.push({ ok: false, label: 'No scans in 30+ days' });
-      actions.push('Prompt fresh security scan');
+      score -= scanDays === null || scanDays > 30 ? 12 : 0;
+      if (scanDays === null || scanDays > 30) {
+        reasons.push({ ok: false, label: 'No scans in 30+ days' });
+        if (siteInfo.active === 0) actions.push('Prompt fresh security scan');
+      }
     }
 
     if (siteInfo.active > 0) {
@@ -230,7 +243,7 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
 
     customers.push({
       userId,
-      email: (p.email as string) ?? 'Customer',
+      email,
       plan,
       mrr: planMrr(plan, displayAmounts),
       score: finalScore,
@@ -244,7 +257,10 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
 
   customers.sort((a, b) => a.score - b.score);
 
-  const inactive = customers.filter((c) => daysSince(c.lastActivityAt) > 30).length;
+  const inactive = customers.filter((c) => {
+    const d = daysSince(c.lastActivityAt);
+    return d !== null && d > 30;
+  }).length;
 
   return {
     generatedAt: new Date().toISOString(),

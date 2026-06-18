@@ -3,6 +3,7 @@ import { getBusinessOverview } from './metrics';
 import { getCustomerIntelligence } from './customerIntelligence';
 import type { OwnerProspect, OwnerCrmLead } from './types';
 import { planFitDisplayName } from './salesIntelligence';
+import { hasOutreachContact, resolveProspectList } from './prospectDisplay';
 
 const DEFAULT_MRR_GOAL = 1000;
 
@@ -12,7 +13,7 @@ export interface FounderInboxItem {
   title: string;
   description: string;
   action: string;
-  module: 'inbox' | 'prospects' | 'customers' | 'outreach';
+  module: 'inbox' | 'prospects' | 'customers' | 'success' | 'outreach';
   meta?: Record<string, unknown>;
 }
 
@@ -259,9 +260,18 @@ export async function getFounderOsV5(input?: {
     { label: 'Moved to outreach-ready', value: outreachReady24 },
   ].filter((x) => x.value > 0);
 
-  const top = [...prospects].sort(
-    (a, b) => (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0),
-  )[0];
+  const resolvedProspects = resolveProspectList(prospects);
+  const top = [...resolvedProspects]
+    .filter((p) => {
+      if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
+      return (p.opportunity_score ?? 0) >= 25;
+    })
+    .sort((a, b) => {
+      const aReady = hasOutreachContact(a) && a.pipeline_state === 'outreach_ready' ? 1000 : 0;
+      const bReady = hasOutreachContact(b) && b.pipeline_state === 'outreach_ready' ? 1000 : 0;
+      if (bReady !== aReady) return bReady - aReady;
+      return (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0);
+    })[0];
 
   const biggestOpportunity = top
     ? {
@@ -275,7 +285,13 @@ export async function getFounderOsV5(input?: {
           ? top.qualification_reasons.slice(0, 5)
           : [],
         recommendedAction:
-          top.pipeline_state === 'outreach_ready' ? 'Approve outreach' : 'Run qualification scan',
+          top.pipeline_state === 'outreach_ready' && hasOutreachContact(top)
+            ? 'Approve outreach'
+            : !hasOutreachContact(top)
+              ? 'Find contact info'
+              : top.scan_status !== 'completed'
+                ? 'Run qualification scan'
+                : 'Review in prospects',
       }
     : null;
 

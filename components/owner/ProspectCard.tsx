@@ -11,6 +11,7 @@ import {
   confidenceLabel,
   contactStatusLabel,
 } from '@/lib/owner/pipeline';
+import { hasOutreachContact } from '@/lib/owner/prospectDisplay';
 import type { OwnerProspect } from '@/lib/owner/types';
 
 interface Props {
@@ -49,6 +50,7 @@ export default function ProspectCard({
   const reasons = Array.isArray(p.qualification_reasons) ? p.qualification_reasons : [];
   const contact = contactStatusLabel(p);
   const confidence = confidenceLabel(p.conversion_likelihood, p.opportunity_score);
+  const canGenerateOutreach = hasOutreachContact(p) && p.scan_status === 'completed';
 
   return (
     <article className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-6 shadow-sm">
@@ -143,7 +145,13 @@ export default function ProspectCard({
             <button
               type="button"
               onClick={onGenerateOutreach}
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+              disabled={!canGenerateOutreach}
+              title={
+                !canGenerateOutreach
+                  ? 'Complete scan and find contact info first'
+                  : undefined
+              }
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Generate outreach
             </button>

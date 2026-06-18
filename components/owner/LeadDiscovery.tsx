@@ -13,6 +13,7 @@ import {
 } from '@/lib/owner/discovery/settings';
 import { computeRevenueIntelligence, formatRevenue } from '@/lib/owner/revenueIntelligence';
 import { hasActiveProspects } from '@/lib/owner/pipeline';
+import { resolveProspectList } from '@/lib/owner/prospectDisplay';
 
 interface ProviderDiagnostic {
   provider: string;
@@ -61,7 +62,7 @@ export default function LeadDiscovery({
   initialProspects: OwnerProspect[];
   embedded?: boolean;
 }) {
-  const [prospects, setProspects] = useState(initialProspects);
+  const [prospects, setProspects] = useState(() => resolveProspectList(initialProspects));
   const [discovering, setDiscovering] = useState(false);
   const [runs, setRuns] = useState<DiscoveryRun[]>([]);
   const [lastRun, setLastRun] = useState<DiscoveryRunResponse | null>(null);
@@ -79,7 +80,7 @@ export default function LeadDiscovery({
   const refreshProspects = useCallback(async () => {
     const res = await fetch('/api/owner/prospects');
     const data = await res.json();
-    if (data.prospects) setProspects(data.prospects);
+    if (data.prospects) setProspects(resolveProspectList(data.prospects));
   }, []);
 
   const refreshFeed = useCallback(async () => {
@@ -145,7 +146,7 @@ export default function LeadDiscovery({
       });
       const data = await res.json();
       if (data.prospects?.length) {
-        setProspects((p) => [...data.prospects, ...p]);
+        setProspects((p) => resolveProspectList([...data.prospects, ...p]));
         setImportUrls('');
       }
     } finally {

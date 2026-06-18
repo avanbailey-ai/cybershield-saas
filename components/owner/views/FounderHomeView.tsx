@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useFounderNav } from '../FounderNavContext';
 import AiChiefOfStaff from '../AiChiefOfStaff';
 import AutopilotCommandCenter from '../AutopilotCommandCenter';
 import ActivityFeed from '../ActivityFeed';
-import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
@@ -16,17 +15,10 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: s
   );
 }
 
-export default function FounderHomeView({ initial }: { initial: FounderOsV6Data }) {
-  const [data, setData] = useState(initial);
+export default function FounderHomeView() {
+  const { founderData: data, refreshFounderData, setSection } = useFounderNav();
   const [busy, setBusy] = useState(false);
-  const { setSection } = useFounderNav();
   const summary = data.v6.homeSummary;
-
-  const refresh = useCallback(async () => {
-    const res = await fetch('/api/owner/founder-os');
-    const json = await res.json();
-    if (json.data) setData(json.data);
-  }, []);
 
   async function approveInbox(ids: string[]) {
     setBusy(true);
@@ -36,7 +28,7 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve', ids }),
       });
-      await refresh();
+      await refreshFounderData();
     } finally {
       setBusy(false);
     }
@@ -53,7 +45,7 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Current MRR" value={`$${summary.mrr.toLocaleString()}`} />
           <Metric
-            label="What changed (24h)"
+            label="Events (24h)"
             value={String(summary.changesCount)}
             tone="text-violet-300"
           />
@@ -64,8 +56,8 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
           />
           <Metric
             label="Revenue at risk"
-            value={summary.mrrAtRisk > 0 ? `$${summary.mrrAtRisk}` : '—'}
-            tone={summary.mrrAtRisk > 0 ? 'text-amber-400' : 'text-white'}
+            value={summary.mrrAtRisk > 0 ? `$${summary.mrrAtRisk}` : 'None'}
+            tone={summary.mrrAtRisk > 0 ? 'text-amber-400' : 'text-emerald-400'}
           />
         </div>
       </section>
@@ -74,9 +66,13 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
         <h2 className="text-sm font-medium uppercase tracking-wider text-gray-500">
           While you were away
         </h2>
-        <p className="mt-1 text-xs text-gray-600">Last 24 hours</p>
+        <p className="mt-1 text-xs text-gray-600">Last 24 hours — real system events</p>
         <div className="mt-4">
-          <ActivityFeed events={data.v6.activityFeed.events} compact />
+          {data.v6.activityFeed.events.length === 0 ? (
+            <p className="text-sm text-gray-500">Quiet period — no major automated activity yet.</p>
+          ) : (
+            <ActivityFeed events={data.v6.activityFeed.events} compact />
+          )}
         </div>
       </section>
 
@@ -97,7 +93,7 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSection(a.id.includes('outreach') ? 'inbox' : 'success')}
+                  onClick={() => setSection(a.section)}
                   className="text-xs text-violet-400 hover:text-violet-300"
                 >
                   Review →
@@ -108,7 +104,7 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
         </section>
       )}
 
-      {data.biggestOpportunity && (
+      {data.biggestOpportunity && data.biggestOpportunity.opportunityScore >= 25 && (
         <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
           <h2 className="text-sm font-medium uppercase tracking-wider text-emerald-400/80">
             Best opportunity
@@ -120,19 +116,24 @@ export default function FounderHomeView({ initial }: { initial: FounderOsV6Data 
             <span className="text-violet-300">
               Score {data.biggestOpportunity.opportunityScore}/100
             </span>
-            {data.biggestOpportunity.estimatedMrr && (
+            {data.biggestOpportunity.estimatedMrr ? (
               <span className="text-emerald-300">
                 Est. ${data.biggestOpportunity.estimatedMrr}/mo
               </span>
-            )}
+            ) : null}
+            {data.biggestOpportunity.planFit ? (
+              <span className="text-gray-400">{data.biggestOpportunity.planFit}</span>
+            ) : null}
           </div>
-          <ul className="mt-3 space-y-1">
-            {data.biggestOpportunity.reasons.slice(0, 3).map((r) => (
-              <li key={r} className="text-sm text-gray-300">
-                ✓ {r}
-              </li>
-            ))}
-          </ul>
+          {data.biggestOpportunity.reasons.length > 0 && (
+            <ul className="mt-3 space-y-1">
+              {data.biggestOpportunity.reasons.slice(0, 3).map((r) => (
+                <li key={r} className="text-sm text-gray-300">
+                  {r.startsWith('✗') || r.startsWith('✉') ? r : `✓ ${r}`}
+                </li>
+              ))}
+            </ul>
+          )}
           <button
             type="button"
             onClick={() => setSection('prospects')}

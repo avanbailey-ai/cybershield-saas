@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
+import { isInternalCustomerEmail } from './founderCustomerFilters';
 
 export type ExpansionProbability = 'High' | 'Medium' | 'Low';
 
@@ -93,6 +94,9 @@ export async function getCustomerExpansion(): Promise<CustomerExpansionSummary> 
   const opportunities: ExpansionOpportunity[] = [];
 
   for (const p of profilesRes.data ?? []) {
+    const email = (p.email as string) ?? '';
+    if (isInternalCustomerEmail(email)) continue;
+
     const userId = p.id as string;
     const plan = (p.plan as string) ?? 'pro';
     const siteCount = websitesByUser.get(userId) ?? 0;
@@ -135,7 +139,7 @@ export async function getCustomerExpansion(): Promise<CustomerExpansionSummary> 
 
     opportunities.push({
       userId,
-      email: (p.email as string) ?? 'Customer',
+      email,
       currentPlan: plan,
       currentPlanLabel: planLabel(plan),
       recommendedPlan: path.to,

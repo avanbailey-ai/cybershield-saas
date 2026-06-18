@@ -4,8 +4,9 @@ import Link from 'next/link';
 import LogoutButton from '@/components/dashboard/LogoutButton';
 import { FOUNDER_SECTIONS, useFounderNav } from './FounderNavContext';
 
-export default function FounderShell({ inboxCount = 0 }: { inboxCount?: number }) {
-  const { section, setSection, email } = useFounderNav();
+export default function FounderShell() {
+  const { section, setSection, email, founderData } = useFounderNav();
+  const inboxCount = founderData.inbox.length;
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-white/[0.06] bg-[#080c18]">

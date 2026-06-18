@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isInternalCustomerEmail } from './founderCustomerFilters';
 
 export type ActivityFeedEventType =
   | 'discovery'
@@ -150,6 +151,8 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
   }
 
   for (const s of signupsRes.data ?? []) {
+    const email = (s.email as string) ?? '';
+    if (isInternalCustomerEmail(email)) continue;
     const at = s.created_at as string;
     events.push({
       id: `signup-${s.id}`,
@@ -162,6 +165,8 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
   }
 
   for (const e of expansionsRes.data ?? []) {
+    const email = (e.email as string) ?? '';
+    if (isInternalCustomerEmail(email)) continue;
     const at = e.updated_at as string;
     events.push({
       id: `plan-${e.id}`,

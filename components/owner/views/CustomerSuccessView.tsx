@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
+import { useFounderNav } from '../FounderNavContext';
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
@@ -26,17 +25,11 @@ function HealthBadge({ status }: { status: string }) {
   );
 }
 
-export default function CustomerSuccessView({ initial }: { initial: FounderOsV6Data }) {
-  const [data, setData] = useState(initial);
+export default function CustomerSuccessView() {
+  const { founderData: data, refreshFounderData } = useFounderNav();
   const health = data.v6.customerHealth;
   const revenue = data.v6.revenueAtRisk;
   const expansion = data.v6.expansion;
-
-  const refresh = useCallback(async () => {
-    const res = await fetch('/api/owner/founder-os');
-    const json = await res.json();
-    if (json.data) setData(json.data);
-  }, []);
 
   return (
     <div className="mx-auto max-w-6xl space-y-10">
@@ -47,7 +40,7 @@ export default function CustomerSuccessView({ initial }: { initial: FounderOsV6D
         </div>
         <button
           type="button"
-          onClick={refresh}
+          onClick={refreshFounderData}
           className="text-sm text-violet-400 hover:text-violet-300"
         >
           Refresh
@@ -61,8 +54,8 @@ export default function CustomerSuccessView({ initial }: { initial: FounderOsV6D
         <Metric label="Inactive 30d+" value={String(health.inactive)} />
         <Metric
           label="MRR at risk"
-          value={revenue.totalMrrAtRisk > 0 ? `$${revenue.totalMrrAtRisk}` : '—'}
-          tone="text-amber-300"
+          value={revenue.totalMrrAtRisk > 0 ? `$${revenue.totalMrrAtRisk}` : 'None'}
+          tone={revenue.totalMrrAtRisk > 0 ? 'text-amber-300' : 'text-emerald-400'}
         />
       </section>
 
@@ -126,7 +119,8 @@ export default function CustomerSuccessView({ initial }: { initial: FounderOsV6D
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  {o.probability} probability · {o.websiteCount} sites
+                  {o.probability} probability · {o.websiteCount}{' '}
+                  {o.websiteCount === 1 ? 'site' : 'sites'}
                 </p>
                 <ul className="mt-2 space-y-0.5">
                   {o.signals.map((s) => (
@@ -160,8 +154,8 @@ export default function CustomerSuccessView({ initial }: { initial: FounderOsV6D
                   <div>
                     <p className="font-medium text-white">{c.email}</p>
                     <p className="text-xs text-gray-500">
-                      {c.plan} · ${c.mrr}/mo · {c.websiteCount} site
-                      {c.websiteCount !== 1 ? 's' : ''}
+                      {c.plan} · ${c.mrr}/mo · {c.websiteCount}{' '}
+                      {c.websiteCount === 1 ? 'site' : 'sites'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

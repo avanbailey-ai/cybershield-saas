@@ -42,6 +42,10 @@ function main() {
 
   assert(risk.includes('getRevenueAtRisk'), 'Revenue At Risk exists');
   assert(risk.includes('potentialMonthlyLoss'), 'Potential monthly loss');
+  assert(read('lib/owner/founderCustomerFilters.ts').includes('isInternalCustomerEmail'), 'Test accounts filtered');
+
+  assert(read('lib/owner/prospectDisplay.ts').includes('resolveProspectScores'), 'Prospect scores resolved at read');
+  assert(read('lib/owner/prospectDisplay.ts').includes('hasOutreachContact'), 'Outreach contact gating');
 
   assert(expansion.includes('getCustomerExpansion'), 'Expansion engine exists');
   assert(expansion.includes('mrrGain') && expansion.includes('probability'), 'Expansion MRR gain + probability');
@@ -67,7 +71,12 @@ function main() {
 
   assert(home.includes('Quiet period') || read('components/owner/ActivityFeed.tsx').includes('Quiet period'), 'Professional empty states');
   assert(!v6.includes('example.com'), 'No fake data in V6 lib');
+  assert(!read('components/owner/views/CustomersView.tsx').includes('ContentPerformance'), 'Legacy content tracker removed from Customers');
+  assert(read('components/owner/views/CustomersView.tsx').includes('useFounderNav'), 'Customers uses live health data');
+  assert(read('components/owner/FounderNavContext.tsx').includes('refreshFounderData'), 'Inbox refresh after approve');
   assert(sales.includes('isJunkProspect'), 'Prospect junk filtering improved');
+  assert(home.includes('Events (24h)'), 'Home metric labels clarified');
+  assert(home.includes('opportunityScore >= 25'), 'Best opportunity requires minimum score');
 
   assert(audit.includes('Usefulness score'), 'Every page scored for usefulness');
   assert(audit.includes('8.5'), 'Audit targets 8.5+ usefulness');
