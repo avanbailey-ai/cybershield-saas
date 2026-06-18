@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Verify Founder OS V2 (Growth Command Center) implementation.
  * Run: npx tsx scripts/verify-founder-os.ts
  */
@@ -22,7 +22,7 @@ function readFile(rel: string): string {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
-// ── Route exists ──
+// â”€â”€ Route exists â”€â”€
 assert(fileExists('app/dashboard/admin/owner/page.tsx'), 'Owner page route exists');
 assert(fileExists('app/dashboard/admin/owner/layout.tsx'), 'Owner layout exists');
 
@@ -30,7 +30,7 @@ assert(fileExists('lib/auth/ownerExperience.ts'), 'ownerExperience routing modul
 assert(OWNER_HOME_PATH === '/dashboard/admin/owner', 'Owner home is Founder OS');
 assert(readFile('lib/auth/redirect.ts').includes('OWNER_HOME_PATH'), 'Post-login redirect uses Founder OS');
 
-// ── Access control ──
+// â”€â”€ Access control â”€â”€
 assert(isOwner('avanbailey@gmail.com'), 'Default owner email is recognized');
 assert(!isOwner('avanbailey711@gmail.com'), 'Alternate email is not owner');
 assert(!isOwner('customer@example.com'), 'Customer email is not owner');
@@ -43,7 +43,7 @@ const ownerLayout = readFile('app/dashboard/admin/owner/layout.tsx');
 assert(ownerLayout.includes('isOwner'), 'Owner layout gates with isOwner');
 assert(ownerLayout.includes("redirect('/login')"), 'Non-owner redirected from owner layout');
 
-// ── V2 lib modules ──
+// â”€â”€ V2 lib modules â”€â”€
 const V2_LIBS = [
   'lib/owner/opportunityScore.ts',
   'lib/owner/founderActions.ts',
@@ -58,12 +58,30 @@ for (const lib of V2_LIBS) {
 assert(readFile('lib/owner/opportunityScore.ts').includes('scoreOpportunity'), 'opportunityScore exports scorer');
 assert(readFile('lib/owner/founderActions.ts').includes('generateFounderActions'), 'founderActions exports generator');
 
-// ── 14 V2 module components ──
+// -- Reality pass: no fake discovery / benchmarks --
+const REALITY_SOURCES = [
+  'lib/owner/prospectDiscovery.ts',
+  'app/api/owner/discovery/route.ts',
+  'components/owner/LeadDiscovery.tsx',
+  'lib/owner/dataMoat.ts',
+];
+for (const rel of REALITY_SOURCES) {
+  const content = readFile(rel);
+  assert(!content.includes('generateProspectList'), rel + ' must not use generateProspectList');
+  assert(!content.includes('DEFAULT_BENCHMARKS'), rel + ' must not use DEFAULT_BENCHMARKS');
+  assert(!content.includes("mode: 'search'"), rel + " must not use mode: 'search'");
+}
+
+assert(fileExists('components/owner/OpportunityCenter.tsx'), 'OpportunityCenter component exists');
+
+
+// â”€â”€ 14 V2 module components â”€â”€
 const MODULE_COMPONENTS = [
   { file: 'components/owner/FounderActionCenter.tsx', section: 'action-center', module: 14 },
   { file: 'components/owner/DailyBriefing.tsx', section: 'briefing', module: 1 },
   { file: 'components/owner/BusinessOverview.tsx', section: 'overview', module: 1 },
   { file: 'components/owner/LeadDiscovery.tsx', section: 'prospects', module: 2 },
+  { file: 'components/owner/OpportunityCenter.tsx', section: 'opportunity-center', module: 15 },
   { file: 'components/owner/RevenueOpportunityPanel.tsx', section: 'revenue', module: 7 },
   { file: 'components/owner/OutreachGenerator.tsx', section: 'outreach', module: 4 },
   { file: 'components/owner/SocialContentStudio.tsx', section: 'social', module: 5 },
@@ -90,7 +108,8 @@ for (const mod of MODULE_COMPONENTS) {
 const commandCenter = readFile('components/owner/FounderCommandCenter.tsx');
 assert(commandCenter.includes('DailyBriefing'), 'FounderCommandCenter includes DailyBriefing (embeds Action Center)');
 assert(commandCenter.includes('RevenueOpportunityPanel'), 'FounderCommandCenter includes Revenue Engine');
-assert(commandCenter.includes('Founder OS V2'), 'FounderCommandCenter branded V2');
+assert(commandCenter.includes('OpportunityCenter'), 'FounderCommandCenter includes OpportunityCenter');
+assert(commandCenter.includes('CyberShield Founder OS'), 'FounderCommandCenter branded Founder OS');
 
 for (const key of [
   'DailyBriefing',
@@ -108,7 +127,7 @@ for (const key of [
   assert(commandCenter.includes(key), `FounderCommandCenter imports ${key}`);
 }
 
-// ── API routes ──
+// â”€â”€ API routes â”€â”€
 const API_ROUTES = [
   'app/api/owner/overview/route.ts',
   'app/api/owner/prospects/route.ts',
@@ -135,7 +154,7 @@ for (const route of API_ROUTES) {
   assert(content.includes('requireOwner') || content.includes('isOwner'), `${route} has owner gate`);
 }
 
-// ── Migrations ──
+// â”€â”€ Migrations â”€â”€
 const migrationV1 = readFile('supabase/migrations/20260617200000_founder_os.sql');
 assert(migrationV1.includes('owner_prospects'), 'V1 migration has owner_prospects');
 
@@ -143,7 +162,7 @@ const migrationV2 = readFile('supabase/migrations/20260617300000_founder_os_v2.s
 assert(migrationV2.includes('owner_outreach_drafts'), 'V2 migration has owner_outreach_drafts');
 assert(migrationV2.includes('conversion_likelihood'), 'V2 migration has opportunity scoring fields');
 
-// ── Customer nav does NOT link owner dashboard ──
+// â”€â”€ Customer nav does NOT link owner dashboard â”€â”€
 const sidebar = readFile('components/dashboard/DashboardSidebar.tsx');
 assert(!sidebar.includes('/dashboard/admin/owner'), 'Customer sidebar does not link Founder OS');
 assert(!sidebar.includes('Founder OS'), 'Customer sidebar does not mention Founder OS');
@@ -152,6 +171,7 @@ assert(fileExists('components/owner/FounderShell.tsx'), 'FounderShell exists');
 const founderShell = readFile('components/owner/FounderShell.tsx');
 assert(founderShell.includes('Action Center'), 'FounderShell nav includes Action Center');
 assert(founderShell.includes('Revenue Engine'), 'FounderShell nav includes Revenue Engine');
+assert(founderShell.includes('opportunity-center'), 'FounderShell nav includes Opportunity Center');
 
 console.log('All Founder OS V2 verification checks passed.');
 console.log(`  Route: /dashboard/admin/owner`);

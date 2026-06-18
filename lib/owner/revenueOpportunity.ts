@@ -7,23 +7,33 @@ export interface IndustryPipeline {
   prospectCount: number;
   hotCount: number;
   warmCount: number;
+  scannedCount: number;
+  crmRevenue: number;
   pipelineMrr: number;
   pipelineArr: number;
-  weightedMrr: number;
-  conversionRate: number;
 }
 
 export interface RevenueOpportunitySummary {
-  totalPipelineMrr: number;
-  totalPipelineArr: number;
-  weightedPipelineMrr: number;
+  crmPipelineMrr: number;
+  crmPipelineArr: number;
+  totalScannedProspects: number;
+  hotCount: number;
+  warmCount: number;
   industries: IndustryPipeline[];
   topOpportunities: {
     name: string;
     industry: string | null;
-    estimatedMrr: number;
-    conversionLikelihood: number;
-    tier: string;
+    website: string;
+    scanScore: number | null;
+    estimatedMrr: number | null;
+    tier: string | null;
+    hasScan: boolean;
+  }[];
+  highestRisk: {
+    name: string;
+    website: string;
+    scanScore: number;
+    riskLevel: string | null;
   }[];
 }
 
@@ -39,10 +49,9 @@ function aggregateIndustry(
     (l) => (l.industry ?? 'General').toLowerCase() === industry.toLowerCase(),
   );
 
-  let pipelineMrr = 0;
-  let weightedMrr = 0;
   let hotCount = 0;
   let warmCount = 0;
+  let scannedCount = 0;
 
   for (const p of indProspects) {
     const opp = scoreOpportunity({
@@ -50,35 +59,27 @@ function aggregateIndustry(
       scanScore: p.scan_score,
       scanRiskLevel: p.scan_risk_level,
       industry: p.industry,
+      scanCompleted: p.scan_status === 'completed',
       issueCount: Array.isArray((p.scan_findings as { issues?: string[] })?.issues)
         ? (p.scan_findings as { issues: string[] }).issues.length
         : 0,
     });
-    pipelineMrr += opp.estimatedMrr;
-    weightedMrr += opp.estimatedMrr * (opp.conversionLikelihood / 100);
+    if (opp.hasScanData) scannedCount++;
     if (opp.tier === 'HOT') hotCount++;
     if (opp.tier === 'WARM') warmCount++;
   }
 
-  for (const l of indCrm) {
-    const rev = Number(l.potential_revenue ?? 0);
-    pipelineMrr += rev;
-    weightedMrr += rev * 0.25;
-  }
-
-  const customers = indCrm.filter((l) => l.stage === 'customer').length;
-  const total = indProspects.length + indCrm.length;
-  const conversionRate = total > 0 ? Math.round((customers / total) * 1000) / 10 : 0;
+  const crmRevenue = indCrm.reduce((s, l) => s + Number(l.potential_revenue ?? 0), 0);
 
   return {
     industry,
     prospectCount: indProspects.length,
     hotCount,
     warmCount,
-    pipelineMrr,
-    pipelineArr: pipelineMrr * 12,
-    weightedMrr: Math.round(weightedMrr),
-    conversionRate,
+    scannedCount,
+    crmRevenue,
+    pipelineMrr: crmRevenue,
+    pipelineArr: crmRevenue * 12,
   };
 }
 
@@ -92,22 +93,30 @@ export function buildRevenueOpportunity(
 
   const industryPipelines = [...industries]
     .map((ind) => aggregateIndustry(ind, prospects, crmLeads))
-    .sort((a, b) => b.weightedMrr - a.weightedMrr);
+    .filter((i) => i.prospectCount > 0 || i.crmRevenue > 0)
+    .sort((a, b) => b.hotCount - a.hotCount || b.crmRevenue - a.crmRevenue);
+
+  const scanned = prospects.filter((p) => p.scan_status === 'completed');
 
   const topOpportunities = prospects
+    .filter((p) => p.scan_status === 'completed')
     .map((p) => {
       const opp = scoreOpportunity({
         leadScore: p.lead_score,
         scanScore: p.scan_score,
         scanRiskLevel: p.scan_risk_level,
         industry: p.industry,
+        scanCompleted: true,
+        potentialRevenue: p.estimated_mrr,
       });
       return {
         name: p.business_name,
         industry: p.industry,
+        website: p.website,
+        scanScore: p.scan_score,
         estimatedMrr: opp.estimatedMrr,
-        conversionLikelihood: opp.conversionLikelihood,
         tier: opp.tier,
+        hasScan: true,
         priority: opp.priority,
       };
     })
@@ -115,15 +124,30 @@ export function buildRevenueOpportunity(
     .slice(0, 8)
     .map(({ priority: _, ...rest }) => rest);
 
-  const totalPipelineMrr = industryPipelines.reduce((s, i) => s + i.pipelineMrr, 0);
-  const weightedPipelineMrr = industryPipelines.reduce((s, i) => s + i.weightedMrr, 0);
+  const highestRisk = scanned
+    .filter((p) => p.scan_score !== null)
+    .sort((a, b) => (a.scan_score ?? 100) - (b.scan_score ?? 100))
+    .slice(0, 5)
+    .map((p) => ({
+      name: p.business_name,
+      website: p.website,
+      scanScore: p.scan_score as number,
+      riskLevel: p.scan_risk_level,
+    }));
+
+  const crmPipelineMrr = crmLeads.reduce((s, l) => s + Number(l.potential_revenue ?? 0), 0);
+  const hotCount = prospects.filter((p) => p.lead_score === 'HOT').length;
+  const warmCount = prospects.filter((p) => p.lead_score === 'WARM').length;
 
   return {
-    totalPipelineMrr,
-    totalPipelineArr: totalPipelineMrr * 12,
-    weightedPipelineMrr,
+    crmPipelineMrr,
+    crmPipelineArr: crmPipelineMrr * 12,
+    totalScannedProspects: scanned.length,
+    hotCount,
+    warmCount,
     industries: industryPipelines,
     topOpportunities,
+    highestRisk,
   };
 }
 

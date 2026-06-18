@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
-import { generateProspectList, parseUrlBatch } from '@/lib/owner/prospectDiscovery';
+import { parseUrlBatch, parseCsvImport } from '@/lib/owner/prospectDiscovery';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { scoreOpportunity } from '@/lib/owner/opportunityScore';
 
 export async function POST(req: NextRequest) {
   const auth = await requireOwner();
@@ -11,25 +10,27 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const mode = body.mode as 'search' | 'batch';
+  const mode = body.mode as 'batch' | 'csv';
 
-  let discovered =
-    mode === 'batch'
-      ? parseUrlBatch(body.urls ?? '', body.industry)
-      : generateProspectList({
-          industry: body.industry ?? 'healthcare',
-          city: body.city,
-          state: body.state,
-          country: body.country,
-          limit: body.limit ?? 8,
-        });
+  const discovered =
+    mode === 'csv'
+      ? parseCsvImport(body.csv ?? body.urls ?? '', body.industry)
+      : parseUrlBatch(body.urls ?? '', body.industry);
+
+  if (discovered.length === 0) {
+    return NextResponse.json({
+      ok: false,
+      error: 'No valid websites found. Import a CSV or paste URLs (one per line).',
+      discovered: 0,
+      prospects: [],
+    });
+  }
 
   const autoScan = body.autoScan === true;
   const admin = createAdminClient();
   const inserted = [];
 
   for (const p of discovered) {
-    const opp = scoreOpportunity({ industry: p.industry });
     const { data, error } = await admin
       .from('owner_prospects')
       .insert({
@@ -40,10 +41,11 @@ export async function POST(req: NextRequest) {
         state: p.state,
         country: p.country,
         scan_status: 'pending',
-        conversion_likelihood: opp.conversionLikelihood,
-        estimated_mrr: opp.estimatedMrr,
-        estimated_arr: opp.estimatedArr,
-        opportunity_priority: opp.priority,
+        lead_score: null,
+        conversion_likelihood: null,
+        estimated_mrr: null,
+        estimated_arr: null,
+        opportunity_priority: 0,
       })
       .select()
       .single();
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
       inserted.push(data);
       if (autoScan) {
         fetch(
-          `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/owner/prospects/${data.id}/scan`,
+          `${process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/owner/prospects/${data.id}/scan`,
           { method: 'POST', headers: { cookie: req.headers.get('cookie') ?? '' } },
         ).catch(() => {});
       }

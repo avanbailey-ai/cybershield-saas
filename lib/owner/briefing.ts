@@ -95,7 +95,7 @@ export async function generateDailyBriefing(
   }
   if (opportunities.length === 0) {
     opportunities.push(
-      'Run prospect discovery in healthcare or legal — high MRR verticals with common security gaps',
+      'No growth opportunities detected yet — import prospects and run scans to surface HOT leads',
     );
   }
 

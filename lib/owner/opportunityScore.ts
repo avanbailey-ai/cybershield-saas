@@ -7,39 +7,26 @@ export interface OpportunityScoreInput {
   industry?: string | null;
   issueCount?: number;
   stage?: string | null;
+  /** CRM-entered potential monthly revenue — only source for pipeline $ */
+  potentialRevenue?: number | null;
+  /** True when prospect scan_status is completed */
+  scanCompleted?: boolean;
 }
 
 export interface OpportunityScore {
-  leadScore: LeadScore;
-  conversionLikelihood: number;
-  estimatedMrr: number;
-  estimatedArr: number;
+  leadScore: LeadScore | null;
+  conversionLikelihood: number | null;
+  estimatedMrr: number | null;
+  estimatedArr: number | null;
   priority: number;
-  tier: 'HOT' | 'WARM' | 'LOW';
+  tier: LeadScore | null;
   rationale: string;
+  hasScanData: boolean;
 }
 
-const INDUSTRY_MRR: Record<string, number> = {
-  healthcare: 149,
-  legal: 129,
-  finance: 199,
-  ecommerce: 99,
-  saas: 149,
-  agency: 299,
-  restaurant: 49,
-  retail: 79,
-  education: 99,
-  nonprofit: 49,
-  default: 79,
-};
-
-function industryMrr(industry?: string | null): number {
-  if (!industry) return INDUSTRY_MRR.default;
-  const key = industry.toLowerCase().trim();
-  for (const [k, v] of Object.entries(INDUSTRY_MRR)) {
-    if (key.includes(k)) return v;
-  }
-  return INDUSTRY_MRR.default;
+function hasRealScanData(input: OpportunityScoreInput): boolean {
+  if (input.scanCompleted) return true;
+  return input.scanScore !== null && input.scanScore !== undefined;
 }
 
 function inferLeadScore(input: OpportunityScoreInput): LeadScore {
@@ -53,7 +40,7 @@ function inferLeadScore(input: OpportunityScoreInput): LeadScore {
   return 'LOW';
 }
 
-const STAGE_BOOST: Record<string, number> = {
+const STAGE_PRIORITY: Record<string, number> = {
   demo: 25,
   trial: 30,
   replied: 15,
@@ -64,60 +51,67 @@ const STAGE_BOOST: Record<string, number> = {
 };
 
 export function scoreOpportunity(input: OpportunityScoreInput): OpportunityScore {
+  const hasScan = hasRealScanData(input);
+  const crmRevenue = input.potentialRevenue ?? null;
+
+  if (!hasScan && !input.leadScore) {
+    return {
+      leadScore: null,
+      conversionLikelihood: null,
+      estimatedMrr: crmRevenue,
+      estimatedArr: crmRevenue !== null ? crmRevenue * 12 : null,
+      priority: crmRevenue ? 40 : 0,
+      tier: null,
+      rationale: 'Run a CyberShield scan to score this opportunity.',
+      hasScanData: false,
+    };
+  }
+
   const tier = inferLeadScore(input);
-  const baseMrr = industryMrr(input.industry);
+  let priority = tier === 'HOT' ? 80 : tier === 'WARM' ? 55 : 30;
 
-  let conversionLikelihood =
-    tier === 'HOT' ? 35 : tier === 'WARM' ? 18 : 8;
-
-  if (input.scanScore !== null && input.scanScore !== undefined && input.scanScore < 60) {
-    conversionLikelihood += 10;
-  }
-  if (input.stage && STAGE_BOOST[input.stage] !== undefined) {
-    conversionLikelihood += STAGE_BOOST[input.stage];
-  }
-  conversionLikelihood = Math.min(95, Math.max(2, conversionLikelihood));
-
-  const planMultiplier = tier === 'HOT' ? 1.2 : tier === 'WARM' ? 1 : 0.85;
-  const estimatedMrr = Math.round(baseMrr * planMultiplier);
-  const estimatedArr = estimatedMrr * 12;
-
-  let priority = conversionLikelihood;
-  if (tier === 'HOT') priority += 30;
-  else if (tier === 'WARM') priority += 15;
   if (input.scanScore !== null && input.scanScore !== undefined && input.scanScore < 50) {
-    priority += 20;
+    priority += 15;
+  }
+  if (input.stage && STAGE_PRIORITY[input.stage] !== undefined) {
+    priority += STAGE_PRIORITY[input.stage];
+  }
+  if (crmRevenue && crmRevenue > 0) {
+    priority += Math.min(20, Math.round(crmRevenue / 50));
   }
 
   const rationale =
     tier === 'HOT'
-      ? `High-risk scan + ${input.industry ?? 'target'} fit — fast-track outreach`
+      ? `Scan shows elevated risk (${input.scanScore ?? '—'}/100) — prioritize outreach`
       : tier === 'WARM'
-        ? `Moderate security gaps — nurture with audit summary`
-        : `Lower urgency — batch into weekly outreach`;
+        ? 'Moderate security gaps detected — nurture with audit summary'
+        : 'Lower urgency from scan — batch into weekly follow-up';
 
   return {
     leadScore: tier,
-    conversionLikelihood,
-    estimatedMrr,
-    estimatedArr,
+    conversionLikelihood: null,
+    estimatedMrr: crmRevenue,
+    estimatedArr: crmRevenue !== null ? crmRevenue * 12 : null,
     priority,
     tier,
     rationale,
+    hasScanData: hasScan,
   };
 }
 
-export function sortByOpportunity<T extends OpportunityScore>(items: T[]): T[] {
-  return [...items].sort((a, b) => b.priority - a.priority);
+export function sortByOpportunity<T extends { priority?: number }>(items: T[]): T[] {
+  return [...items].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 }
 
-export function opportunityTierColor(tier: LeadScore): string {
+export function opportunityTierColor(tier: LeadScore | null): string {
   switch (tier) {
     case 'HOT':
       return 'text-red-400 bg-red-500/10 border-red-500/30';
     case 'WARM':
       return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
-    default:
+    case 'LOW':
       return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+    default:
+      return 'text-gray-500 bg-gray-800/40 border-gray-700';
   }
 }

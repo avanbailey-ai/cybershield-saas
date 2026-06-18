@@ -119,9 +119,12 @@ export default function SocialContentStudio({ suggestions }: Props) {
           <pre className="whitespace-pre-wrap text-sm text-gray-300">{content}</pre>
         </div>
       ) : suggestions.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          Run prospect scans to unlock data-driven content suggestions.
-        </p>
+        <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
+          <p className="text-sm text-gray-400">Not enough scan data yet.</p>
+          <p className="mt-1 text-xs text-gray-600">
+            Content angles appear after at least 3 platform scans with recurring findings.
+          </p>
+        </div>
       ) : null}
     </SectionCard>
   );

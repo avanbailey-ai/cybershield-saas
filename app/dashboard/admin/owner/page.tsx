@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -15,7 +15,7 @@ import FounderCommandCenter from '@/components/owner/FounderCommandCenter';
 import type { OwnerCampaign, OwnerCampaignTask, OwnerProspect, OwnerCrmLead } from '@/lib/owner/types';
 
 export const metadata: Metadata = {
-  title: 'Founder OS — CyberShield',
+  title: 'Founder OS â€” CyberShield',
   description: 'Owner command center for growth, outreach, and intelligence',
 };
 
@@ -131,7 +131,7 @@ export default async function OwnerCommandCenterPage() {
     }),
     safeQuery(() => getDataMoatSnapshot(), {
       benchmarks: [],
-      trends: [{ period: 'Current', avgScore: 0, criticalFindings: 0, sslAdoptionPct: 0 }],
+      trends: [{ period: 'Current', avgScore: 0, criticalFindings: 0, sslAdoptionPct: 0, sampleSize: 0 }],
       moatStrength: 'building' as const,
       dataPoints: 0,
       scanGrowthPct: 0,
@@ -177,6 +177,7 @@ export default async function OwnerCommandCenterPage() {
     commonFindings: intelligence.commonFindings,
     avgRiskScore: intelligence.avgRiskScore,
     hotProspects: hotRes.count ?? 0,
+    totalScans: overview.scans ?? revenue.totalScannedProspects,
   });
 
   const insights = generateMarketingInsights(overview, {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -10,6 +10,7 @@ const MODULES = [
   { id: 'briefing', label: 'CEO Briefing' },
   { id: 'overview', label: 'Business Overview' },
   { id: 'prospects', label: 'Discovery' },
+  { id: 'opportunity-center', label: 'Opportunity Center' },
   { id: 'revenue', label: 'Revenue Engine' },
   { id: 'outreach', label: 'Outreach' },
   { id: 'social', label: 'Content Intel' },

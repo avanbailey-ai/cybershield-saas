@@ -2,6 +2,7 @@ import type { FounderBriefing } from '@/lib/owner/briefing';
 import type { RevenueOpportunitySummary } from '@/lib/owner/revenueOpportunity';
 import type { CustomerIntelligenceSummary } from '@/lib/owner/customerIntelligence';
 import type { ContentSuggestion } from '@/lib/owner/generators/contentIntel';
+import type { BusinessOverviewMetrics } from '../types';
 
 export interface MarketingInsight {
   id: string;
@@ -12,7 +13,8 @@ export interface MarketingInsight {
   category: string;
 }
 
-import type { BusinessOverviewMetrics } from '../types';
+const MIN_SIGNUPS_FOR_CONVERSION = 10;
+const MIN_FINDING_MENTIONS = 5;
 
 export function generateMarketingInsights(
   overview: BusinessOverviewMetrics,
@@ -29,12 +31,15 @@ export function generateMarketingInsights(
 ): MarketingInsight[] {
   const insights: MarketingInsight[] = [];
 
-  if (overview.conversionRate < 5 && overview.newSignups > 0) {
+  if (
+    overview.newSignups >= MIN_SIGNUPS_FOR_CONVERSION &&
+    overview.conversionRate < 5
+  ) {
     insights.push({
       id: 'low-conversion',
       title: 'Signup-to-paid conversion below 5%',
-      body: `Only ${overview.conversionRate}% of recent signups converted.`,
-      recommendation: 'A/B test pricing page CTA and add day-1 onboarding email with free scan.',
+      body: `${overview.conversionRate}% of ${overview.newSignups} recent signups converted (platform data).`,
+      recommendation: 'Review onboarding drop-off and pricing page for the last 30 days.',
       priority: 'high',
       category: 'Conversion',
     });
@@ -43,9 +48,9 @@ export function generateMarketingInsights(
   if (overview.mrr > 0 && overview.mrrGrowthPct < 0) {
     insights.push({
       id: 'mrr-decline',
-      title: 'MRR growth slowing',
-      body: `Signup trend at ${overview.mrrGrowthPct}% vs prior period.`,
-      recommendation: 'Focus on retention + upsell to Growth/Agency; pause new acquisition spend.',
+      title: 'MRR growth negative in this window',
+      body: `MRR trend: ${overview.mrrGrowthPct}% vs prior period (Stripe/subscription data).`,
+      recommendation: 'Focus on retention outreach for at-risk accounts.',
       priority: 'high',
       category: 'Revenue',
     });
@@ -54,9 +59,9 @@ export function generateMarketingInsights(
   if ((extras?.hotProspects ?? 0) > 0) {
     insights.push({
       id: 'hot-prospects',
-      title: `${extras!.hotProspects} HOT prospects in pipeline`,
-      body: 'Completed scans show critical/high risk — highest conversion window is 48h.',
-      recommendation: 'Use Outreach Engine with audit_summary type; move responders to CRM demo stage.',
+      title: `${extras!.hotProspects} HOT prospect(s) in pipeline`,
+      body: 'Prospects with completed scans scored HOT in Founder OS.',
+      recommendation: 'Generate findings-based outreach while scan context is fresh.',
       priority: 'high',
       category: 'Outbound',
     });
@@ -65,22 +70,22 @@ export function generateMarketingInsights(
   if ((extras?.churnRisk ?? 0) > 0) {
     insights.push({
       id: 'churn-risk',
-      title: `${extras!.churnRisk} accounts at churn risk`,
-      body: 'Churn risk score > 70 indicates disengagement or billing friction.',
-      recommendation: 'Personal outreach from founder + offer security review call within 7 days.',
+      title: `${extras!.churnRisk} account(s) at churn risk`,
+      body: 'Profiles with churn_risk_score > 70.',
+      recommendation: 'Personal founder outreach within 7 days.',
       priority: 'high',
       category: 'Retention',
     });
   }
 
-  if (extras?.revenue && extras.revenue.weightedPipelineMrr > 0) {
-    const top = extras.revenue.industries[0];
+  if (extras?.revenue && extras.revenue.crmPipelineMrr > 0) {
+    const top = extras.revenue.industries.find((i) => i.crmRevenue > 0);
     if (top) {
       insights.push({
-        id: 'pipeline-industry',
-        title: `${top.industry}: $${top.weightedMrr.toLocaleString()} weighted pipeline MRR`,
-        body: `${top.hotCount} HOT · ${top.warmCount} WARM prospects in vertical.`,
-        recommendation: `Double down on ${top.industry} discovery scans and industry-specific content.`,
+        id: 'crm-pipeline',
+        title: `$${extras.revenue.crmPipelineMrr.toLocaleString()}/mo in CRM pipeline`,
+        body: `${top.industry}: ${top.hotCount} HOT · ${top.warmCount} WARM scanned prospects.`,
+        recommendation: 'Prioritize CRM leads with demo/trial stage and entered revenue.',
         priority: 'medium',
         category: 'Pipeline',
       });
@@ -88,34 +93,27 @@ export function generateMarketingInsights(
   }
 
   const topFinding = extras?.intelligence?.commonFindings[0];
-  if (topFinding) {
+  if (topFinding && topFinding.count >= MIN_FINDING_MENTIONS) {
     insights.push({
       id: 'content-finding',
-      title: `Content angle: "${topFinding.finding.slice(0, 50)}…"`,
-      body: `Seen in ${topFinding.count} recent scans — high resonance topic.`,
-      recommendation: 'Publish LinkedIn post from Content Intelligence suggestions this week.',
+      title: `Finding seen in ${topFinding.count} platform scans`,
+      body: `"${topFinding.finding.slice(0, 80)}…"`,
+      recommendation: 'Use Content Intelligence to draft a post from this real finding.',
       priority: 'medium',
       category: 'Content',
     });
   }
 
-  insights.push({
-    id: 'content-cadence',
-    title: 'Maintain 3× weekly social posts',
-    body: `${extras?.contentPosts ?? 0} tracked posts · ${extras?.contentSuggestions?.length ?? 0} AI suggestions ready.`,
-    recommendation: 'Batch-create 3 posts Sunday; schedule via Content Intelligence Center.',
-    priority: 'medium',
-    category: 'Content',
-  });
-
-  insights.push({
-    id: 'scan-velocity',
-    title: `${overview.scans} scans in window`,
-    body: 'Scan volume correlates with engagement and data moat growth.',
-    recommendation: 'Promote free scan on landing page; add referral CTA post-scan.',
-    priority: 'low',
-    category: 'Growth',
-  });
+  if ((extras?.contentSuggestions?.length ?? 0) > 0) {
+    insights.push({
+      id: 'content-ready',
+      title: `${extras!.contentSuggestions!.length} content angle(s) from scan data`,
+      body: 'Generated from aggregated findings in your database.',
+      recommendation: 'Publish the highest-priority suggestion this week.',
+      priority: 'medium',
+      category: 'Content',
+    });
+  }
 
   return insights;
 }

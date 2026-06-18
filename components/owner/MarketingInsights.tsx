@@ -17,7 +17,12 @@ export default function MarketingInsights({ insights }: { insights: MarketingIns
       subtitle="Real insights with recommendations — not raw metrics"
     >
       {insights.length === 0 ? (
-        <p className="text-sm text-gray-500">Connect data sources to generate insights.</p>
+        <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
+          <p className="text-sm text-gray-400">Not enough data yet.</p>
+          <p className="mt-1 text-xs text-gray-600">
+            Insights appear when platform signups, scans, and CRM data reach minimum sample sizes.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {insights.map((insight) => (

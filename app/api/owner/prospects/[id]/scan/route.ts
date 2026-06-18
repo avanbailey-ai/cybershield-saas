@@ -45,6 +45,7 @@ export async function POST(
       scanRiskLevel: result.riskLevel,
       industry: prospect.industry,
       issueCount,
+      scanCompleted: true,
     });
 
     const { data: updated, error: updateErr } = await admin

@@ -1,25 +1,24 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { SectionCard } from './MetricCard';
 import { leadScoreColor } from '@/lib/owner/leadScore';
 import { scoreOpportunity, opportunityTierColor } from '@/lib/owner/opportunityScore';
 import type { OwnerProspect } from '@/lib/owner/types';
 
+type ImportTab = 'urls' | 'csv' | 'manual';
+
 export default function LeadDiscovery({ initialProspects }: { initialProspects: OwnerProspect[] }) {
   const [prospects, setProspects] = useState(initialProspects);
   const [loading, setLoading] = useState(false);
-  const [discovering, setDiscovering] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [scanning, setScanning] = useState<string | null>(null);
   const [batchUrls, setBatchUrls] = useState('');
-  const [tab, setTab] = useState<'search' | 'manual' | 'batch'>('search');
-  const [search, setSearch] = useState({
-    industry: 'healthcare',
-    city: '',
-    state: '',
-    country: 'US',
-    autoScan: true,
-  });
+  const [csvText, setCsvText] = useState('');
+  const [tab, setTab] = useState<ImportTab>('urls');
+  const [autoScan, setAutoScan] = useState(true);
+  const [defaultIndustry, setDefaultIndustry] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     business_name: '',
     website: '',
@@ -29,61 +28,72 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
     country: '',
   });
 
+  const stats = useMemo(() => {
+    const hot = prospects.filter((p) => p.lead_score === 'HOT').length;
+    const warm = prospects.filter((p) => p.lead_score === 'WARM').length;
+    const pending = prospects.filter((p) => p.scan_status === 'pending').length;
+    const scanned = prospects.filter((p) => p.scan_status === 'completed').length;
+    return { hot, warm, pending, scanned, total: prospects.length };
+  }, [prospects]);
+
   const sorted = useMemo(() => {
     return [...prospects].sort((a, b) => {
-      const pa = a.opportunity_priority ?? scoreOpportunity({
-        leadScore: a.lead_score,
-        scanScore: a.scan_score,
-        industry: a.industry,
-      }).priority;
-      const pb = b.opportunity_priority ?? scoreOpportunity({
-        leadScore: b.lead_score,
-        scanScore: b.scan_score,
-        industry: b.industry,
-      }).priority;
+      const pa =
+        a.opportunity_priority ??
+        scoreOpportunity({
+          leadScore: a.lead_score,
+          scanScore: a.scan_score,
+          scanRiskLevel: a.scan_risk_level,
+          industry: a.industry,
+          scanCompleted: a.scan_status === 'completed',
+        }).priority;
+      const pb =
+        b.opportunity_priority ??
+        scoreOpportunity({
+          leadScore: b.lead_score,
+          scanScore: b.scan_score,
+          scanRiskLevel: b.scan_risk_level,
+          industry: b.industry,
+          scanCompleted: b.scan_status === 'completed',
+        }).priority;
       return pb - pa;
     });
   }, [prospects]);
 
-  async function runDiscovery() {
-    setDiscovering(true);
-    try {
-      const res = await fetch('/api/owner/discovery', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'search', ...search, limit: 8 }),
-      });
-      const data = await res.json();
-      if (data.prospects?.length) {
-        setProspects((p) => [...data.prospects, ...p]);
-      }
-    } finally {
-      setDiscovering(false);
-    }
-  }
-
-  async function runBatchImport() {
-    if (!batchUrls.trim()) return;
-    setDiscovering(true);
+  async function runImport(mode: 'batch' | 'csv', payload: string) {
+    if (!payload.trim()) return;
+    setImporting(true);
     try {
       const res = await fetch('/api/owner/discovery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mode: 'batch',
-          urls: batchUrls,
-          industry: search.industry,
-          autoScan: search.autoScan,
+          mode,
+          urls: mode === 'batch' ? payload : undefined,
+          csv: mode === 'csv' ? payload : undefined,
+          industry: defaultIndustry || undefined,
+          autoScan,
         }),
       });
       const data = await res.json();
       if (data.prospects?.length) {
         setProspects((p) => [...data.prospects, ...p]);
-        setBatchUrls('');
+        if (mode === 'batch') setBatchUrls('');
+        if (mode === 'csv') setCsvText('');
       }
     } finally {
-      setDiscovering(false);
+      setImporting(false);
     }
+  }
+
+  function handleCsvFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      setCsvText(text);
+      runImport('csv', text);
+    };
+    reader.readAsText(file);
   }
 
   async function addProspect(e: React.FormEvent) {
@@ -118,68 +128,142 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
     }
   }
 
+  async function scanAllPending() {
+    const pending = prospects.filter((p) => p.scan_status === 'pending');
+    for (const p of pending) {
+      await runScan(p.id);
+    }
+  }
+
   return (
     <SectionCard
       id="prospects"
-      title="Prospect Discovery Workspace"
-      subtitle="Search by market, batch import URLs, auto-scan and score opportunities"
+      title="Prospect Discovery"
+      subtitle="Import websites · run scans · score opportunities from real findings"
     >
+      {stats.total > 0 && (
+        <div className="mb-4 flex flex-wrap gap-3 text-sm">
+          <span className="rounded-full bg-gray-800 px-3 py-1 text-gray-300">
+            {stats.total} imported
+          </span>
+          {stats.scanned > 0 && (
+            <span className="rounded-full bg-violet-500/20 px-3 py-1 text-violet-300">
+              {stats.scanned} scanned
+            </span>
+          )}
+          {stats.hot > 0 && (
+            <span className="rounded-full bg-red-500/20 px-3 py-1 text-red-300">
+              {stats.hot} HOT
+            </span>
+          )}
+          {stats.warm > 0 && (
+            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-amber-300">
+              {stats.warm} WARM
+            </span>
+          )}
+          {stats.pending > 0 && (
+            <button
+              type="button"
+              onClick={scanAllPending}
+              className="rounded-full border border-violet-500/40 px-3 py-1 text-violet-400 hover:bg-violet-500/10"
+            >
+              Scan {stats.pending} pending →
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mb-4 flex gap-2">
-        {(['search', 'manual', 'batch'] as const).map((t) => (
+        {(
+          [
+            { id: 'urls' as const, label: 'URL Import' },
+            { id: 'csv' as const, label: 'CSV Import' },
+            { id: 'manual' as const, label: 'Manual Add' },
+          ] as const
+        ).map((t) => (
           <button
-            key={t}
+            key={t.id}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => setTab(t.id)}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-              tab === t ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+              tab === t.id ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
-            {t === 'search' ? 'Market Search' : t === 'manual' ? 'Manual Add' : 'URL Batch'}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {tab === 'search' && (
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-4 flex items-center gap-4">
+        <label className="flex items-center gap-2 text-xs text-gray-400">
           <input
-            placeholder="Industry"
-            value={search.industry}
-            onChange={(e) => setSearch({ ...search, industry: e.target.value })}
-            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+            type="checkbox"
+            checked={autoScan}
+            onChange={(e) => setAutoScan(e.target.checked)}
           />
-          <input
-            placeholder="City"
-            value={search.city}
-            onChange={(e) => setSearch({ ...search, city: e.target.value })}
-            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+          Auto-scan after import
+        </label>
+        <input
+          placeholder="Default industry (optional)"
+          value={defaultIndustry}
+          onChange={(e) => setDefaultIndustry(e.target.value)}
+          className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-1.5 text-xs text-white"
+        />
+      </div>
+
+      {tab === 'urls' && (
+        <div className="mb-6 space-y-3">
+          <textarea
+            placeholder="Paste URLs (one per line) or Name|URL|Industry format"
+            value={batchUrls}
+            onChange={(e) => setBatchUrls(e.target.value)}
+            rows={4}
+            className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
           />
-          <input
-            placeholder="State"
-            value={search.state}
-            onChange={(e) => setSearch({ ...search, state: e.target.value })}
-            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
-          />
-          <input
-            placeholder="Country"
-            value={search.country}
-            onChange={(e) => setSearch({ ...search, country: e.target.value })}
-            className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
-          />
-          <label className="flex items-center gap-2 text-xs text-gray-400">
-            <input
-              type="checkbox"
-              checked={search.autoScan}
-              onChange={(e) => setSearch({ ...search, autoScan: e.target.checked })}
-            />
-            Auto-scan
-          </label>
           <button
             type="button"
-            onClick={runDiscovery}
-            disabled={discovering}
+            onClick={() => runImport('batch', batchUrls)}
+            disabled={importing || !batchUrls.trim()}
             className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
           >
-            {discovering ? 'Discovering…' : 'Run Discovery'}
+            {importing ? 'Importing…' : 'Import URLs'}
+          </button>
+        </div>
+      )}
+
+      {tab === 'csv' && (
+        <div className="mb-6 space-y-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleCsvFile(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-violet-500/50"
+          >
+            Upload CSV file
+          </button>
+          <textarea
+            placeholder="Or paste CSV with headers: website, name, industry, city, state, country"
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+            rows={4}
+            className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
+          />
+          <button
+            type="button"
+            onClick={() => runImport('csv', csvText)}
+            disabled={importing || !csvText.trim()}
+            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+          >
+            {importing ? 'Importing…' : 'Import CSV'}
           </button>
         </div>
       )}
@@ -222,36 +306,12 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
         </form>
       )}
 
-      {tab === 'batch' && (
-        <div className="mb-6 space-y-3">
-          <textarea
-            placeholder="Paste URLs (one per line) or Name|URL format"
-            value={batchUrls}
-            onChange={(e) => setBatchUrls(e.target.value)}
-            rows={4}
-            className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white"
-          />
-          <button
-            type="button"
-            onClick={runBatchImport}
-            disabled={discovering || !batchUrls.trim()}
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
-          >
-            {discovering ? 'Importing…' : 'Import & Scan'}
-          </button>
-        </div>
-      )}
-
       {sorted.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-700 p-8 text-center">
-          <p className="text-sm text-gray-400">No prospects yet.</p>
-          <button
-            type="button"
-            onClick={() => { setTab('search'); runDiscovery(); }}
-            className="mt-3 text-sm font-medium text-violet-400 hover:text-violet-300"
-          >
-            Run discovery →
-          </button>
+          <p className="text-sm font-medium text-gray-300">No prospects discovered yet.</p>
+          <p className="mt-2 text-xs text-gray-500">
+            Import a prospect list (CSV or URLs), then run scans to generate scores and opportunities.
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -259,10 +319,9 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase text-gray-500">
                 <th className="pb-3 pr-4">Business</th>
-                <th className="pb-3 pr-4">Market</th>
-                <th className="pb-3 pr-4">Score</th>
+                <th className="pb-3 pr-4">Scan</th>
                 <th className="pb-3 pr-4">Tier</th>
-                <th className="pb-3 pr-4">Est. MRR</th>
+                <th className="pb-3 pr-4">Status</th>
                 <th className="pb-3">Action</th>
               </tr>
             </thead>
@@ -273,6 +332,7 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
                   scanScore: p.scan_score,
                   scanRiskLevel: p.scan_risk_level,
                   industry: p.industry,
+                  scanCompleted: p.scan_status === 'completed',
                 });
                 return (
                   <tr key={p.id} className="border-b border-gray-800/50">
@@ -280,31 +340,31 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
                       <p className="text-white">{p.business_name}</p>
                       <p className="text-xs text-gray-500">{p.website}</p>
                     </td>
-                    <td className="py-3 pr-4 text-gray-400">
-                      {[p.city, p.state, p.country].filter(Boolean).join(', ') || p.industry || '—'}
-                    </td>
                     <td className="py-3 pr-4">
                       {p.scan_score !== null ? (
                         <span className="text-white">{p.scan_score}/100</span>
                       ) : (
-                        <span className="text-gray-600">—</span>
+                        <span className="text-gray-600">Not scanned</span>
                       )}
                     </td>
                     <td className="py-3 pr-4">
-                      {p.lead_score && (
+                      {opp.tier ? (
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${opportunityTierColor(opp.tier)}`}
+                        >
+                          {opp.tier}
+                        </span>
+                      ) : p.lead_score ? (
                         <span
                           className={`rounded-full border px-2 py-0.5 text-xs font-medium ${leadScoreColor(p.lead_score)}`}
                         >
                           {p.lead_score}
                         </span>
+                      ) : (
+                        <span className="text-gray-600">—</span>
                       )}
                     </td>
-                    <td className="py-3 pr-4 text-emerald-400">
-                      ${(p.estimated_mrr ?? opp.estimatedMrr).toLocaleString()}
-                      <span className="ml-1 text-[10px] text-gray-500">
-                        {p.conversion_likelihood ?? opp.conversionLikelihood}%
-                      </span>
-                    </td>
+                    <td className="py-3 pr-4 text-xs text-gray-500">{p.scan_status}</td>
                     <td className="py-3">
                       <button
                         type="button"
@@ -312,7 +372,11 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
                         disabled={scanning === p.id}
                         className="text-xs font-medium text-violet-400 hover:text-violet-300 disabled:opacity-50"
                       >
-                        {scanning === p.id ? 'Scanning…' : p.scan_status === 'completed' ? 'Re-scan' : 'Run Scan'}
+                        {scanning === p.id
+                          ? 'Scanning…'
+                          : p.scan_status === 'completed'
+                            ? 'Re-scan'
+                            : 'Run Scan'}
                       </button>
                     </td>
                   </tr>

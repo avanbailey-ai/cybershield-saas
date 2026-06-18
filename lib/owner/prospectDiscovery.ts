@@ -1,11 +1,3 @@
-export interface DiscoverySearch {
-  industry: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  limit?: number;
-}
-
 export interface DiscoveredProspect {
   business_name: string;
   website: string;
@@ -15,82 +7,59 @@ export interface DiscoveredProspect {
   country: string | null;
 }
 
-const INDUSTRY_TEMPLATES: Record<string, { prefixes: string[]; suffixes: string[]; tlds: string[] }> = {
-  healthcare: {
-    prefixes: ['Summit', 'Valley', 'Premier', 'Community', 'Regional'],
-    suffixes: ['Medical Group', 'Health Center', 'Family Practice', 'Dental', 'Urgent Care'],
-    tlds: ['com', 'org'],
-  },
-  legal: {
-    prefixes: ['Smith &', 'Johnson', 'Baker', 'Coastal', 'Metro'],
-    suffixes: ['Law Firm', 'Attorneys', 'Legal Group', 'Law Office', 'Counsel'],
-    tlds: ['com'],
-  },
-  ecommerce: {
-    prefixes: ['Urban', 'Prime', 'Nova', 'Swift', 'Blue'],
-    suffixes: ['Shop', 'Goods', 'Market', 'Supply Co', 'Boutique'],
-    tlds: ['com', 'shop'],
-  },
-  restaurant: {
-    prefixes: ['Golden', 'Harbor', 'Fire', 'Garden', 'Coastal'],
-    suffixes: ['Grill', 'Kitchen', 'Bistro', 'Cafe', 'Eatery'],
-    tlds: ['com'],
-  },
-  agency: {
-    prefixes: ['Pixel', 'Bright', 'North', 'Spark', 'Digital'],
-    suffixes: ['Marketing', 'Creative', 'Media', 'Design Studio', 'Agency'],
-    tlds: ['com', 'io'],
-  },
-  finance: {
-    prefixes: ['First', 'Liberty', 'Pacific', 'Heritage', 'Capital'],
-    suffixes: ['Advisors', 'Wealth', 'Financial', 'Accounting', 'CPA'],
-    tlds: ['com'],
-  },
-  default: {
-    prefixes: ['Main Street', 'City', 'Local', 'Premier', 'Trusted'],
-    suffixes: ['Services', 'Solutions', 'Group', 'Co', 'Partners'],
-    tlds: ['com'],
-  },
-};
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .slice(0, 24);
+function normalizeWebsite(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  return `https://${trimmed}`;
 }
 
-function pick<T>(arr: T[], seed: number): T {
-  return arr[seed % arr.length];
+function nameFromUrl(url: string): string {
+  try {
+    const host = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
+    return host.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  }
 }
 
-export function generateProspectList(search: DiscoverySearch): DiscoveredProspect[] {
-  const industryKey = search.industry.toLowerCase().trim();
-  const template =
-    INDUSTRY_TEMPLATES[industryKey] ??
-    Object.entries(INDUSTRY_TEMPLATES).find(([k]) => industryKey.includes(k))?.[1] ??
-    INDUSTRY_TEMPLATES.default;
+export function parseUrlBatch(text: string, industry?: string): DiscoveredProspect[] {
+  const lines = text
+    .split(/[\n,]+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
-  const limit = Math.min(search.limit ?? 8, 15);
-  const city = search.city?.trim() || null;
-  const state = search.state?.trim() || null;
-  const country = search.country?.trim() || 'US';
   const results: DiscoveredProspect[] = [];
   const seen = new Set<string>();
 
-  for (let i = 0; i < limit * 2 && results.length < limit; i++) {
-    const prefix = pick(template.prefixes, i);
-    const suffix = pick(template.suffixes, i + 3);
-    const name = city ? `${prefix} ${city} ${suffix}` : `${prefix} ${suffix}`;
-    const domain = `${slugify(prefix)}${slugify(suffix)}${city ? slugify(city) : ''}${i}.example-${industryKey.slice(0, 6) || 'biz'}.${pick(template.tlds, i)}`;
+  for (const line of lines) {
+    let website = line;
+    let business_name = nameFromUrl(line);
+    let rowIndustry = industry ?? 'General';
+    let city: string | null = null;
+    let state: string | null = null;
+    let country: string | null = null;
 
-    if (seen.has(domain)) continue;
-    seen.add(domain);
+    if (line.includes('|')) {
+      const parts = line.split('|').map((s) => s.trim());
+      if (parts.length >= 2) {
+        business_name = parts[0];
+        website = parts[1];
+      }
+      if (parts.length >= 3 && parts[2]) rowIndustry = parts[2];
+      if (parts.length >= 4 && parts[3]) city = parts[3];
+      if (parts.length >= 5 && parts[4]) state = parts[4];
+      if (parts.length >= 6 && parts[5]) country = parts[5];
+    }
+
+    website = normalizeWebsite(website);
+    if (!website || seen.has(website)) continue;
+    seen.add(website);
 
     results.push({
-      business_name: name,
-      website: domain,
-      industry: search.industry,
+      business_name: business_name || nameFromUrl(website),
+      website,
+      industry: rowIndustry,
       city,
       state,
       country,
@@ -100,27 +69,61 @@ export function generateProspectList(search: DiscoverySearch): DiscoveredProspec
   return results;
 }
 
-export function parseUrlBatch(text: string, industry?: string): DiscoveredProspect[] {
+/** Parse CSV with header row: website/url, name/business, industry, city, state, country */
+export function parseCsvImport(text: string, defaultIndustry?: string): DiscoveredProspect[] {
   const lines = text
-    .split(/[\n,]+/)
+    .trim()
+    .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
 
-  return lines.map((line) => {
-    let website = line;
-    let business_name = line.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    if (line.includes('|')) {
-      const [name, url] = line.split('|').map((s) => s.trim());
-      business_name = name;
-      website = url;
-    }
-    return {
-      business_name,
+  if (lines.length === 0) return [];
+
+  const first = lines[0].toLowerCase();
+  const looksLikeHeader =
+    first.includes('website') ||
+    first.includes('url') ||
+    first.includes('domain') ||
+    first.includes('business');
+
+  if (!looksLikeHeader) {
+    return parseUrlBatch(text, defaultIndustry);
+  }
+
+  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const idx = (names: string[]) => headers.findIndex((h) => names.includes(h));
+
+  const websiteIdx = idx(['website', 'url', 'domain']);
+  const nameIdx = idx(['name', 'business', 'business_name', 'company']);
+  const industryIdx = idx(['industry', 'vertical', 'sector']);
+  const cityIdx = idx(['city']);
+  const stateIdx = idx(['state', 'region']);
+  const countryIdx = idx(['country']);
+
+  if (websiteIdx < 0) {
+    return parseUrlBatch(lines.slice(1).join('\n'), defaultIndustry);
+  }
+
+  const results: DiscoveredProspect[] = [];
+  const seen = new Set<string>();
+
+  for (const line of lines.slice(1)) {
+    const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+    const website = normalizeWebsite(cols[websiteIdx] ?? '');
+    if (!website || seen.has(website)) continue;
+    seen.add(website);
+
+    results.push({
+      business_name:
+        (nameIdx >= 0 ? cols[nameIdx] : '') || nameFromUrl(website),
       website,
-      industry: industry ?? 'General',
-      city: null,
-      state: null,
-      country: null,
-    };
-  });
+      industry:
+        (industryIdx >= 0 ? cols[industryIdx] : '') || defaultIndustry || 'General',
+      city: cityIdx >= 0 ? cols[cityIdx] || null : null,
+      state: stateIdx >= 0 ? cols[stateIdx] || null : null,
+      country: countryIdx >= 0 ? cols[countryIdx] || null : null,
+    });
+  }
+
+  return results;
 }

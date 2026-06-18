@@ -49,21 +49,32 @@ export default function DataMoatPanel({ moat }: { moat: DataMoatSnapshot }) {
 
       <h3 className="mb-3 text-sm font-medium text-white">Industry Benchmarks</h3>
       {moat.benchmarks.length === 0 ? (
-        <p className="text-sm text-gray-500">Run prospect scans to build industry benchmarks.</p>
+        <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
+          <p className="text-sm text-gray-400">Not enough data yet.</p>
+          <p className="mt-1 text-xs text-gray-600">
+            Run prospect scans to build industry benchmarks from real scores.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           {moat.benchmarks.map((b) => (
             <div key={b.industry} className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
-              <h4 className="font-medium text-white">{b.industry}</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-white">{b.industry}</h4>
+                <span
+                  className={`text-[10px] uppercase ${
+                    b.confidence === 'high'
+                      ? 'text-emerald-400'
+                      : b.confidence === 'medium'
+                        ? 'text-amber-400'
+                        : 'text-gray-500'
+                  }`}
+                >
+                  {b.confidence} confidence
+                </span>
+              </div>
               <p className="mt-1 text-2xl font-bold text-violet-400">{b.avgSecurityScore}/100</p>
-              <p className="mt-1 text-xs text-gray-500">Sample: {b.sampleSize}</p>
-              <ul className="mt-2 space-y-1">
-                {b.commonVulnerabilities.slice(0, 3).map((v) => (
-                  <li key={v} className="text-xs text-gray-400">
-                    • {v}
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-1 text-xs text-gray-500">Sample: {b.sampleSize} scans</p>
             </div>
           ))}
         </div>

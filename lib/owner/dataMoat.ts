@@ -1,6 +1,5 @@
 /**
- * Data Moat foundation — industry benchmarks and security trend aggregates.
- * Owner-only intelligence layer for competitive positioning.
+ * Data Moat — industry benchmarks from real scans only. No fabricated defaults.
  */
 
 export interface IndustryBenchmark {
@@ -9,13 +8,15 @@ export interface IndustryBenchmark {
   commonVulnerabilities: string[];
   sampleSize: number;
   lastUpdated: string;
+  confidence: 'low' | 'medium' | 'high';
 }
 
 export interface SecurityTrendPoint {
   period: string;
   avgScore: number;
   criticalFindings: number;
-  sslAdoptionPct: number;
+  sslAdoptionPct: number | null;
+  sampleSize: number;
 }
 
 export interface DataMoatSnapshot {
@@ -28,29 +29,11 @@ export interface DataMoatSnapshot {
   coverageLabel: string;
 }
 
-const DEFAULT_BENCHMARKS: IndustryBenchmark[] = [
-  {
-    industry: 'Healthcare',
-    avgSecurityScore: 62,
-    commonVulnerabilities: ['Missing HSTS', 'Weak CSP', 'Outdated SSL'],
-    sampleSize: 0,
-    lastUpdated: new Date().toISOString(),
-  },
-  {
-    industry: 'Legal',
-    avgSecurityScore: 68,
-    commonVulnerabilities: ['No security headers', 'Mixed content'],
-    sampleSize: 0,
-    lastUpdated: new Date().toISOString(),
-  },
-  {
-    industry: 'E-commerce',
-    avgSecurityScore: 71,
-    commonVulnerabilities: ['Third-party script risks', 'Cookie security'],
-    sampleSize: 0,
-    lastUpdated: new Date().toISOString(),
-  },
-];
+function benchmarkConfidence(sampleSize: number): IndustryBenchmark['confidence'] {
+  if (sampleSize >= 10) return 'high';
+  if (sampleSize >= 3) return 'medium';
+  return 'low';
+}
 
 export function buildDataMoatSnapshot(
   scanScores: number[],
@@ -64,14 +47,15 @@ export function buildDataMoatSnapshot(
     benchmarks.push({
       industry,
       avgSecurityScore: avg,
-      commonVulnerabilities: ['Scan-derived patterns pending'],
+      commonVulnerabilities: [],
       sampleSize: scores.length,
       lastUpdated: new Date().toISOString(),
+      confidence: benchmarkConfidence(scores.length),
     });
   }
 
-  const merged = benchmarks.length > 0 ? benchmarks : DEFAULT_BENCHMARKS;
-  const dataPoints = scanScores.length + benchmarks.reduce((s, b) => s + b.sampleSize, 0);
+  benchmarks.sort((a, b) => b.sampleSize - a.sampleSize);
+  const dataPoints = scanScores.length;
 
   let moatStrength: DataMoatSnapshot['moatStrength'] = 'building';
   if (dataPoints >= 100) moatStrength = 'established';
@@ -85,18 +69,23 @@ export function buildDataMoatSnapshot(
           ? Math.round(scanScores.reduce((a, b) => a + b, 0) / scanScores.length)
           : 0,
       criticalFindings: scanScores.filter((s) => s < 50).length,
-      sslAdoptionPct: 0,
+      sslAdoptionPct: null,
+      sampleSize: scanScores.length,
     },
   ];
 
+  const benchmarkCoverage = benchmarks.filter((b) => b.sampleSize > 0).length;
+  const coverageLabel =
+    benchmarkCoverage >= 5 ? 'Broad' : benchmarkCoverage >= 2 ? 'Growing' : 'Early';
+
   return {
-    benchmarks: merged,
+    benchmarks,
     trends,
     moatStrength,
     dataPoints,
     scanGrowthPct: 0,
-    benchmarkCoverage: merged.filter((b) => b.sampleSize > 0).length,
-    coverageLabel: merged.filter((b) => b.sampleSize > 0).length >= 5 ? 'Broad' : 'Early',
+    benchmarkCoverage,
+    coverageLabel,
   };
 }
 
@@ -133,14 +122,9 @@ export async function getDataMoatSnapshot(): Promise<DataMoatSnapshot> {
   const prevCount = prevScansRes.count ?? 0;
   const scanGrowthPct =
     prevCount > 0 ? Math.round(((recentCount - prevCount) / prevCount) * 100) : recentCount > 0 ? 100 : 0;
-  const benchmarkCoverage = snapshot.benchmarks.filter((b) => b.sampleSize > 0).length;
-  const coverageLabel =
-    benchmarkCoverage >= 5 ? 'Broad' : benchmarkCoverage >= 2 ? 'Growing' : 'Early';
 
   return {
     ...snapshot,
     scanGrowthPct,
-    benchmarkCoverage,
-    coverageLabel,
   };
 }

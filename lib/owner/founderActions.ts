@@ -23,21 +23,22 @@ export interface FounderActionInput {
 export function generateFounderActions(input: FounderActionInput): FounderAction[] {
   const actions: Omit<FounderAction, 'rank'>[] = [];
 
-  const hotUncontacted = input.hotProspects.filter(
+  const hotScanned = input.hotProspects.filter(
     (p) => p.lead_score === 'HOT' && p.scan_status === 'completed',
   );
-  if (hotUncontacted.length > 0) {
-    const top = hotUncontacted[0];
+  if (hotScanned.length > 0) {
+    const top = hotScanned[0];
     const opp = scoreOpportunity({
       leadScore: top.lead_score,
       scanScore: top.scan_score,
       scanRiskLevel: top.scan_risk_level,
       industry: top.industry,
+      scanCompleted: true,
     });
     actions.push({
       id: 'outreach-hot',
-      title: `Outreach ${top.business_name} — $${opp.estimatedMrr}/mo potential`,
-      description: `${hotUncontacted.length} HOT prospect(s) with completed scans. ${opp.rationale}`,
+      title: `Contact ${top.business_name}`,
+      description: `${hotScanned.length} HOT prospect(s) with completed scans. Score ${top.scan_score ?? '—'}/100. ${opp.rationale}`,
       impact: 'critical',
       module: 'outreach',
       cta: 'Generate outreach',
@@ -46,10 +47,14 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
 
   const demoLeads = input.crmLeads.filter((l) => l.stage === 'demo' || l.stage === 'trial');
   if (demoLeads.length > 0) {
+    const pipeline = demoLeads.reduce((s, l) => s + Number(l.potential_revenue ?? 0), 0);
     actions.push({
       id: 'close-demo',
-      title: `Close ${demoLeads.length} demo/trial lead(s)`,
-      description: `Pipeline value: $${demoLeads.reduce((s, l) => s + Number(l.potential_revenue ?? 0), 0).toLocaleString()}`,
+      title: `Follow up with ${demoLeads.length} demo/trial lead(s)`,
+      description:
+        pipeline > 0
+          ? `CRM pipeline value: $${pipeline.toLocaleString()}/mo entered`
+          : 'Demo/trial leads waiting — add potential revenue in CRM',
       impact: 'critical',
       module: 'crm',
       cta: 'Open CRM',
@@ -59,8 +64,8 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
   if ((input.churnRisk ?? 0) > 0) {
     actions.push({
       id: 'retain-churn',
-      title: `Save ${input.churnRisk} at-risk account(s)`,
-      description: 'Proactive retention outreach recovers 20–30% of at-risk MRR.',
+      title: `Review ${input.churnRisk} at-risk account(s)`,
+      description: 'Accounts with churn risk score > 70 in your platform data.',
       impact: 'high',
       module: 'customer-intel',
       cta: 'Review churn signals',
@@ -70,8 +75,8 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
   if (input.briefing.newSignups > 0) {
     actions.push({
       id: 'nurture-signups',
-      title: `Nurture ${input.briefing.newSignups} new signup(s) from last 24h`,
-      description: 'First 48 hours drive conversion — send onboarding + free scan CTA.',
+      title: `Welcome ${input.briefing.newSignups} new signup(s) from last 24h`,
+      description: 'Real signups in the last 24 hours — send onboarding follow-up.',
       impact: 'high',
       module: 'campaigns',
       cta: 'Start nurture campaign',
@@ -81,49 +86,36 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
   if ((input.unscannedProspects ?? 0) > 0) {
     actions.push({
       id: 'run-scans',
-      title: `Run scans on ${input.unscannedProspects} pending prospect(s)`,
-      description: 'Scans unlock HOT/WARM scores and findings-based outreach.',
+      title: `Scan ${input.unscannedProspects} imported prospect(s)`,
+      description: 'Scans unlock HOT/WARM tiers and findings-based outreach.',
       impact: 'high',
       module: 'prospects',
-      cta: 'Run discovery',
+      cta: 'Run scans',
     });
   }
 
-  if (input.briefing.opportunities.length > 0 && actions.length < 3) {
+  const contentReady = input.briefing.opportunities.some((o) =>
+    o.toLowerCase().includes('finding'),
+  );
+  if (contentReady && actions.length < 3) {
     actions.push({
-      id: 'review-opps',
-      title: 'Review growth opportunities',
-      description: input.briefing.opportunities[0],
+      id: 'publish-content',
+      title: 'Publish content from this week’s scan findings',
+      description: 'Content Intelligence has angles from real platform scans.',
       impact: 'medium',
-      module: 'briefing',
-      cta: 'View briefing',
+      module: 'social',
+      cta: 'Create content',
     });
   }
 
   if (actions.length === 0) {
     actions.push({
-      id: 'discover',
-      title: 'Run prospect discovery in your target market',
-      description: 'No HOT leads or pipeline activity — generate prospects and auto-scan.',
+      id: 'import-prospects',
+      title: 'Import your first prospect list',
+      description: 'Upload a CSV or paste URLs, then run scans to surface opportunities.',
       impact: 'critical',
       module: 'prospects',
-      cta: 'Run discovery',
-    });
-    actions.push({
-      id: 'content',
-      title: 'Publish 1 LinkedIn post from scan insights',
-      description: 'Content Intelligence can draft posts from real platform findings.',
-      impact: 'medium',
-      module: 'social',
-      cta: 'Create content',
-    });
-    actions.push({
-      id: 'campaign',
-      title: 'Launch a 7-day growth campaign',
-      description: 'Structured daily tasks for outbound, content, and CRM follow-up.',
-      impact: 'medium',
-      module: 'campaigns',
-      cta: 'Create campaign',
+      cta: 'Import prospects',
     });
   }
 

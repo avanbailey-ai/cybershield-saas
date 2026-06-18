@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import type { FounderAction } from '@/lib/owner/founderActions';
 
@@ -21,14 +21,14 @@ export default function FounderActionCenter({ actions }: { actions: FounderActio
       >
         <h2 className="text-lg font-bold text-white">Founder Action Center</h2>
         <p className="mt-2 text-sm text-gray-400">
-          No priority actions yet. Run prospect discovery to unlock ranked recommendations.
+          No priority actions yet. Import prospects and run scans to unlock ranked recommendations.
         </p>
         <button
           type="button"
           onClick={() => scrollToModule('prospects')}
           className="mt-4 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
         >
-          Run discovery
+          Import prospects
         </button>
       </div>
     );
@@ -72,7 +72,7 @@ export default function FounderActionCenter({ actions }: { actions: FounderActio
               onClick={() => scrollToModule(action.module)}
               className="mt-3 text-xs font-medium text-violet-400 hover:text-violet-300"
             >
-              {action.cta} →
+              {action.cta} â†’
             </button>
           </div>
         ))}
