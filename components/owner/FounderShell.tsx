@@ -72,27 +72,19 @@ export default function FounderShell({
           </ul>
 
           <p className="mb-2 mt-6 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">
-            System
+            Account
           </p>
           <ul className="space-y-0.5">
             <li>
               <Link
-                href="/dashboard/admin"
+                href="/dashboard/admin/owner"
                 className={`block rounded-lg px-3 py-2 text-sm transition ${
-                  pathname.startsWith('/dashboard/admin') && !pathname.includes('/owner')
+                  pathname.startsWith('/dashboard/admin/owner')
                     ? 'bg-violet-500/10 text-white'
                     : 'text-gray-400 hover:bg-violet-500/10 hover:text-white'
                 }`}
               >
-                Admin Hub
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/dashboard"
-                className="block rounded-lg px-3 py-2 text-sm text-gray-400 transition hover:bg-violet-500/10 hover:text-white"
-              >
-                Customer Dashboard
+                Founder OS Home
               </Link>
             </li>
           </ul>

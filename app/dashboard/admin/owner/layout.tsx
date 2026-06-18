@@ -11,7 +11,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
   } = await supabase.auth.getUser();
 
   if (!user || !isOwner(user.email)) {
-    redirect('/dashboard');
+    redirect('/login');
   }
 
   return (

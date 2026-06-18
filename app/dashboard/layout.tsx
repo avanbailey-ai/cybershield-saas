@@ -53,6 +53,10 @@ export default async function DashboardLayout({
 
   const owner = isOwner(user.email);
 
+  if (owner) {
+    return <>{children}</>;
+  }
+
   const orgCtx = await resolveOrgSessionContextFromSession(
     supabase as unknown as SessionSubscriptionClient,
     user.id,

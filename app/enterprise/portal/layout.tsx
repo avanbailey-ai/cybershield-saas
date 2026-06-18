@@ -7,6 +7,7 @@ import { canAccessEnterprise } from '@/lib/auth/permissions';
 import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 import { isOwner } from '@/lib/auth/owner';
+import { OWNER_HOME_PATH } from '@/lib/auth/ownerExperience';
 import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,10 @@ export default async function EnterprisePortalLayout({ children }: { children: R
     redirect('/enterprise/login?redirectTo=/enterprise/portal');
   }
 
+  if (isOwner(user.email)) {
+    redirect(OWNER_HOME_PATH);
+  }
+
   const cookieStore = await cookies();
   const cookieOrgId = cookieStore.get(ORG_CONTEXT_COOKIE)?.value ?? null;
 
@@ -32,7 +37,6 @@ export default async function EnterprisePortalLayout({ children }: { children: R
   );
 
   if (
-    !isOwner(user.email) &&
     !canAccessEnterprise(
       {
         email: user.email,
@@ -47,7 +51,7 @@ export default async function EnterprisePortalLayout({ children }: { children: R
 
   return (
     <>
-      <EnterprisePortalShell showOwnerTools={isOwner(user.email)}>{children}</EnterprisePortalShell>
+      <EnterprisePortalShell showOwnerTools={false}>{children}</EnterprisePortalShell>
       <ReportProblemWidget userEmail={user.email} />
     </>
   );

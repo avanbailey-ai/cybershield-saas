@@ -36,7 +36,7 @@ export default async function OwnerCommandCenterPage() {
   } = await supabase.auth.getUser();
 
   if (!user || !isOwner(user.email)) {
-    redirect('/dashboard');
+    redirect('/login');
   }
 
   const admin = createAdminClient();

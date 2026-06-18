@@ -1,4 +1,5 @@
 import { isOwner } from './owner';
+import { OWNER_HOME_PATH } from './ownerExperience';
 import { canAccessEnterprise } from './permissions';
 import type { UserForFeatureGate } from './featureGate';
 import type { OrgRole } from '@/lib/auth/rbac';
@@ -26,7 +27,7 @@ export function getRedirectPath(
 
   if (!user) return '/login';
 
-  if (isOwner(user.email)) return '/dashboard/admin';
+  if (isOwner(user.email)) return OWNER_HOME_PATH;
 
 
 

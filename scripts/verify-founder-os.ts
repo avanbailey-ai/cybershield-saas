@@ -6,6 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { isOwner, OWNER_EMAIL } from '../lib/auth/owner';
+import { OWNER_HOME_PATH } from '../lib/auth/ownerExperience';
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -25,6 +26,10 @@ function readFile(rel: string): string {
 assert(fileExists('app/dashboard/admin/owner/page.tsx'), 'Owner page route exists');
 assert(fileExists('app/dashboard/admin/owner/layout.tsx'), 'Owner layout exists');
 
+assert(fileExists('lib/auth/ownerExperience.ts'), 'ownerExperience routing module exists');
+assert(OWNER_HOME_PATH === '/dashboard/admin/owner', 'Owner home is Founder OS');
+assert(readFile('lib/auth/redirect.ts').includes('OWNER_HOME_PATH'), 'Post-login redirect uses Founder OS');
+
 // ── Access control ──
 assert(isOwner('avanbailey@gmail.com'), 'Default owner email is recognized');
 assert(!isOwner('customer@example.com'), 'Customer email is not owner');
@@ -36,7 +41,7 @@ assert(ownerTs.includes('process.env.OWNER_EMAIL'), 'owner.ts reads OWNER_EMAIL 
 
 const ownerLayout = readFile('app/dashboard/admin/owner/layout.tsx');
 assert(ownerLayout.includes('isOwner'), 'Owner layout gates with isOwner');
-assert(ownerLayout.includes("redirect('/dashboard')"), 'Non-owner redirected from owner layout');
+assert(ownerLayout.includes("redirect('/login')"), 'Non-owner redirected from owner layout');
 
 // ── 13 module components ──
 const MODULE_COMPONENTS = [

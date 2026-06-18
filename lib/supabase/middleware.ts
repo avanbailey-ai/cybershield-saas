@@ -16,6 +16,7 @@ import {
   hasOrgMembership,
 } from "@/lib/org/sessionContext";
 import { isOwner } from "@/lib/auth/owner";
+import { OWNER_HOME_PATH, shouldRedirectOwnerFromPath } from "@/lib/auth/ownerExperience";
 import { canAccessEnterprise } from "@/lib/auth/permissions";
 
 
@@ -135,6 +136,12 @@ export async function updateSession(request: NextRequest) {
 
     const { pathname } = request.nextUrl;
 
+    if (user && isOwner(user.email) && shouldRedirectOwnerFromPath(pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = OWNER_HOME_PATH;
+      return NextResponse.redirect(url);
+    }
+
     // Legacy /dashboard → canonical /app (enterprise dashboard → portal)
     if (pathname.startsWith('/dashboard/enterprise')) {
       const url = request.nextUrl.clone();
@@ -142,7 +149,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url, 308);
     }
 
-    if (pathname.startsWith('/dashboard')) {
+    if (pathname.startsWith('/dashboard') && !pathname.startsWith('/dashboard/admin')) {
       const url = request.nextUrl.clone();
       url.pathname = pathname.replace(/^\/dashboard/, '/app');
       return NextResponse.redirect(url, 308);
@@ -351,6 +358,12 @@ export async function updateSession(request: NextRequest) {
 
 
     if (isAuthPath && user) {
+
+      if (isOwner(user.email)) {
+        const url = request.nextUrl.clone();
+        url.pathname = OWNER_HOME_PATH;
+        return NextResponse.redirect(url);
+      }
 
       if (pathname.startsWith('/enterprise/login')) {
         const access = await getSubscriptionAccessFromSession(
