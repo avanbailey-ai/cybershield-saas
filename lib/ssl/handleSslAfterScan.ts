@@ -1,5 +1,3 @@
-import { persistSslCertificate } from './persistSslCertificate';
-import { processSslExpiryAlerts } from './processSslExpiryAlerts';
 import { probeCertificate, hostnameFromUrl } from './probeCertificate';
 import type { SslCertificateInfo } from './types';
 
@@ -18,6 +16,9 @@ export async function handleSslCertificateAfterScan(params: {
   scanId: string;
   certificate: SslCertificateInfo;
 }): Promise<void> {
+  const { persistSslCertificate } = await import('./persistSslCertificate');
+  const { processSslExpiryAlerts } = await import('./processSslExpiryAlerts');
+
   await persistSslCertificate({
     websiteId: params.websiteId,
     scanId: params.scanId,
