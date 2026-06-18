@@ -13,6 +13,7 @@ import SecurityReportEmptyState from '@/components/report/SecurityReportEmptySta
 import SecurityReportExperience from '@/components/report/SecurityReportExperience';
 import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
 import { buildExecutiveReportPresentation } from '@/lib/report/reportExecutiveCopy';
+import { getSiteUrl } from '@/lib/site/getSiteUrl';
 import ReportProblemOnReport from '@/components/beta/ReportProblemOnReport';
 
 interface ScanRow {
@@ -159,6 +160,14 @@ export default async function ReportPage({ params }: PageProps) {
     ? new Date(scanRow.completed_at).toLocaleString()
     : new Date(scanRow.started_at).toLocaleString();
 
+  const siteBase = getSiteUrl();
+  const reportUrl = siteBase ? `${siteBase}/report/${id}` : undefined;
+  const findingActionContext = {
+    siteUrl,
+    siteLabel,
+    reportUrl,
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 bg-gray-900/80 backdrop-blur">
@@ -208,6 +217,7 @@ export default async function ReportPage({ params }: PageProps) {
               findings={intelligence.findings}
               recommendations={intelligence.recommendations}
               sslValid={scanRow.ssl_valid}
+              actionContext={findingActionContext}
             />
             {scanRow.website_id && (
               <SecurityTrendPanel websiteId={scanRow.website_id} period={30} />

@@ -1,6 +1,7 @@
 'use client';
 
 import type { SecurityIntelligenceCard } from '@/lib/securityIntelligence/types';
+import type { FindingActionContext } from '@/lib/findings';
 import {
   categoryLabel,
   formatSeverity,
@@ -8,6 +9,8 @@ import {
   severityGlowClass,
 } from './severityStyles';
 import CollapsibleReportSection from './CollapsibleReportSection';
+import FindingActionBar from './FindingActionBar';
+import RemediationAssistantPanel from './RemediationAssistantPanel';
 
 interface SecurityFindingCardProps {
   finding: SecurityIntelligenceCard & { id?: string };
@@ -15,6 +18,7 @@ interface SecurityFindingCardProps {
   expanded?: boolean;
   onToggle?: () => void;
   controlId?: string;
+  actionContext?: FindingActionContext;
 }
 
 function WarningIcon() {
@@ -57,7 +61,16 @@ function FindingHeader({ finding }: { finding: SecurityIntelligenceCard }) {
   );
 }
 
-function FindingDetails({ finding }: { finding: SecurityIntelligenceCard }) {
+function FindingDetails({
+  finding,
+  actionContext,
+}: {
+  finding: SecurityIntelligenceCard & { id?: string };
+  actionContext?: FindingActionContext;
+}) {
+  const findingId = finding.id ?? finding.title.replace(/\s+/g, '_').toLowerCase();
+  const findingWithId = { ...finding, id: findingId };
+
   return (
     <>
       {finding.impact.length > 0 && (
@@ -84,6 +97,10 @@ function FindingDetails({ finding }: { finding: SecurityIntelligenceCard }) {
       </div>
 
       <div className="mb-4">
+        <RemediationAssistantPanel finding={findingWithId} />
+      </div>
+
+      <div className="mb-4">
         <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
           How to fix it
         </h4>
@@ -91,6 +108,12 @@ function FindingDetails({ finding }: { finding: SecurityIntelligenceCard }) {
           {finding.fix}
         </pre>
       </div>
+
+      {actionContext && (
+        <div className="mb-4">
+          <FindingActionBar finding={findingWithId} context={actionContext} />
+        </div>
+      )}
 
       <div className="rounded-lg border border-green-500/15 bg-green-500/5 px-4 py-3">
         <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-400/90">
@@ -108,6 +131,7 @@ export default function SecurityFindingCard({
   expanded = false,
   onToggle,
   controlId,
+  actionContext,
 }: SecurityFindingCardProps) {
   const sectionId = controlId ?? `finding-${finding.title.replace(/\s+/g, '-').toLowerCase()}`;
 
@@ -147,7 +171,7 @@ export default function SecurityFindingCard({
           onToggle={onToggle}
           header={<FindingHeader finding={finding} />}
         >
-          <FindingDetails finding={finding} />
+          <FindingDetails finding={finding} actionContext={actionContext} />
         </CollapsibleReportSection>
       </article>
     );
@@ -159,7 +183,7 @@ export default function SecurityFindingCard({
     >
       <FindingHeader finding={finding} />
       <div className="mt-4 border-t border-gray-800/80 pt-4">
-        <FindingDetails finding={finding} />
+        <FindingDetails finding={finding} actionContext={actionContext} />
       </div>
     </article>
   );

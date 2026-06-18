@@ -5,9 +5,12 @@ import type {
   ExecutiveReportPresentation,
   ReportViewMode,
 } from '@/lib/report/reportExecutiveCopy';
+import type { FindingActionContext } from '@/lib/findings';
 import type { SecurityFinding, SecurityRecommendation } from '@/lib/securityIntelligence/types';
 import SecurityFindingCard from './SecurityFindingCard';
 import SecurityRecommendationsPanel from './SecurityRecommendationsPanel';
+import FindingActionBar from './FindingActionBar';
+import RemediationAssistantPanel from './RemediationAssistantPanel';
 import { riskScoreColor } from './severityStyles';
 
 interface SecurityReportExperienceProps {
@@ -15,6 +18,7 @@ interface SecurityReportExperienceProps {
   findings: SecurityFinding[];
   recommendations: SecurityRecommendation[];
   sslValid: boolean | null;
+  actionContext?: FindingActionContext;
 }
 
 function ViewModeToggle({
@@ -71,6 +75,7 @@ export default function SecurityReportExperience({
   findings,
   recommendations,
   sslValid,
+  actionContext,
 }: SecurityReportExperienceProps) {
   const [viewMode, setViewMode] = useState<ReportViewMode>('executive');
   const { summary, scoreExplanation, fixTheseFirst, strengths, groupedFindings, plan, progress } =
@@ -240,6 +245,7 @@ export default function SecurityReportExperience({
                         finding={finding}
                         view={view}
                         technicalMode={viewMode === 'technical'}
+                        actionContext={actionContext}
                       />
                     );
                   })}
@@ -337,7 +343,7 @@ export default function SecurityReportExperience({
           />
           {findings.map((finding) => (
             <div key={`tech-${finding.id}`} className="mb-4">
-              <SecurityFindingCard finding={finding} />
+              <SecurityFindingCard finding={finding} actionContext={actionContext} />
             </div>
           ))}
         </>
@@ -350,10 +356,12 @@ function ExecutiveFindingCard({
   finding,
   view,
   technicalMode,
+  actionContext,
 }: {
   finding: SecurityFinding;
   view: ExecutiveReportPresentation['findingViews'][0];
   technicalMode: boolean;
+  actionContext?: FindingActionContext;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showTechnical, setShowTechnical] = useState(false);
@@ -408,6 +416,14 @@ function ExecutiveFindingCard({
               (+{view.scoreImpact.estimatedGain})
             </p>
           </div>
+          <div>
+            <RemediationAssistantPanel finding={finding} />
+          </div>
+          {actionContext && (
+            <div>
+              <FindingActionBar finding={finding} context={actionContext} />
+            </div>
+          )}
           {technicalMode ? (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
