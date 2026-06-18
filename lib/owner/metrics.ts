@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
+import { isInternalCustomerEmail } from './founderCustomerFilters';
 import type { BusinessOverviewMetrics, TrendWindow } from './types';
 
 function windowStart(window: TrendWindow): Date {
@@ -28,7 +29,7 @@ export async function getBusinessOverview(window: TrendWindow = '30d'): Promise<
 
   const [profilesRes, websitesRes, scansRes, signupsRes, prevSignupsRes, displayAmounts] =
     await Promise.all([
-      admin.from('profiles').select('plan, subscription_status, created_at'),
+      admin.from('profiles').select('plan, subscription_status, created_at, email'),
       admin.from('websites').select('id', { count: 'exact', head: true }),
       admin
         .from('scans')
@@ -46,7 +47,9 @@ export async function getBusinessOverview(window: TrendWindow = '30d'): Promise<
       getPlanDisplayAmounts(),
     ]);
 
-  const profiles = profilesRes.data ?? [];
+  const profiles = (profilesRes.data ?? []).filter(
+    (p) => !isInternalCustomerEmail((p.email as string) ?? ''),
+  );
   const activePaid = profiles.filter(
     (p) =>
       p.subscription_status === 'active' ||

@@ -10,6 +10,12 @@ import { getRevenueAtRisk } from './revenueAtRisk';
 import { getCustomerExpansion } from './customerExpansion';
 import { getActivityFeed } from './activityFeed';
 import { getDueFollowUps } from './followUpScheduler';
+import { getBusinessHealthMetrics, type BusinessHealthMetrics } from './businessHealthMetrics';
+import { getAutomationHealth, type AutomationHealthSummary } from './automationHealth';
+import {
+  buildRevenueOpportunities,
+  type RevenueOpportunityItem,
+} from './revenueOpportunities';
 import type { CustomerHealthSummary } from './customerHealth';
 import type { RevenueAtRiskSummary } from './revenueAtRisk';
 import type { CustomerExpansionSummary } from './customerExpansion';
@@ -44,6 +50,9 @@ export interface FounderOsV6Data extends FounderOsV5Data {
       emailsSent24h: number;
       followUpsDue: number;
     };
+    businessHealth: BusinessHealthMetrics;
+    automationHealth: AutomationHealthSummary;
+    revenueOpportunities: RevenueOpportunityItem[];
   };
 }
 
@@ -85,6 +94,31 @@ export const EMPTY_FOUNDER_OS_V6: FounderOsV6Data = {
       emailsSent24h: 0,
       followUpsDue: 0,
     },
+    businessHealth: {
+      mrr: 0,
+      arr: 0,
+      payingCustomers: 0,
+      activeTrials: 0,
+      newSignups30d: 0,
+      conversionRate: 0,
+      churnRisk: 'Low',
+      churnRiskCount: 0,
+      revenueAtRisk: 0,
+      mrrGoal: 1000,
+      goalProgressPct: 0,
+      daysToGoal: null,
+      calculation: {
+        generatedAt: new Date(0).toISOString(),
+        mrr: { value: 0, includedPlans: [], excludedAccounts: [], rules: [] },
+        conversion: { value: 0, newSignups: 0, upgradedInWindow: 0, windowDays: 30, rules: [] },
+      },
+    },
+    automationHealth: {
+      generatedAt: new Date(0).toISOString(),
+      overall: 'healthy',
+      checks: [],
+    },
+    revenueOpportunities: [],
   },
 };
 
@@ -364,7 +398,7 @@ export async function getFounderOsV6(input?: {
         .not('pipeline_state', 'eq', 'ignore_forever')
         .then((r) => (r.data ?? []) as OwnerProspect[]);
 
-  const [base, customerHealth, revenueAtRisk, expansion, activityFeed, prospects] =
+  const [base, customerHealth, revenueAtRisk, expansion, activityFeed, prospects, businessHealth, automationHealth] =
     await Promise.all([
       getFounderOsV5(input),
       getCustomerHealth(),
@@ -372,6 +406,8 @@ export async function getFounderOsV6(input?: {
       getCustomerExpansion(),
       getActivityFeed(24),
       prospectsPromise,
+      getBusinessHealthMetrics(),
+      getAutomationHealth(),
     ]);
 
   const signups24 = activityFeed.events.filter((e) => e.type === 'signup').length;
@@ -384,7 +420,16 @@ export async function getFounderOsV6(input?: {
     prospects,
   );
   const attention = buildAttention(customerHealth, revenueAtRisk, expansion, inbox);
-  const outreachPending = inbox.filter((i) => i.type === 'outreach').length;
+  const approvableTypes = new Set([
+    'outreach',
+    'follow_up',
+    'failed_email',
+    'customer_risk',
+    'expansion',
+    'signup',
+  ]);
+  const pendingApprovals = inbox.filter((i) => approvableTypes.has(i.type)).length;
+  const outreachDraftCount = inbox.filter((i) => i.type === 'outreach').length;
 
   const dayAgo = new Date(Date.now() - 86400000).toISOString();
   const [sent24Res, followDueRes] = await Promise.all([
@@ -399,8 +444,16 @@ export async function getFounderOsV6(input?: {
       .eq('status', 'due'),
   ]);
 
+  const revenueOpportunities = buildRevenueOpportunities({
+    prospects,
+    inbox,
+    expansion,
+    revenueAtRisk,
+    signups24h: signups24,
+  });
+
   const executionStats = {
-    pendingApprovals: outreachPending,
+    pendingApprovals,
     emailsSent24h: sent24Res.count ?? 0,
     followUpsDue: followDueRes.count ?? 0,
   };
@@ -417,8 +470,8 @@ export async function getFounderOsV6(input?: {
   const focus =
     revenueAtRisk.totalMrrAtRisk > 0
       ? `Protect $${revenueAtRisk.totalMrrAtRisk}/mo — review at-risk customers`
-      : outreachPending > 0
-        ? `Approve ${outreachPending} outreach draft${outreachPending === 1 ? '' : 's'}`
+      : pendingApprovals > 0
+        ? `Approve ${pendingApprovals} pending item${pendingApprovals === 1 ? '' : 's'}`
         : base.biggestOpportunity
           ? `Close ${base.biggestOpportunity.businessName}`
           : 'Run targeted discovery';
@@ -435,14 +488,7 @@ export async function getFounderOsV6(input?: {
           .join(' · ')
       : base.chiefOfStaff.upside;
 
-  const approvableItems = inbox.filter(
-    (i) =>
-      i.type === 'outreach' ||
-      i.type === 'follow_up' ||
-      i.type === 'failed_email' ||
-      i.type === 'expansion' ||
-      (i.type === 'customer_risk' && i.action.toLowerCase().includes('approve')),
-  );
+  const approvableItems = inbox.filter((i) => approvableTypes.has(i.type));
 
   return {
     ...base,
@@ -454,7 +500,7 @@ export async function getFounderOsV6(input?: {
     },
     inbox,
     autopilot: {
-      outreachDrafts: outreachPending,
+      outreachDrafts: outreachDraftCount,
       followUps: inbox.filter((i) => i.type === 'follow_up').length,
       expansionOpportunities: inbox.filter((i) => i.type === 'expansion').length,
       items: approvableItems,
@@ -482,13 +528,16 @@ export async function getFounderOsV6(input?: {
       activityFeed,
       attention,
       homeSummary: {
-        mrr: base.businessStatus.mrr,
+        mrr: businessHealth.mrr,
         mrrAtRisk: revenueAtRisk.totalMrrAtRisk,
         changesCount: activityFeed.events.length,
         topOpportunity: base.biggestOpportunity?.businessName ?? null,
         needsAttention: attention.length,
       },
       executionStats,
+      businessHealth,
+      automationHealth,
+      revenueOpportunities,
     },
   };
 }

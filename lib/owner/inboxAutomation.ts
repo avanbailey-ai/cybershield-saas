@@ -259,8 +259,32 @@ export async function executeInboxApproval(
   }
 
   if (id.startsWith('signup-')) {
+    const dayAgo = new Date(Date.now() - 86400000).toISOString();
+    const { data: recentSignups } = await admin
+      .from('profiles')
+      .select('id, email, plan')
+      .gte('created_at', dayAgo)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    let sent = 0;
+    for (const s of recentSignups ?? []) {
+      const email = s.email as string;
+      if (!email) continue;
+      const result = await sendRetentionEmail(
+        admin,
+        { userId: s.id as string, email, template: 'onboarding', plan: (s.plan as string) ?? 'free' },
+        { approved: true },
+      );
+      if (result.ok) sent++;
+    }
+
+    if (sent > 0) {
+      return { ok: true, action: 'onboarding', detail: `Onboarding email sent to ${sent} signup(s)` };
+    }
+
     await queueAutopilotTask(admin, 'Review new signup onboarding path', 0);
-    return { ok: true, action: 'signup_review', detail: 'Signup review task created' };
+    return { ok: true, action: 'signup_review', detail: 'No recent signups to email — task queued' };
   }
 
   return { ok: true, action: 'acknowledge', detail: 'Acknowledged' };

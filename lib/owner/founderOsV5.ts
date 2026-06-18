@@ -4,6 +4,7 @@ import { getCustomerIntelligence } from './customerIntelligence';
 import type { OwnerProspect, OwnerCrmLead } from './types';
 import { planFitDisplayName } from './salesIntelligence';
 import { hasOutreachContact, resolveProspectList } from './prospectDisplay';
+import { isInternalCustomerEmail } from './founderCustomerFilters';
 
 const DEFAULT_MRR_GOAL = 1000;
 
@@ -234,10 +235,22 @@ export async function getFounderOsV5(input?: {
 
   const payingCustomers = profiles.filter(
     (p) =>
-      p.subscription_status === 'active' && p.plan && p.plan !== 'free' && p.plan !== 'owner',
+      !isInternalCustomerEmail((p.email as string) ?? '') &&
+      p.subscription_status === 'active' &&
+      p.plan &&
+      p.plan !== 'free' &&
+      p.plan !== 'owner',
   ).length;
-  const activeTrials = profiles.filter((p) => p.subscription_status === 'trialing').length;
-  const churnRiskCount = profiles.filter((p) => (p.churn_risk_score ?? 0) > 70).length;
+  const activeTrials = profiles.filter(
+    (p) =>
+      !isInternalCustomerEmail((p.email as string) ?? '') &&
+      p.subscription_status === 'trialing',
+  ).length;
+  const churnRiskCount = profiles.filter(
+    (p) =>
+      !isInternalCustomerEmail((p.email as string) ?? '') &&
+      (p.churn_risk_score ?? 0) > 70,
+  ).length;
   const churnRisk: 'Low' | 'Medium' | 'High' =
     churnRiskCount >= 5 ? 'High' : churnRiskCount >= 2 ? 'Medium' : 'Low';
 

@@ -15,9 +15,10 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: s
 }
 
 export default function CustomersView() {
-  const { founderData, setSection } = useFounderNav();
+  const { founderData, refreshFounderData, setSection } = useFounderNav();
   const [directory, setDirectory] = useState<CustomerDirectoryEntry[]>([]);
   const [totalMrr, setTotalMrr] = useState(0);
+  const [busy, setBusy] = useState<string | null>(null);
   const revenue = founderData.v6.revenueAtRisk;
   const expansion = founderData.v6.expansion;
 
@@ -30,12 +31,61 @@ export default function CustomersView() {
       });
   }, [founderData.generatedAt]);
 
+  async function sendRetention(userId: string) {
+    setBusy(`ret-${userId}`);
+    try {
+      await fetch('/api/owner/inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve', ids: [`churn-${userId}`], meta: { userId } }),
+      });
+      await refreshFounderData();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sendUpgrade(userId: string, mrrGain: number, toPlan: string) {
+    setBusy(`up-${userId}`);
+    try {
+      await fetch('/api/owner/inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve',
+          ids: [`exp-${userId}`],
+          meta: { userId, mrrGain, toPlan },
+        }),
+      });
+      await refreshFounderData();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function markStatus(userId: string, action: 'mark_healthy' | 'mark_at_risk') {
+    setBusy(`${action}-${userId}`);
+    try {
+      await fetch(`/api/owner/customers/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const res = await fetch('/api/owner/customers');
+      const d = await res.json();
+      if (d.customers) setDirectory(d.customers);
+      await refreshFounderData();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (directory.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
         <header className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight text-white">Customers</h1>
-          <p className="mt-2 text-gray-500">Your paying customer directory</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-white">Revenue protection</h1>
+          <p className="mt-2 text-gray-500">Paying customer directory and retention actions</p>
         </header>
         <EmptyState
           title="No paying customers yet"
@@ -48,10 +98,9 @@ export default function CustomersView() {
   return (
     <div className="mx-auto max-w-6xl space-y-10">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Customers</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-white">Revenue protection</h1>
         <p className="mt-2 text-gray-500">
-          {directory.length} paying customer{directory.length === 1 ? '' : 's'} · ${totalMrr}/mo
-          MRR
+          {directory.length} paying customer{directory.length === 1 ? '' : 's'} · ${totalMrr}/mo MRR
         </p>
       </header>
 
@@ -128,6 +177,50 @@ export default function CustomersView() {
               {c.risks.length > 0 && (
                 <p className="mt-2 text-xs text-amber-400/90">Risks: {c.risks.join(' · ')}</p>
               )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {c.healthStatus !== 'Healthy' && (
+                  <button
+                    type="button"
+                    disabled={busy === `ret-${c.userId}`}
+                    onClick={() => sendRetention(c.userId)}
+                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs text-white hover:bg-violet-500 disabled:opacity-50"
+                  >
+                    {busy === `ret-${c.userId}` ? 'Sending…' : 'Send retention'}
+                  </button>
+                )}
+                {c.expansionOpportunity && (
+                  <button
+                    type="button"
+                    disabled={busy === `up-${c.userId}`}
+                    onClick={() =>
+                      sendUpgrade(
+                        c.userId,
+                        c.expansionOpportunity!.mrrGain,
+                        c.expansionOpportunity!.recommendedPlan,
+                      )
+                    }
+                    className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+                  >
+                    {busy === `up-${c.userId}` ? 'Sending…' : 'Send upgrade email'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={busy === `mark_healthy-${c.userId}`}
+                  onClick={() => markStatus(c.userId, 'mark_healthy')}
+                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 disabled:opacity-50"
+                >
+                  Mark healthy
+                </button>
+                <button
+                  type="button"
+                  disabled={busy === `mark_at_risk-${c.userId}`}
+                  onClick={() => markStatus(c.userId, 'mark_at_risk')}
+                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 disabled:opacity-50"
+                >
+                  Mark at risk
+                </button>
+              </div>
             </li>
           ))}
         </ul>
