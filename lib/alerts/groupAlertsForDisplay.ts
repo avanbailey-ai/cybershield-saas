@@ -2,6 +2,11 @@ import {
   softenStoredAlertMessage,
   isChangeBasedAlertType,
 } from './alertCopyFromTimeline';
+import {
+  businessLanguageGroupedAlertTitle,
+  softenCustomerAlertMessage,
+  softenCustomerAlertTitle,
+} from '@/lib/dashboard/customerLanguage';
 
 export interface AlertForGrouping {
   id: string;
@@ -87,8 +92,8 @@ export function groupAlertsForDisplay(alerts: AlertForGrouping[]): GroupedAlertD
       grouped.push({
         id: alert.id,
         scanId: alert.scan_id,
-        title: alert.title,
-        message: softenStoredAlertMessage(alert.message),
+        title: softenCustomerAlertTitle(alert.title),
+        message: softenCustomerAlertMessage(softenStoredAlertMessage(alert.message)),
         severity: alert.severity,
         is_read: alert.is_read,
         created_at: alert.created_at,
@@ -109,8 +114,8 @@ export function groupAlertsForDisplay(alerts: AlertForGrouping[]): GroupedAlertD
     grouped.push({
       id: `group:${latest.scan_id}:${categoryLabel}`,
       scanId: latest.scan_id,
-      title: `${categoryLabel} — ${bucket.length} changes detected`,
-      message: softenStoredAlertMessage(latest.message),
+      title: businessLanguageGroupedAlertTitle(categoryLabel, bucket.length),
+      message: softenCustomerAlertMessage(softenStoredAlertMessage(latest.message)),
       severity: worst,
       categoryLabel,
       is_read: allRead,
@@ -125,8 +130,8 @@ export function groupAlertsForDisplay(alerts: AlertForGrouping[]): GroupedAlertD
     grouped.push({
       id: alert.id,
       scanId: alert.scan_id,
-      title: alert.title,
-      message: softenStoredAlertMessage(alert.message),
+      title: softenCustomerAlertTitle(alert.title),
+      message: softenCustomerAlertMessage(softenStoredAlertMessage(alert.message)),
       severity: alert.severity,
       is_read: alert.is_read,
       created_at: alert.created_at,

@@ -33,6 +33,10 @@ function sevenDaysAgoIso(): string {
   return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
+function thirtyDaysAgoIso(): string {
+  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function startOfMonthIso(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -146,7 +150,7 @@ async function fetchValueMetrics(
   domainSummary: Awaited<ReturnType<typeof fetchDomainDashboardSummary>>,
   websitesHealthy: number,
 ): Promise<EnterpriseValueMetrics> {
-  const since7d = sevenDaysAgoIso();
+  const since30d = thirtyDaysAgoIso();
 
   const [checksRes, changesMap, failedRes] = await Promise.all([
     admin
@@ -154,14 +158,14 @@ async function fetchValueMetrics(
       .select('id', { count: 'exact', head: true })
       .eq('org_id', orgId)
       .eq('status', 'completed')
-      .gte('completed_at', since7d),
-    fetchChangesByWebsite(admin, websiteIds, since7d),
+      .gte('completed_at', since30d),
+    fetchChangesByWebsite(admin, websiteIds, since30d),
     admin
       .from('scans')
       .select('id', { count: 'exact', head: true })
       .eq('org_id', orgId)
       .eq('status', 'failed')
-      .gte('completed_at', since7d),
+      .gte('completed_at', since30d),
   ]);
 
   const changesDetected = [...changesMap.values()].reduce((a, b) => a + b, 0);
@@ -175,6 +179,8 @@ async function fetchValueMetrics(
     checksCompleted: checksRes.count ?? 0,
     changesDetected,
     sslDomainIssues,
+    sslCertificatesProtected: sslSummary.healthy,
+    domainRisksFlagged: domainSummary.warning + domainSummary.critical,
     downtimeEvents: failedRes.count ?? 0,
     sitesAllOnline: websitesHealthy,
     websitesMonitored: websiteIds.length,
@@ -213,6 +219,8 @@ export async function fetchEnterpriseCommandCenterData(input: {
       checksCompleted: 0,
       changesDetected: 0,
       sslDomainIssues: 0,
+      sslCertificatesProtected: 0,
+      domainRisksFlagged: 0,
       downtimeEvents: 0,
       sitesAllOnline: 0,
       websitesMonitored: 0,

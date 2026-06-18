@@ -70,6 +70,15 @@ function trendClass(direction: string): string {
   }
 }
 
+function SummaryField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2.5">
+      <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</dt>
+      <dd className="mt-1 text-sm font-medium text-gray-200">{value}</dd>
+    </div>
+  );
+}
+
 export default function SecurityReportExperience({
   presentation,
   findings,
@@ -85,13 +94,37 @@ export default function SecurityReportExperience({
     <>
       <ViewModeToggle mode={viewMode} onChange={setViewMode} />
 
-      {/* Executive Summary */}
+      {/* Executive Summary — structured first */}
       <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
           Executive Summary
         </h2>
         <p className="text-lg font-semibold text-white">{summary.headline}</p>
-        <ul className="mt-4 space-y-2">
+
+        <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <SummaryField label="Website Status" value={summary.statusBullets[0] ?? 'Under review'} />
+          <SummaryField
+            label="Protection Score"
+            value={`${scoreExplanation.score}/100 · ${scoreExplanation.band}`}
+          />
+          <SummaryField label="Risk Level" value={summary.overallRisk.replace(/^Overall risk:\s*/i, '')} />
+          <SummaryField
+            label="Primary Risk Drivers"
+            value={scoreExplanation.scoreDrivers.slice(0, 2).join(' · ') || 'None identified'}
+          />
+          <SummaryField label="Next Step" value={summary.nextStep} />
+          <SummaryField
+            label="Estimated Score Improvement"
+            value={
+              fixTheseFirst.potentialImprovement ||
+              (fixTheseFirst.totalEstimatedGain > 0
+                ? `Up to +${fixTheseFirst.totalEstimatedGain} points available`
+                : 'Maintain current protections')
+            }
+          />
+        </dl>
+
+        <ul className="mt-5 space-y-2">
           {summary.statusBullets.map((bullet) => (
             <li key={bullet} className="flex items-start gap-2 text-sm text-gray-300">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
@@ -99,11 +132,6 @@ export default function SecurityReportExperience({
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-sm font-medium text-gray-200">{summary.overallRisk}</p>
-        <p className="mt-2 text-sm text-gray-400">
-          <span className="font-medium text-gray-300">Next step: </span>
-          {summary.nextStep}
-        </p>
       </section>
 
       {/* Security Score Explanation */}

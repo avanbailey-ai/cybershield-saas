@@ -60,8 +60,8 @@ function startOfMonthIso(): string {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
-function sevenDaysAgoIso(): string {
-  return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+function thirtyDaysAgoIso(): string {
+  return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 }
 
 async function fetchChangesCountSince(
@@ -80,7 +80,7 @@ async function fetchChangesCountSince(
   return count ?? 0;
 }
 
-async function fetchValueSummary7d(
+async function fetchValueSummary30d(
   supabase: SupabaseClient,
   websiteIds: string[],
   orgId: string | null,
@@ -89,19 +89,19 @@ async function fetchValueSummary7d(
   domainSummary: Awaited<ReturnType<typeof fetchDomainDashboardSummary>>,
   sitesAllOnline: number,
 ): Promise<ValueSummaryMetrics> {
-  const since7d = sevenDaysAgoIso();
+  const since30d = thirtyDaysAgoIso();
 
   let checksQuery = supabase
     .from('scans')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'completed')
-    .gte('completed_at', since7d);
+    .gte('completed_at', since30d);
 
   let failedQuery = supabase
     .from('scans')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'failed')
-    .gte('completed_at', since7d);
+    .gte('completed_at', since30d);
 
   if (orgId) {
     checksQuery = checksQuery.eq('org_id', orgId);
@@ -114,7 +114,7 @@ async function fetchValueSummary7d(
   const [checksRes, failedRes, changesDetected] = await Promise.all([
     checksQuery,
     failedQuery,
-    fetchChangesCountSince(supabase, websiteIds, since7d),
+    fetchChangesCountSince(supabase, websiteIds, since30d),
   ]);
 
   return {
@@ -122,6 +122,8 @@ async function fetchValueSummary7d(
     changesDetected,
     sslDomainIssues:
       sslSummary.warning + sslSummary.critical + domainSummary.warning + domainSummary.critical,
+    sslCertificatesProtected: sslSummary.healthy,
+    domainRisksFlagged: domainSummary.warning + domainSummary.critical,
     downtimeEvents: failedRes.count ?? 0,
     sitesAllOnline,
     websitesMonitored: websiteIds.length,
@@ -344,7 +346,7 @@ export async function fetchCommandCenterData(
     monthlyTrend,
   );
 
-  const valueSummary = await fetchValueSummary7d(
+  const valueSummary = await fetchValueSummary30d(
     supabase,
     websiteIds,
     orgId,

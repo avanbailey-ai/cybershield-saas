@@ -30,12 +30,12 @@ const DASHBOARD_COMPONENTS = [
 const UUID_PATTERN = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i;
 
 // --- Copy constants ---
-assert(COMMAND_CENTER_COPY.title === 'CyberShield Command Center', 'title constant');
+assert(COMMAND_CENTER_COPY.title === 'Website Intelligence Command Center', 'title constant');
 assert(COMMAND_CENTER_COPY.monitoringActive.includes('Monitoring Active'), 'retention banner copy');
-assert(COMMAND_CENTER_COPY.orgHealthTitle === 'Organization Security Health', 'org health title');
+assert(COMMAND_CENTER_COPY.orgHealthTitle === 'Website Health', 'org health title');
 assert(COMMAND_CENTER_COPY.securityWinsTitle === "What's Working Well", 'security wins title');
-assert(COMMAND_CENTER_COPY.needsAttentionTitle === 'Needs Attention', 'needs attention title');
-assert(COMMAND_CENTER_COPY.recentActivityTitle === 'Recent Security Activity', 'activity title');
+assert(COMMAND_CENTER_COPY.needsAttentionTitle === 'Immediate Attention', 'needs attention title');
+assert(COMMAND_CENTER_COPY.recentActivityTitle === 'Recent Website Intelligence', 'activity title');
 assert(COMMAND_CENTER_COPY.quickActionsTitle === 'Quick Actions', 'quick actions title');
 
 // --- Score bands ---

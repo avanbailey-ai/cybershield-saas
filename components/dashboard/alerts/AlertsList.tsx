@@ -93,7 +93,7 @@ export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[
         </div>
         <p className="text-sm font-medium text-gray-300">No alerts</p>
         <p className="mt-1 text-xs text-gray-500">
-          Alerts are created automatically when scans detect security issues.
+          Alerts are created automatically when monitoring detects changes or website health items need review.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <Link

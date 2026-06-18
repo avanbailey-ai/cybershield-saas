@@ -167,23 +167,23 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                 />
               )}
 
-              {/* 2. What CyberShield Did For You */}
+              {/* 2. What CyberShield Did For Your Clients */}
               <section className="min-w-0">
                 <AgencySectionHeader
                   title={ENTERPRISE_COMMAND_CENTER_COPY.valueDeliveredTitle}
-                  subtitle="Past 7 days of protection value for your agency"
-                  whatHappened={`${valueMetrics.checksCompleted} security checks, ${valueMetrics.changesDetected} changes tracked, ${valueMetrics.sslDomainIssues} SSL/domain items flagged.`}
+                  subtitle="Past 30 days of protection value across your client portfolio"
+                  whatHappened={`${valueMetrics.checksCompleted} monitoring checks, ${valueMetrics.changesDetected} changes tracked, ${valueMetrics.sslCertificatesProtected} SSL certificates protected.`}
                   whyItMatters="Your clients stay protected without manual log reviews — issues surface before they become outages."
-                  whatNext="Share wins in client QBRs or dive into sites that need review below."
+                  whatNext="Share wins in client QBRs or dive into clients that need review below."
                 />
                 <CyberShieldValueSummary
                   metrics={valueMetrics}
-                  title="Past 7 Days"
-                  subtitle="Protection value delivered across your client portfolio"
+                  title={ENTERPRISE_COMMAND_CENTER_COPY.valueDeliveredTitle}
+                  subtitle="Past 30 days of protection and intelligence for your clients"
                 />
               </section>
 
-              {/* 3. Needs Your Attention */}
+              {/* 3. Clients Requiring Review */}
               <section className="min-w-0 rounded-xl border border-orange-800/30 bg-gray-900/50 p-5 sm:p-6">
                 <AgencySectionHeader
                   title={ENTERPRISE_COMMAND_CENTER_COPY.needsAttentionTitle}
@@ -205,7 +205,7 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                 )}
               </section>
 
-              {/* 4. Protected Websites */}
+              {/* 4. Protected Clients */}
               <section className="min-w-0 rounded-xl border border-green-800/20 bg-gray-900/50 p-5 sm:p-6">
                 <AgencySectionHeader
                   title={ENTERPRISE_COMMAND_CENTER_COPY.protectedWebsitesTitle}
@@ -225,7 +225,7 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                 )}
               </section>
 
-              {/* 5. Recent Security Activity */}
+              {/* 5. Recent Client Intelligence */}
               <section className="min-w-0">
                 <AgencySectionHeader
                   title={ENTERPRISE_COMMAND_CENTER_COPY.recentActivityTitle}

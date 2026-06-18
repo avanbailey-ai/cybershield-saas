@@ -13,11 +13,11 @@ import type { PostureState } from './postureState';
 
 /** Section markers — used by verify-enterprise-dashboard-v3.ts */
 export const ENTERPRISE_COMMAND_CENTER_COPY = {
-  title: 'Organization Command Center',
-  valueDeliveredTitle: 'What CyberShield Did For You',
-  needsAttentionTitle: 'Needs Your Attention',
-  protectedWebsitesTitle: 'Protected Websites',
-  recentActivityTitle: 'Recent Security Activity',
+  title: 'Client Protection Overview',
+  valueDeliveredTitle: 'What CyberShield Did For Your Clients',
+  needsAttentionTitle: 'Clients Requiring Review',
+  protectedWebsitesTitle: 'Protected Clients',
+  recentActivityTitle: 'Recent Client Intelligence',
   advancedDiagnosticsTitle: 'Advanced Monitoring Diagnostics',
   orgInsightsTitle: 'Organization Insights',
   reportsTitle: 'Reports & Reviews',
@@ -40,6 +40,8 @@ export interface EnterpriseValueMetrics {
   checksCompleted: number;
   changesDetected: number;
   sslDomainIssues: number;
+  sslCertificatesProtected: number;
+  domainRisksFlagged: number;
   downtimeEvents: number;
   sitesAllOnline: number;
   websitesMonitored: number;

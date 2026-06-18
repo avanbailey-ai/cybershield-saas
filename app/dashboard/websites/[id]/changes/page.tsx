@@ -2,12 +2,12 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
-import WebsiteChangeTimeline from '@/components/dashboard/websites/WebsiteChangeTimeline';
+import WebsiteMemoryTimeline from '@/components/dashboard/websites/WebsiteMemoryTimeline';
 import { fetchWebsiteChangeTimeline } from '@/lib/scanChanges/fetchWebsiteChanges';
 import { parseChangeTimelinePeriod, parseTimelineFilter } from '@/lib/scanChanges/changeTimeline';
 
 export const metadata: Metadata = {
-  title: 'Change Timeline — CyberShield',
+  title: 'Website Memory — CyberShield',
 };
 
 export default async function WebsiteChangesPage({
@@ -44,9 +44,9 @@ export default async function WebsiteChangesPage({
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email={user.email ?? 'User'} title="Change Timeline" />
+      <DashboardHeader email={user.email ?? 'User'} title="Website Memory" />
       <main className="flex-1 overflow-auto p-4 sm:p-6">
-        <WebsiteChangeTimeline
+        <WebsiteMemoryTimeline
           websiteId={timeline.website.id}
           websiteLabel={displayLabel}
           websiteUrl={timeline.website.url}

@@ -39,9 +39,9 @@ export default async function AlertsPage() {
       <DashboardHeader email={user.email ?? 'User'} title="Alerts" />
       <main className="flex-1 overflow-auto p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-white">Alerts</h2>
+          <h2 className="text-xl font-bold text-white">Protection Alerts</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Security notifications for your monitored websites.
+            Website health and monitoring notifications for your protected sites.
           </p>
         </div>
         <AlertsList initialAlerts={(alerts ?? []) as unknown as AlertRow[]} />

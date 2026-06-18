@@ -44,8 +44,12 @@ const REQUIRED_SECTIONS = [
 
 // --- Copy constants ---
 assert(
-  ENTERPRISE_COMMAND_CENTER_COPY.needsAttentionTitle === 'Needs Your Attention',
+  ENTERPRISE_COMMAND_CENTER_COPY.needsAttentionTitle === 'Clients Requiring Review',
   'needs attention title',
+);
+assert(
+  ENTERPRISE_COMMAND_CENTER_COPY.title === 'Client Protection Overview',
+  'client protection overview title',
 );
 assert(ENTERPRISE_COMMAND_CENTER_COPY.protected === 'Protected', 'protected label');
 assert(ENTERPRISE_COMMAND_CENTER_COPY.monitoringActive === 'Monitoring Active', 'monitoring active');

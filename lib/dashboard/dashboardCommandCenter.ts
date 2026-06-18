@@ -5,20 +5,32 @@ import type { DomainDashboardSummary } from '@/lib/domain/fetchDomainDashboardSu
 
 /** Section markers — used by verify-dashboard-v2.ts */
 export const COMMAND_CENTER_COPY = {
-  title: 'CyberShield Command Center',
+  title: 'Website Intelligence Command Center',
   monitoringActive: 'CyberShield Monitoring Active',
   monitoringActiveDetail:
     'Your websites are being checked automatically. We will alert you if anything changes.',
-  welcomeMonitoring: 'Continuous security monitoring is active across your websites.',
+  welcomeMonitoring: 'Continuous website protection is active — we detect changes and surface intelligence automatically.',
   emptyTitle: 'Welcome to CyberShield',
-  emptySubtitle: 'Add your first website to start continuous security monitoring.',
-  orgHealthTitle: 'Organization Security Health',
-  activeMonitoringTitle: 'Active Monitoring',
+  emptySubtitle: 'Add your first website to start continuous website protection and intelligence.',
+  orgHealthTitle: 'Website Health',
+  activeMonitoringTitle: 'Monitoring Active',
   securityWinsTitle: "What's Working Well",
-  needsAttentionTitle: 'Needs Attention',
-  recentActivityTitle: 'Recent Security Activity',
+  needsAttentionTitle: 'Immediate Attention',
+  recentActivityTitle: 'Recent Website Intelligence',
   quickActionsTitle: 'Quick Actions',
   scoreContextTitle: 'Score Guide',
+} as const;
+
+/** Dashboard V4 section markers — used by verify-dashboard-v4-strategy.ts */
+export const DASHBOARD_V4_COPY = {
+  websiteHealthTitle: 'Website Health',
+  monitoringActiveTitle: 'Monitoring Active',
+  monitoringActiveSubtitle: 'Continuous checks across SSL, domain, uptime, and configuration.',
+  immediateAttentionTitle: 'Immediate Attention',
+  recentIntelligenceTitle: 'Recent Website Intelligence',
+  valueDeliveredTitle: 'What CyberShield Did For You',
+  valueDeliveredSubtitle: 'Past 30 days of protection and intelligence',
+  websiteMemoryTitle: 'Website Memory',
 } as const;
 
 export type ScoreBandKey =
@@ -140,14 +152,16 @@ export interface ValueSummaryMetrics {
   checksCompleted: number;
   changesDetected: number;
   sslDomainIssues: number;
+  sslCertificatesProtected: number;
+  domainRisksFlagged: number;
   downtimeEvents: number;
   sitesAllOnline: number;
   websitesMonitored: number;
 }
 
 export const VALUE_SUMMARY_COPY = {
-  title: 'Past 7 Days',
-  subtitle: 'What CyberShield has done for you',
+  title: DASHBOARD_V4_COPY.valueDeliveredTitle,
+  subtitle: DASHBOARD_V4_COPY.valueDeliveredSubtitle,
 } as const;
 
 export interface WebsiteActivityCard extends CommandCenterWebsite {
@@ -546,8 +560,8 @@ export function formatActivityFeed(input: {
       const bucket = scoreToRiskBucket(scan.securityScore);
       items.push({
         id: scan.id,
-        title: `Security check completed for ${name}`,
-        detail: `Score: ${scan.securityScore}/100 (${band.label})`,
+        title: `Website health updated for ${name}`,
+        detail: `Protection score ${scan.securityScore}/100 · ${band.label}`,
         timeLabel: time ? formatRelativeScanTime(time) : 'Recently',
         tone: bucket === 'low' ? 'good' : bucket === 'critical' || bucket === 'high' ? 'warn' : 'neutral',
         href: `/report/${scan.id}`,
@@ -555,16 +569,16 @@ export function formatActivityFeed(input: {
     } else if (scan.status === 'processing' || scan.status === 'pending') {
       items.push({
         id: scan.id,
-        title: `Security scan in progress for ${name}`,
-        detail: 'Results will appear when the scan completes.',
+        title: `Monitoring check in progress for ${name}`,
+        detail: 'Intelligence will appear when the check completes.',
         timeLabel: time ? formatRelativeScanTime(time) : 'In progress',
         tone: 'neutral',
       });
     } else if (scan.status === 'failed') {
       items.push({
         id: scan.id,
-        title: `Scan could not complete for ${name}`,
-        detail: 'Retry from Quick Actions or the website card.',
+        title: `Monitoring check incomplete for ${name}`,
+        detail: 'CyberShield will retry automatically, or review from Quick Actions.',
         timeLabel: time ? formatRelativeScanTime(time) : 'Recently',
         tone: 'bad',
       });
@@ -574,8 +588,8 @@ export function formatActivityFeed(input: {
   if (input.changesDetected > 0 && items.length < 8) {
     items.unshift({
       id: 'changes-summary',
-      title: `${input.changesDetected} security change${input.changesDetected === 1 ? '' : 's'} detected recently`,
-      detail: 'Review change timelines to confirm updates match your expectations.',
+      title: `${input.changesDetected} website change${input.changesDetected === 1 ? '' : 's'} detected recently`,
+      detail: 'Review Website Memory to confirm updates match your expectations.',
       timeLabel: 'Recent',
       tone: 'warn',
       href: '/app/websites',

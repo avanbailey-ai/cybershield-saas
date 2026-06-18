@@ -47,11 +47,12 @@ export default function CyberShieldValueSummary({
         <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
       </div>
       <div
-        className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'}`}
+        className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}
       >
-        <MetricCell label="Security checks" value={metrics.checksCompleted} />
+        <MetricCell label="Monitoring checks" value={metrics.checksCompleted} />
         <MetricCell label="Changes detected" value={metrics.changesDetected} />
-        <MetricCell label="SSL / domain issues" value={metrics.sslDomainIssues} />
+        <MetricCell label="SSL certificates protected" value={metrics.sslCertificatesProtected} />
+        <MetricCell label="Domain risks flagged" value={metrics.domainRisksFlagged} />
         <MetricCell label="Downtime events" value={metrics.downtimeEvents} />
         <MetricCell
           label="Sites online"

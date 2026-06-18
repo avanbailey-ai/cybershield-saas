@@ -230,25 +230,25 @@ export default function WebsiteChangeTimeline({
         >
           ← Back to websites
         </Link>
-        <h2 className="mt-3 text-xl font-bold text-white">Website Change Timeline</h2>
+        <h2 className="mt-3 text-xl font-bold text-white">Website Memory</h2>
         <p className="mt-1 text-sm text-gray-400">
           {websiteLabel}
           <span className="mx-2 text-gray-600">·</span>
           <span className="text-gray-500">{websiteUrl}</span>
         </p>
         <p className="mt-3 text-sm leading-relaxed text-gray-400">
-          Everything that happened to your website — score changes, new and resolved findings, SSL
-          and domain events, uptime incidents, and page structure changes. CyberShield groups
-          related scan diffs into clear events so you can focus on what matters.
+          A business-language timeline of everything CyberShield remembers about your website —
+          protection score changes, SSL and domain events, uptime incidents, improvements, and
+          configuration updates. Related changes are grouped into clear intelligence events.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {[
             'Score changes',
             'SSL & domain',
             'Uptime events',
-            'New findings',
-            'Resolved issues',
-            'Script changes',
+            'New improvements',
+            'Resolved items',
+            'Configuration changes',
           ].map((tag) => (
             <span
               key={tag}

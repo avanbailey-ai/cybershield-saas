@@ -151,6 +151,6 @@ const fetcherContent = fs.readFileSync(
   'utf8',
 );
 assert(fetcherContent.includes('valueSummary'), 'fetcher returns value summary');
-assert(fetcherContent.includes('fetchValueSummary7d'), 'fetcher has 7-day metrics');
+assert(fetcherContent.includes('fetchValueSummary30d'), 'fetcher has 30-day metrics');
 
 console.log('All Customer Experience V3 checks passed.');

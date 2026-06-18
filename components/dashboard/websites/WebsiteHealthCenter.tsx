@@ -189,7 +189,8 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
           <span className="text-gray-500">{website.url}</span>
         </p>
         <p className="mt-2 text-sm text-gray-500">
-          Executive view of security, availability, and monitoring for this website.
+          Mission control for this website — protection score, SSL, domain, uptime, changes, and
+          recommended actions in one place.
         </p>
       </div>
 
@@ -394,7 +395,7 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
           href={`/app/websites/${website.id}/changes`}
           className="inline-flex items-center rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800/80"
         >
-          View change timeline →
+          View Website Memory →
         </Link>
       </div>
 
@@ -447,8 +448,8 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
       <section className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-white">Active Alerts</h3>
-            <p className="mt-1 text-xs text-gray-500">Unread alerts requiring your attention</p>
+            <h3 className="text-sm font-semibold text-white">Recommended Actions</h3>
+            <p className="mt-1 text-xs text-gray-500">Unread alerts and improvements to review</p>
           </div>
           <Link href="/app/alerts" className="text-xs text-blue-400 hover:text-blue-300">
             All alerts
