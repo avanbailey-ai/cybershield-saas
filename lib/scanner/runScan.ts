@@ -1,5 +1,6 @@
 import { parseHtmlSnapshot, type PageSnapshotPartial } from './pageSnapshot';
 import { applyIntelligenceToScanResult } from '@/lib/securityIntelligence/engine';
+import { EMPTY_PAGE_SNAPSHOT } from './scanTypes';
 
 export interface HeaderChecks {
   csp: boolean;
@@ -24,30 +25,20 @@ export interface ScanResult {
   error?: string;
 }
 
-const EMPTY_SNAPSHOT: PageSnapshotPartial = {
-  metaTags: {},
-  scripts: [],
-  loginFormDetected: false,
-  endpoints: [],
-  formsDetected: 0,
-  thirdPartyScripts: [],
-  externalApiCalls: [],
-  techFingerprint: { frameworks: [], cdn: [], analytics: [] },
-};
-
+/** Full deep scan — HEAD + GET HTML parse + intelligence. Used for weekly/manual/onboarding scans. */
 export async function runScan(url: string): Promise<ScanResult> {
   const stack = new Error().stack ?? '';
-  if (!stack.includes('processQueue')) {
+  if (!stack.includes('processQueue') && !stack.includes('executeScanWithTimeout')) {
     console.warn(
       '[SECURITY] runScan called outside worker context. This should only be called by processQueue.ts.',
       '\nCall stack:', stack,
     );
   }
 
-  console.log(`[SCAN ENTRY] ${new Date().toISOString()} — starting scan for ${url}`);
+  console.log(`[DEEP SCAN] ${new Date().toISOString()} — starting scan for ${url}`);
 
   let rawHeaders: Record<string, string> = {};
-  let pageSnapshot: PageSnapshotPartial = { ...EMPTY_SNAPSHOT };
+  let pageSnapshot = { ...EMPTY_PAGE_SNAPSHOT };
 
   const ssl = url.toLowerCase().startsWith('https://');
 
@@ -73,7 +64,7 @@ export async function runScan(url: string): Promise<ScanResult> {
         permissionsPolicy: false,
       },
       rawHeaders: {},
-      pageSnapshot: EMPTY_SNAPSHOT,
+      pageSnapshot: EMPTY_PAGE_SNAPSHOT,
       score: 0,
       riskLevel: 'critical',
       issues: [`Could not reach website: ${message}`],

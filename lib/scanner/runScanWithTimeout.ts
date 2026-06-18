@@ -1,55 +1,14 @@
-import { runScan, type ScanResult } from './runScan';
+import type { ScanResult } from './runScan';
+import {
+  executeScanWithTimeout,
+  ScanTimeoutError,
+} from './executeScanWithTimeout';
 
-import { getScanJobTimeoutMs } from '@/lib/queue/constants';
+export { ScanTimeoutError };
 
-
-
-export class ScanTimeoutError extends Error {
-
-  constructor(timeoutMs: number) {
-
-    super(`Scan timed out after ${timeoutMs}ms`);
-
-    this.name = 'ScanTimeoutError';
-
-  }
-
-}
-
-
-
-export async function runScanWithTimeout(
-
-  url: string,
-
-  timeoutMs = getScanJobTimeoutMs(),
-
-): Promise<ScanResult> {
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-
-
-  try {
-
-    return await Promise.race([
-
-      runScan(url),
-
-      new Promise<ScanResult>((_, reject) => {
-
-        timer = setTimeout(() => reject(new ScanTimeoutError(timeoutMs)), timeoutMs);
-
-      }),
-
-    ]);
-
-  } finally {
-
-    if (timer) clearTimeout(timer);
-
-  }
-
+/** @deprecated Prefer executeScanWithTimeout(url, scanKind). Defaults to deep scan. */
+export async function runScanWithTimeout(url: string): Promise<ScanResult> {
+  return executeScanWithTimeout(url, 'deep_scan');
 }
 
 

@@ -1,7 +1,7 @@
 /**
  * postProcessScan.ts — Centralized post-scan side-effects handler.
  *
- * Called by the queue worker (processQueue.ts) after every runScan() invocation.
+ * Called by the queue worker (processQueue.ts) after every scan invocation.
  * Core DB writes complete synchronously; alerts, AI reports, and email run async.
  */
 
@@ -38,6 +38,8 @@ import {
 } from './diffDetection';
 import { finalizeScanQueueJob, type ScanQueueFinalizeResult } from './finalizeScan';
 import { updateOrgIntelligence } from '@/lib/enterprise/updateOrgIntelligence';
+import { LIGHTWEIGHT_CHANGE_TYPES } from './scanTypes';
+import type { LightweightMonitorMeta } from './runLightweightMonitor';
 
 type PreviousScanRow = {
   id: string;
@@ -63,6 +65,7 @@ export function postProcessScanSideEffects(params: {
   currentSnapshot: ReturnType<typeof buildSnapshotFromScanResult>;
   newRiskScore: number;
   scanSource?: string;
+  scanKind?: string | null;
 }): void {
   void (async () => {
     const {
@@ -78,6 +81,7 @@ export function postProcessScanSideEffects(params: {
       currentSnapshot,
       newRiskScore,
       scanSource,
+      scanKind,
     } = params;
 
     const supabase = createAdminClient();
@@ -288,7 +292,15 @@ export function postProcessScanSideEffects(params: {
       const previousSnapshot = previousScanRow
         ? buildSnapshotFromDbRow(previousScanRow)
         : null;
-      const changeDiff = detectScanChanges(previousSnapshot, currentSnapshot, now);
+      let changeDiff = detectScanChanges(previousSnapshot, currentSnapshot, now);
+
+      if (scanKind === 'monitoring_check') {
+        const filtered = changeDiff.changes.filter((c) => LIGHTWEIGHT_CHANGE_TYPES.has(c.type));
+        changeDiff = {
+          changes: filtered,
+          hasCritical: filtered.some((c) => c.severity === 'critical'),
+        };
+      }
 
       if (changeDiff.changes.length > 0) {
         try {
@@ -380,21 +392,47 @@ export function postProcessScanSideEffects(params: {
         }
       : null;
 
-    void generateAndStoreReport({
-      scanId,
-      domain,
-      userId,
-      scanResult,
-      websiteId,
-      plan,
-      previousScan: previousForReport,
-    }).catch((err) =>
-      console.error('[POST-PROCESS] Report generation failed (non-fatal):', err),
-    );
+    const isDeepScan = scanKind === 'deep_scan';
 
-    void updateLeaderboard(domain, scanResult.score).catch((err) =>
-      console.error('[POST-PROCESS] Leaderboard update failed (non-fatal):', err),
-    );
+    if (isDeepScan) {
+      void generateAndStoreReport({
+        scanId,
+        domain,
+        userId,
+        scanResult,
+        websiteId,
+        plan,
+        previousScan: previousForReport,
+      }).catch((err) =>
+        console.error('[POST-PROCESS] Report generation failed (non-fatal):', err),
+      );
+
+      void updateLeaderboard(domain, scanResult.score).catch((err) =>
+        console.error('[POST-PROCESS] Leaderboard update failed (non-fatal):', err),
+      );
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', userId)
+          .single();
+
+        if (profile?.email) {
+          await triggerScanEmailFunnel({
+            userId,
+            email: profile.email,
+            domain,
+            score: scanResult.score,
+            reportSummary: scanResult.explanation,
+          });
+        }
+      } catch (err) {
+        console.error('[POST-PROCESS] Email funnel failed (non-fatal):', err);
+      }
+    } else {
+      console.log(`[POST-PROCESS] Skipping AI report/leaderboard/funnel for ${scanKind ?? 'monitoring_check'}`);
+    }
 
     void emitEvent(
       'scan_completed',
@@ -403,26 +441,6 @@ export function postProcessScanSideEffects(params: {
       null,
       'app',
     );
-
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', userId)
-        .single();
-
-      if (profile?.email) {
-        await triggerScanEmailFunnel({
-          userId,
-          email: profile.email,
-          domain,
-          score: scanResult.score,
-          reportSummary: scanResult.explanation,
-        });
-      }
-    } catch (err) {
-      console.error('[POST-PROCESS] Email funnel failed (non-fatal):', err);
-    }
 
     if (scanSource !== 'cron') {
       try {
@@ -580,12 +598,17 @@ export async function postProcessScan(params: {
       rawHeaders: scanResult.rawHeaders,
       pageSnapshot: scanResult.pageSnapshot,
     });
+    const monitoringMeta = (scanResult as { monitoringMeta?: LightweightMonitorMeta }).monitoringMeta;
+    const snapshotForStorage =
+      monitoringMeta != null ? { ...currentSnapshot, monitoringMeta } : currentSnapshot;
 
     const { data: scanRow } = await supabase
       .from('scans')
       .select('scan_kind')
       .eq('id', scanId)
       .maybeSingle();
+
+    const scanKind = scanRow?.scan_kind ?? null;
 
     await postProcessScanCore({
       scanId,
@@ -595,8 +618,8 @@ export async function postProcessScan(params: {
       scanResult,
       websiteRow,
       orgId,
-      currentSnapshot,
-      scanKind: scanRow?.scan_kind ?? null,
+      currentSnapshot: snapshotForStorage,
+      scanKind,
     });
 
     if (orgId && !scanResult.error) {
@@ -620,9 +643,10 @@ export async function postProcessScan(params: {
       previousScanRow,
       previousRiskScore,
       previousSecurityScore,
-      currentSnapshot,
+      currentSnapshot: snapshotForStorage,
       newRiskScore,
       scanSource,
+      scanKind,
     });
 
     console.log(`[POST-PROCESS] scan completion scanId=${scanId} status=${queueStatus}`);

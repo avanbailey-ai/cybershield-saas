@@ -14,10 +14,13 @@ export const DEFAULT_MAX_ATTEMPTS = 3;
 
 
 
-/** Default per-job scan timeout (ms). Override via SCAN_JOB_TIMEOUT_MS. */
+/** Default per-job deep scan timeout (ms). Override via SCAN_JOB_TIMEOUT_MS. */
 
 /** Keep below Vercel maxDuration minus post-process buffer (~30s). */
 export const DEFAULT_SCAN_JOB_TIMEOUT_MS = 90_000;
+
+/** Lightweight monitoring check timeout (HEAD + DNS only). */
+export const DEFAULT_LIGHTWEIGHT_SCAN_TIMEOUT_MS = 30_000;
 
 
 
@@ -94,6 +97,28 @@ export function getScanJobTimeoutMs(): number {
   }
 
   return DEFAULT_SCAN_JOB_TIMEOUT_MS;
+
+}
+
+
+
+export function getLightweightScanTimeoutMs(): number {
+
+  const raw = process.env.LIGHTWEIGHT_SCAN_TIMEOUT_MS;
+
+  if (raw !== undefined && raw !== '') {
+
+    const parsed = Number.parseInt(raw, 10);
+
+    if (Number.isFinite(parsed) && parsed > 0) {
+
+      return parsed;
+
+    }
+
+  }
+
+  return DEFAULT_LIGHTWEIGHT_SCAN_TIMEOUT_MS;
 
 }
 

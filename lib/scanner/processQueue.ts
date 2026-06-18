@@ -20,7 +20,8 @@ import {
 } from '@/lib/queue/constants';
 import type { QueueJob } from '@/lib/queue/scanJobTypes';
 import { postProcessScan } from './postProcessScan';
-import { runScanWithTimeout } from './runScanWithTimeout';
+import { executeScanWithTimeout } from './executeScanWithTimeout';
+import { resolveScanExecutionKind } from './scanTypes';
 import { finalizeScanJob } from './finalizeScan';
 import { logScanTiming } from '@/lib/observability/log';
 import { trackServerEvent } from '@/lib/analytics/trackServerEvent';
@@ -408,6 +409,7 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
             org_id: orgId,
             status: 'running',
             started_at: new Date().toISOString(),
+            scan_kind: job.source === 'cron' ? 'monitoring_check' : 'deep_scan',
           })
           .select('id')
           .single();
@@ -436,13 +438,20 @@ async function processScanJob(job: QueueJob): Promise<ProcessResult> {
       }
     }
 
-    let scanResult: Awaited<ReturnType<typeof runScanWithTimeout>> | null = null;
+    let scanResult: Awaited<ReturnType<typeof executeScanWithTimeout>> | null = null;
     const scanStart = Date.now();
+
+    const { data: scanKindRow } = await supabase
+      .from('scans')
+      .select('scan_kind')
+      .eq('id', scanRecordId)
+      .maybeSingle();
+    const executionKind = resolveScanExecutionKind(scanKindRow?.scan_kind, job.source);
 
     try {
       const workerRunStart = Date.now();
-      log('running scan');
-      scanResult = await runScanWithTimeout(website.url);
+      log(`running ${executionKind}`);
+      scanResult = await executeScanWithTimeout(website.url, executionKind);
       await addTraceStep(traceId ?? 'unknown', 'worker_run', 'worker', {
         url: website.url,
         score: scanResult.score,
