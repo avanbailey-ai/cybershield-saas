@@ -97,8 +97,12 @@ function main() {
   assert(settingsView.includes('enable_outreach_sending'), 'Settings UI outreach controls');
 
   const home = read('components/owner/views/FounderHomeView.tsx');
-  assert(home.includes('Inbox preview'), 'Home inbox preview');
+  assert(home.includes('ExecutionCommandBanner'), 'Home execution banner');
+  assert(home.includes('Action queue'), 'Home action queue');
   assert(!home.includes('<AutopilotCommandCenter'), 'Home trimmed — no full autopilot panel');
+
+  const leadDiscovery = read('components/owner/LeadDiscovery.tsx');
+  assert(leadDiscovery.includes('ProspectsActionQueue'), 'Prospects send queue wired');
 
   const customers = read('components/owner/views/CustomersView.tsx');
   assert(customers.includes('/api/owner/customers'), 'Customers uses directory API');

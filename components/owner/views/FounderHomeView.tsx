@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useFounderNav } from '../FounderNavContext';
 import AiChiefOfStaff from '../AiChiefOfStaff';
 import ActivityFeed from '../ActivityFeed';
+import ExecutionCommandBanner from '../ExecutionCommandBanner';
 import { FounderInboxList } from '../AutopilotCommandCenter';
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
@@ -19,8 +20,10 @@ export default function FounderHomeView() {
   const { founderData: data, refreshFounderData, setSection } = useFounderNav();
   const [busy, setBusy] = useState(false);
   const summary = data.v6.homeSummary;
-  const inboxPreview = data.inbox.slice(0, 3);
+  const stats = data.v6.executionStats;
+  const inboxPreview = data.inbox.slice(0, 5);
   const customerRisks = data.inbox.filter((i) => i.type === 'customer_risk').slice(0, 3);
+  const outreachIds = data.inbox.filter((i) => i.type === 'outreach').map((i) => i.id);
 
   async function approveInbox(ids: string[]) {
     setBusy(true);
@@ -38,6 +41,41 @@ export default function FounderHomeView() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
+      <ExecutionCommandBanner
+        pendingApprovals={stats.pendingApprovals}
+        emailsSent24h={stats.emailsSent24h}
+        followUpsDue={stats.followUpsDue}
+        busy={busy}
+        onApproveAll={() => approveInbox(outreachIds)}
+      />
+
+      {inboxPreview.length > 0 && (
+        <section className="rounded-2xl border-2 border-violet-500/25 bg-violet-950/20 p-6 shadow-inner">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Action queue</h2>
+              <p className="mt-1 text-sm text-gray-400">
+                Approve items below — each sends real email or executes automation
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSection('inbox')}
+              className="shrink-0 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+            >
+              Full inbox ({data.inbox.length})
+            </button>
+          </div>
+          <div className="mt-5">
+            <FounderInboxList
+              items={inboxPreview}
+              onApprove={(id) => approveInbox([id])}
+              busy={busy}
+            />
+          </div>
+        </section>
+      )}
+
       <AiChiefOfStaff chief={data.chiefOfStaff} />
 
       <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
@@ -52,51 +90,29 @@ export default function FounderHomeView() {
             tone={summary.mrrAtRisk > 0 ? 'text-amber-400' : 'text-emerald-400'}
           />
           <Metric
-            label="Events (24h)"
-            value={String(summary.changesCount)}
-            tone="text-violet-300"
+            label="Emails sent (24h)"
+            value={String(stats.emailsSent24h)}
+            tone="text-emerald-400"
           />
           <Metric
-            label="Needs attention"
-            value={String(summary.needsAttention)}
-            tone={summary.needsAttention > 0 ? 'text-amber-400' : 'text-white'}
+            label="Pending approval"
+            value={String(stats.pendingApprovals)}
+            tone={stats.pendingApprovals > 0 ? 'text-violet-300' : 'text-white'}
           />
         </div>
       </section>
 
       <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
         <h2 className="text-sm font-medium uppercase tracking-wider text-gray-500">
-          Activity feed
+          Execution log
         </h2>
-        <p className="mt-1 text-xs text-gray-600">Last 24 hours — real execution events</p>
+        <p className="mt-1 text-xs text-gray-600">What CyberShield did — last 24 hours</p>
         <div className="mt-4">
           {data.v6.activityFeed.events.length === 0 ? (
-            <p className="text-sm text-gray-500">Quiet period — no major activity yet.</p>
+            <p className="text-sm text-gray-500">Quiet period — run discovery to start the engine.</p>
           ) : (
-            <ActivityFeed events={data.v6.activityFeed.events} compact />
+            <ActivityFeed events={data.v6.activityFeed.events} />
           )}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-gray-500">
-            Inbox preview
-          </h2>
-          <button
-            type="button"
-            onClick={() => setSection('inbox')}
-            className="text-xs text-violet-400 hover:text-violet-300"
-          >
-            View all ({data.inbox.length}) →
-          </button>
-        </div>
-        <div className="mt-4">
-          <FounderInboxList
-            items={inboxPreview}
-            onApprove={(id) => approveInbox([id])}
-            busy={busy}
-          />
         </div>
       </section>
 
@@ -142,9 +158,6 @@ export default function FounderHomeView() {
                 <div>
                   <p className="text-sm font-medium text-white">{item.title}</p>
                   <p className="text-xs text-gray-500">{item.description}</p>
-                  {item.revenueImpact != null && item.revenueImpact > 0 && (
-                    <p className="text-xs text-amber-300">${item.revenueImpact}/mo at stake</p>
-                  )}
                 </div>
                 <button
                   type="button"

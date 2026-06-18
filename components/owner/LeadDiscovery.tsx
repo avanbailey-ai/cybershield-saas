@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SectionCard } from './MetricCard';
 import ProspectPipeline from './ProspectPipeline';
+import ProspectsActionQueue from './ProspectsActionQueue';
 import RevenueOpportunityBar from './RevenueOpportunityBar';
 import EmptyState from './EmptyState';
 import type { OwnerProspect } from '@/lib/owner/types';
@@ -379,7 +380,14 @@ export default function LeadDiscovery({
         </div>
       )}
 
-      {!hasProspects ? discoveryEmpty : <ProspectPipeline prospects={prospects} onProspectsChange={setProspects} />}
+      {!hasProspects ? discoveryEmpty : (
+        <>
+          <div className="mb-8">
+            <ProspectsActionQueue prospects={prospects} onProspectsChange={setProspects} />
+          </div>
+          <ProspectPipeline prospects={prospects} onProspectsChange={setProspects} />
+        </>
+      )}
 
       <div className="mt-8 border-t border-white/10 pt-6">
         <button

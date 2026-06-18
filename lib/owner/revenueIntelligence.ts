@@ -25,7 +25,7 @@ export function computeRevenueIntelligence(
     (p) => p.pipeline_state === 'outreach_ready' && hasOutreachContact(p),
   );
 
-  const revenueProspects = outreachReady.length > 0 ? outreachReady : qualified;
+  const revenueProspects = outreachReady.length > 0 ? outreachReady : qualified.filter(hasOutreachContact);
   const estimatedMonthlyRevenue = revenueProspects.reduce(
     (sum, p) => sum + (p.estimated_plan_fit ?? 0),
     0,

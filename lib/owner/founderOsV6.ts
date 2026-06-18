@@ -39,6 +39,11 @@ export interface FounderOsV6Data extends FounderOsV5Data {
       topOpportunity: string | null;
       needsAttention: number;
     };
+    executionStats: {
+      pendingApprovals: number;
+      emailsSent24h: number;
+      followUpsDue: number;
+    };
   };
 }
 
@@ -74,6 +79,11 @@ export const EMPTY_FOUNDER_OS_V6: FounderOsV6Data = {
       changesCount: 0,
       topOpportunity: null,
       needsAttention: 0,
+    },
+    executionStats: {
+      pendingApprovals: 0,
+      emailsSent24h: 0,
+      followUpsDue: 0,
     },
   },
 };
@@ -376,6 +386,25 @@ export async function getFounderOsV6(input?: {
   const attention = buildAttention(customerHealth, revenueAtRisk, expansion, inbox);
   const outreachPending = inbox.filter((i) => i.type === 'outreach').length;
 
+  const dayAgo = new Date(Date.now() - 86400000).toISOString();
+  const [sent24Res, followDueRes] = await Promise.all([
+    admin
+      .from('owner_outreach_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_type', 'email_sent')
+      .gte('created_at', dayAgo),
+    admin
+      .from('owner_follow_ups')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'due'),
+  ]);
+
+  const executionStats = {
+    pendingApprovals: outreachPending,
+    emailsSent24h: sent24Res.count ?? 0,
+    followUpsDue: followDueRes.count ?? 0,
+  };
+
   const chiefBullets = buildChiefBullets(
     base,
     customerHealth,
@@ -459,6 +488,7 @@ export async function getFounderOsV6(input?: {
         topOpportunity: base.biggestOpportunity?.businessName ?? null,
         needsAttention: attention.length,
       },
+      executionStats,
     },
   };
 }
