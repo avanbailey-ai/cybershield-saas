@@ -87,7 +87,30 @@ export async function POST(req: NextRequest) {
       .is('deleted_at', null);
 
     let created = 0;
+    let skipped = 0;
     for (const p of prospects ?? []) {
+      const email = (p.contact_email as string | null)?.trim();
+      if (!email || p.scan_status !== 'completed') {
+        skipped++;
+        continue;
+      }
+      if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') {
+        skipped++;
+        continue;
+      }
+
+      const { count: existing } = await admin
+        .from('owner_outreach_drafts')
+        .select('id', { count: 'exact', head: true })
+        .eq('prospect_id', p.id)
+        .is('deleted_at', null)
+        .in('status', ['draft', 'approved']);
+
+      if ((existing ?? 0) > 0) {
+        skipped++;
+        continue;
+      }
+
       const findings = p.scan_findings as { issues?: string[] } | null;
       const content = generateOutreach('cold_email', {
         businessName: p.business_name,
@@ -104,10 +127,12 @@ export async function POST(req: NextRequest) {
         business_name: p.business_name,
         content,
         status: 'draft',
+        recipient_email: email,
       });
       if (!error) created++;
+      else skipped++;
     }
-    return NextResponse.json({ ok: true, count: created });
+    return NextResponse.json({ ok: true, count: created, skipped });
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   }

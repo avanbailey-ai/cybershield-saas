@@ -73,7 +73,6 @@ export async function runProspectDiscovery(options?: {
   };
 
   const maxInsert = Math.min(settings.maxProspectsPerRun, 50);
-  const maxScan = Math.min(settings.maxAutoScansPerRun, 10);
   const autoScan = options?.autoScan !== false;
 
   const existingHosts = await loadExistingHosts(admin);
@@ -203,7 +202,7 @@ export async function runProspectDiscovery(options?: {
   }
 
   if (autoScan) {
-    for (const id of pendingScanIds.slice(0, maxScan)) {
+    for (const id of pendingScanIds) {
       const ok = await scanProspect(admin, id);
       if (ok) scanned++;
     }

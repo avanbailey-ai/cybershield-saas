@@ -5,6 +5,7 @@ import { discoverContactSignals } from '@/lib/owner/contactDiscovery';
 import { enrichProspect } from '@/lib/owner/prospectEnrichment';
 import { pipelineStateFromScan } from '@/lib/owner/pipeline';
 import { logOutreachEvent } from '@/lib/owner/outreachEvents';
+import { ensureOutreachDraft } from '@/lib/owner/ensureOutreachDraft';
 import type { ProspectPipelineState } from '@/lib/owner/discovery/types';
 
 export async function POST(
@@ -85,6 +86,14 @@ export async function POST(
       recipient_email: enrichment.contact_email,
       detail: `Contact found for ${prospect.business_name}`,
     });
+
+    if (
+      updated &&
+      ((updated.pipeline_state as string) === 'outreach_ready' ||
+        (updated.pipeline_state as string) === 'qualified')
+    ) {
+      await ensureOutreachDraft(admin, updated);
+    }
   }
 
   return NextResponse.json({ ok: true, prospect: updated });

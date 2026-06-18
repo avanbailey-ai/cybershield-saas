@@ -119,6 +119,15 @@ function main() {
 
   assert(!read('components/owner/ProspectsActionQueue.tsx').includes('Approve & Send') || read('components/owner/ProspectsActionQueue.tsx').includes('hasOutreachContact'), 'Prospects queue respects contact gate');
 
+  const outreachExec = read('lib/owner/outreachExecution.ts');
+  assert(outreachExec.includes("draft.outreach_type === 'follow_up'"), 'Follow-ups bypass outreach cooldown');
+
+  const engine = read('lib/owner/discovery/engine.ts');
+  assert(!engine.includes('pendingScanIds.slice(0, maxScan)'), 'Discovery scans all inserted prospects');
+
+  assert(exists('lib/owner/ensureOutreachDraft.ts'), 'Auto outreach draft helper exists');
+  assert(read('lib/owner/prospectScanUpdate.ts').includes('ensureOutreachDraft'), 'Scan completion auto-generates drafts');
+
   console.log('\nAll owner dashboard real execution checks passed.');
 }
 

@@ -3,6 +3,7 @@ import { runScan } from '@/lib/scanner/runScan';
 import { computeLeadScore } from '@/lib/owner/leadScore';
 import { enrichProspect } from '@/lib/owner/prospectEnrichment';
 import { pipelineStateFromScan, topIssueFromFindings } from '@/lib/owner/pipeline';
+import { ensureOutreachDraft } from '@/lib/owner/ensureOutreachDraft';
 
 export async function applyProspectScan(
   admin: SupabaseClient,
@@ -84,6 +85,18 @@ export async function applyProspectScan(
       .single();
 
     if (error) return { ok: false };
+
+    if (updated && resolvedPipeline === 'outreach_ready' && enrichment.contact_email) {
+      await ensureOutreachDraft(admin, updated);
+    } else if (
+      updated &&
+      resolvedPipeline === 'qualified' &&
+      enrichment.contact_email &&
+      (enrichment.opportunity_score ?? 0) >= 50
+    ) {
+      await ensureOutreachDraft(admin, updated);
+    }
+
     return { ok: true, prospect: updated ?? undefined };
   } catch {
     await admin.from('owner_prospects').update({ scan_status: 'failed' }).eq('id', id);

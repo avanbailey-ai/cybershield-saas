@@ -157,8 +157,11 @@ export async function sendApprovedOutreach(
     return { ok: false, error: 'Recipient is an existing customer — not a prospect' };
   }
 
-  if (!options.skipCooldown && (await withinCooldown(admin, toEmail, draft.prospect_id as string | null))) {
-    return { ok: false, error: `Cooldown active — already contacted within ${COOLDOWN_DAYS} days` };
+  if (!options.skipCooldown) {
+    const isFollowUp = draft.outreach_type === 'follow_up';
+    if (!isFollowUp && (await withinCooldown(admin, toEmail, draft.prospect_id as string | null))) {
+      return { ok: false, error: `Cooldown active — already contacted within ${COOLDOWN_DAYS} days` };
+    }
   }
 
   const sentToday = await dailySendCount(admin);
