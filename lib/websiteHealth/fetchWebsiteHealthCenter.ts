@@ -34,6 +34,7 @@ export interface WebsiteHealthCenterData {
   };
   security: {
     score: number | null;
+    previousScore: number | null;
     riskLevel: string | null;
     completedAt: string | null;
     scanId: string | null;
@@ -118,8 +119,7 @@ export async function fetchWebsiteHealthCenter(
       .eq('website_id', websiteId)
       .eq('status', 'completed')
       .order('completed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(2),
     supabase
       .from('ssl_certificates')
       .select('issuer, expires_at, days_until_expiry, checked_at')
@@ -149,7 +149,9 @@ export async function fetchWebsiteHealthCenter(
     fetchWebsiteChangeTimeline(supabase, websiteId, 'month'),
   ]);
 
-  const latestScan = latestScanRes.data;
+  const completedScans = latestScanRes.data ?? [];
+  const latestScan = completedScans[0] ?? null;
+  const previousScan = completedScans[1] ?? null;
   const sslCert = sslCertRes.data;
   const domainSnap = domainSnapRes.data;
   const sslDays = sslCert?.days_until_expiry ?? latestScan?.ssl_expiry_days ?? null;
@@ -159,7 +161,7 @@ export async function fetchWebsiteHealthCenter(
   const domainStatus: DomainHealthStatus = domainHealthFromDays(domainDays);
   const domainMessage =
     domainStatus === 'unknown'
-      ? 'Domain registration has not been checked yet. CyberShield runs weekly domain checks automatically.'
+      ? 'CyberShield is collecting domain registration and DNS information. Monitoring normally becomes available within 24 hours of onboarding.'
       : domainDays !== null && domainDays <= 0
         ? 'Domain registration has expired — renew with your registrar immediately.'
         : domainDays !== null && domainDays <= 60
@@ -199,6 +201,7 @@ export async function fetchWebsiteHealthCenter(
     },
     security: {
       score: latestScan?.security_score ?? null,
+      previousScore: previousScan?.security_score ?? null,
       riskLevel: latestScan?.risk_level ?? null,
       completedAt: latestScan?.completed_at ?? null,
       scanId: latestScan?.id ?? null,
