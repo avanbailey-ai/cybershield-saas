@@ -9,6 +9,8 @@ import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAcc
 import { formatScanFrequency, PLAN_LIMITS } from '@/lib/billing/plans';
 import { formatWebsiteLimit } from '@/lib/billing/plans';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Welcome to Enterprise — CyberShield',
 };

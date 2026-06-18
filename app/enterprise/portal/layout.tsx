@@ -9,6 +9,8 @@ import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAcc
 import { isOwner } from '@/lib/auth/owner';
 import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
 
+export const dynamic = 'force-dynamic';
+
 export default async function EnterprisePortalLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
