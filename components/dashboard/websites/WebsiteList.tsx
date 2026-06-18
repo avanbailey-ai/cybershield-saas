@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ScanAllButton from "@/components/dashboard/ScanAllButton";
@@ -1410,7 +1411,17 @@ export default function WebsiteList() {
 
                   <td className="px-5 py-4 text-right">
 
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+
+                      <Link
+                        href={`/app/websites/${site.id}/changes`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800/80"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+                        </svg>
+                        Changes
+                      </Link>
 
                       <button
 
