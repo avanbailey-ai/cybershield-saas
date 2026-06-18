@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { fetchPostAuthRedirectPath } from "@/lib/auth/fetchPostAuthRedirectPath";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
+import AuthProviderDivider from "@/components/auth/AuthProviderDivider";
 import { isValidReferralCode } from "@/lib/referrals/codeFormat";
 
 export default function SignupForm() {
@@ -63,9 +65,7 @@ export default function SignupForm() {
         return;
       }
 
-      // If email confirmation is enabled, show message; otherwise redirect
       if (data.user && data.session) {
-        // Attach referral from cookie if present
         try {
           await fetch("/api/referrals/attach", {
             method: "POST",
@@ -79,7 +79,7 @@ export default function SignupForm() {
         try {
           await fetch("/api/user/ensure-org", { method: "POST", credentials: "include" });
         } catch {
-          // Non-blocking — dashboard layout also ensures org
+          // Non-blocking
         }
 
         router.push(
@@ -103,74 +103,80 @@ export default function SignupForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
+    <div className="space-y-5">
+      <GoogleAuthButton label="Sign up with Google" />
 
-      {message && (
-        <div className="rounded-lg border border-green-800 bg-green-950/40 px-4 py-3 text-sm text-green-400">
-          {message}
-        </div>
-      )}
+      <AuthProviderDivider />
 
-      <Input
-        id="email"
-        type="email"
-        label="Email address"
-        placeholder="you@example.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        autoComplete="email"
-      />
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {error && (
+          <div className="rounded-lg border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
 
-      <Input
-        id="password"
-        type="password"
-        label="Password"
-        placeholder="Minimum 8 characters"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-        autoComplete="new-password"
-        minLength={8}
-      />
+        {message && (
+          <div className="rounded-lg border border-green-800 bg-green-950/40 px-4 py-3 text-sm text-green-400">
+            {message}
+          </div>
+        )}
 
-      <Input
-        id="confirmPassword"
-        type="password"
-        label="Confirm password"
-        placeholder="••••••••"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
-        autoComplete="new-password"
-      />
+        <Input
+          id="email"
+          type="email"
+          label="Email address"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+        />
 
-      <Button
-        type="submit"
-        variant="primary"
-        size="lg"
-        loading={loading}
-        className="w-full"
-      >
-        Create Account
-      </Button>
+        <Input
+          id="password"
+          type="password"
+          label="Password"
+          placeholder="Minimum 8 characters"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+          minLength={8}
+        />
 
-      <p className="text-center text-xs text-gray-500">
-        By creating an account you agree to our{' '}
-        <Link href="/terms" className="text-gray-400 underline hover:text-gray-300">
-          Terms of Service
-        </Link>{' '}
-        and{' '}
-        <Link href="/privacy" className="text-gray-400 underline hover:text-gray-300">
-          Privacy Policy
-        </Link>
-        .
-      </p>
-    </form>
+        <Input
+          id="confirmPassword"
+          type="password"
+          label="Confirm password"
+          placeholder="••••••••"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+        />
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          loading={loading}
+          className="w-full"
+        >
+          Create Account
+        </Button>
+
+        <p className="text-center text-xs text-gray-500">
+          By creating an account you agree to our{" "}
+          <Link href="/terms" className="text-gray-400 underline hover:text-gray-300">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="text-gray-400 underline hover:text-gray-300">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </form>
+    </div>
   );
 }

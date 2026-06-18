@@ -74,6 +74,12 @@ export default async function AdminPage() {
             <h3 className="text-sm font-semibold text-white">Users by Plan</h3>
             <div className="flex flex-wrap gap-4">
               <a
+                href="/dashboard/admin/owner"
+                className="text-xs font-medium text-violet-400 hover:text-violet-300"
+              >
+                Founder OS →
+              </a>
+              <a
                 href="/dashboard/admin/ceo-dashboard"
                 className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
               >

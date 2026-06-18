@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -12,11 +12,13 @@ import { canAccessFeature } from "@/lib/auth/featureGate";
 import { getUserWithPlan } from "@/lib/billing/planService";
 import { getActiveOrgId } from "@/lib/org/context";
 import { getNotificationPreferences } from "@/lib/notifications/preferences";
+import ChangePasswordCard from "@/components/dashboard/ChangePasswordCard";
+import { userCanChangePassword, userUsesGoogleSignIn } from "@/lib/auth/providers";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Settings — CyberShield",
+  title: "Settings â€” CyberShield",
 };
 
 export default async function SettingsPage({
@@ -53,6 +55,10 @@ export default async function SettingsPage({
     },
     'alerts',
   );
+
+  const identities = user.identities;
+  const canChangePassword = userCanChangePassword(identities);
+  const usesGoogle = userUsesGoogleSignIn(identities);
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">
@@ -94,9 +100,22 @@ export default async function SettingsPage({
                   <p className="text-sm text-gray-300">{memberSince}</p>
                 </div>
                 <p className="rounded-lg border border-gray-700/50 bg-gray-800/30 px-3 py-2 text-xs text-gray-500">
-                  Name and profile photo editing coming soon — your email is managed through your login provider.
+                  Name and profile photo editing coming soon â€” your email is managed through your login provider.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Security */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Password &amp; Security</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordCard
+                canChangePassword={canChangePassword}
+                usesGoogle={usesGoogle}
+              />
             </CardContent>
           </Card>
 
@@ -143,7 +162,7 @@ export default async function SettingsPage({
                       <p className="text-sm font-medium text-gray-200">Delete Account</p>
                       <p className="mt-0.5 text-xs text-gray-500">Permanently remove your account and all data.</p>
                       <p className="mt-1 text-xs text-gray-600">
-                        Account deletion is handled by support — email{' '}
+                        Account deletion is handled by support â€” email{' '}
                         <a href="mailto:support@cybershield.app" className="text-blue-400 underline hover:text-blue-300">
                           support@cybershield.app
                         </a>

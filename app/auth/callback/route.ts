@@ -11,6 +11,7 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const nextPath = searchParams.get("next");
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
@@ -41,10 +42,16 @@ export async function GET(request: Request) {
 
         auditLog({
           userId: user.id,
-          action: 'login',
-          metadata: { provider: 'oauth' },
+          action: nextPath === '/reset-password' ? 'password_reset' : 'login',
+          metadata: {
+            provider: nextPath === '/reset-password' ? 'recovery' : 'oauth',
+          },
           ip: extractIp(request),
         });
+      }
+
+      if (nextPath && nextPath.startsWith('/')) {
+        return NextResponse.redirect(`${origin}${nextPath}`);
       }
 
       const path = await getRedirectPathForSession(supabase as unknown as SessionSupabaseClient);

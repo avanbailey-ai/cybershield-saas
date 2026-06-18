@@ -20,7 +20,7 @@ import { canAccessEnterprise } from "@/lib/auth/permissions";
 
 
 
-const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/pricing", "/scan-result", "/leaderboard", "/enterprise", "/checkout/complete", "/terms", "/privacy", "/refund", "/contact"];
+const PUBLIC_PATHS = ["/", "/scan", "/login", "/signup", "/auth/callback", "/reset-password", "/pricing", "/scan-result", "/leaderboard", "/enterprise", "/checkout/complete", "/terms", "/privacy", "/refund", "/contact"];
 
 const AUTH_PATHS = ["/login", "/signup", "/enterprise/login"];
 

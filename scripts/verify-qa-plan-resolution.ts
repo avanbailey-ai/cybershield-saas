@@ -85,6 +85,6 @@ assert(
   'normal paid agency still gets enterprise',
 );
 assert(!isOwner('test@gmail.com'), 'QA email is not platform owner');
-assert(isOwner('avanbailey@gmail.com'), 'owner override unchanged');
+assert(isOwner('avanbailey@gmail.com'), 'owner default email recognized');
 
 console.log('All QA plan resolution checks passed.');

@@ -1,0 +1,165 @@
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isOwner } from '@/lib/auth/owner';
+import { getOverviewAllWindows } from '@/lib/owner/metrics';
+import { generateDailyBriefing } from '@/lib/owner/briefing';
+import { getCustomerIntelligence } from '@/lib/owner/customerIntelligence';
+import { getDataMoatSnapshot } from '@/lib/owner/dataMoat';
+import { getBusinessOverview } from '@/lib/owner/metrics';
+import { generateMarketingInsights } from '@/lib/owner/generators/insights';
+import FounderCommandCenter from '@/components/owner/FounderCommandCenter';
+import type { OwnerCampaign, OwnerCampaignTask } from '@/lib/owner/types';
+
+export const metadata: Metadata = {
+  title: 'Founder OS — CyberShield',
+  description: 'Owner command center for growth, outreach, and intelligence',
+};
+
+export const dynamic = 'force-dynamic';
+
+type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
+
+async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch {
+    return fallback;
+  }
+}
+
+export default async function OwnerCommandCenterPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || !isOwner(user.email)) {
+    redirect('/dashboard');
+  }
+
+  const admin = createAdminClient();
+
+  const [
+    briefing,
+    windows,
+    prospectsRes,
+    campaignsRes,
+    crmRes,
+    competitorsRes,
+    postsRes,
+    intelligence,
+    moat,
+    overview,
+    hotRes,
+    churnRes,
+  ] = await Promise.all([
+    safeQuery(() => generateDailyBriefing(), {
+      generatedAt: new Date().toISOString(),
+      newCustomers: 0,
+      newLeads: 0,
+      revenueMrr: 0,
+      hotProspects: 0,
+      opportunities: ['Connect Supabase to load live briefing data'],
+      highlights: ['Founder OS ready'],
+    }),
+    safeQuery(() => getOverviewAllWindows(), {
+      today: { mrr: 0, arr: 0, mrrGrowthPct: 0, totalUsers: 0, newSignups: 0, websites: 0, scans: 0, conversionRate: 0, window: 'today' as const },
+      '7d': { mrr: 0, arr: 0, mrrGrowthPct: 0, totalUsers: 0, newSignups: 0, websites: 0, scans: 0, conversionRate: 0, window: '7d' as const },
+      '30d': { mrr: 0, arr: 0, mrrGrowthPct: 0, totalUsers: 0, newSignups: 0, websites: 0, scans: 0, conversionRate: 0, window: '30d' as const },
+      '90d': { mrr: 0, arr: 0, mrrGrowthPct: 0, totalUsers: 0, newSignups: 0, websites: 0, scans: 0, conversionRate: 0, window: '90d' as const },
+    }),
+    safeQuery(async () => {
+      const { data } = await admin
+        .from('owner_prospects')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return { data: data ?? [] };
+    }, { data: [] }),
+    safeQuery(async () => {
+      const { data } = await admin
+        .from('owner_campaigns')
+        .select('*, owner_campaign_tasks(*)')
+        .order('created_at', { ascending: false });
+      return { data: data ?? [] };
+    }, { data: [] }),
+    safeQuery(async () => {
+      const { data } = await admin
+        .from('owner_crm_leads')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      return { data: data ?? [] };
+    }, { data: [] }),
+    safeQuery(async () => {
+      const { data } = await admin.from('owner_competitors').select('*').order('name');
+      return { data: data ?? [] };
+    }, { data: [] }),
+    safeQuery(async () => {
+      const { data } = await admin
+        .from('owner_content_posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return { data: data ?? [] };
+    }, { data: [] }),
+    safeQuery(() => getCustomerIntelligence(), {
+      topIndustries: [],
+      commonFindings: [],
+      avgRiskScore: 0,
+      churnSignals: 0,
+      conversionSignals: 0,
+    }),
+    safeQuery(() => getDataMoatSnapshot(), {
+      benchmarks: [],
+      trends: [{ period: 'Current', avgScore: 0, criticalFindings: 0, sslAdoptionPct: 0 }],
+      moatStrength: 'building' as const,
+      dataPoints: 0,
+    }),
+    safeQuery(() => getBusinessOverview('30d'), {
+      mrr: 0,
+      arr: 0,
+      mrrGrowthPct: 0,
+      totalUsers: 0,
+      newSignups: 0,
+      websites: 0,
+      scans: 0,
+      conversionRate: 0,
+      window: '30d' as const,
+    }),
+    safeQuery(async () => {
+      const { count } = await admin
+        .from('owner_prospects')
+        .select('id', { count: 'exact', head: true })
+        .eq('lead_score', 'HOT');
+      return { count: count ?? 0 };
+    }, { count: 0 }),
+    safeQuery(async () => {
+      const { count } = await admin
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .gt('churn_risk_score', 70);
+      return { count: count ?? 0 };
+    }, { count: 0 }),
+  ]);
+
+  const insights = generateMarketingInsights(overview, {
+    hotProspects: hotRes.count ?? 0,
+    churnRisk: churnRes.count ?? 0,
+    contentPosts: (postsRes.data ?? []).length,
+  });
+
+  return (
+    <FounderCommandCenter
+      briefing={briefing}
+      windows={windows}
+      prospects={prospectsRes.data ?? []}
+      campaigns={(campaignsRes.data ?? []) as CampaignWithTasks[]}
+      crmLeads={crmRes.data ?? []}
+      competitors={competitorsRes.data ?? []}
+      contentPosts={postsRes.data ?? []}
+      insights={insights}
+      intelligence={intelligence}
+      moat={moat}
+    />
+  );
+}
