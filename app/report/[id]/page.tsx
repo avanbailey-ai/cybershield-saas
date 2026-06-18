@@ -8,12 +8,11 @@ import { getEffectivePlan } from '@/lib/auth/permissions';
 import { getUserWithPlan } from '@/lib/billing/planService';
 import type { RiskLevel, UserPlan, HeaderChecks } from '@/types';
 import SecurityTrendPanel from '@/components/dashboard/SecurityTrendPanel';
-import SecurityFindingsPanel from '@/components/report/SecurityFindingsPanel';
 import SecurityOverviewPanel from '@/components/report/SecurityOverviewPanel';
-import SecurityPostureTimeline from '@/components/report/SecurityPostureTimeline';
 import SecurityReportEmptyState from '@/components/report/SecurityReportEmptyState';
-import SecurityRecommendationsPanel from '@/components/report/SecurityRecommendationsPanel';
+import SecurityReportExperience from '@/components/report/SecurityReportExperience';
 import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
+import { buildExecutiveReportPresentation } from '@/lib/report/reportExecutiveCopy';
 import ReportProblemOnReport from '@/components/beta/ReportProblemOnReport';
 
 interface ScanRow {
@@ -136,23 +135,29 @@ export default async function ReportPage({ params }: PageProps) {
   const siteLabel = site?.label ?? site?.url ?? 'Unknown Site';
   const siteUrl = site?.url ?? '';
 
+  const passed = scanRow.passed ?? [];
+  const headers = scanRow.headers;
+
   const intelligence = buildIntelligenceReport(siteUrl, scanRow, previousScan);
+
+  const historicalScores = pastScans
+    .map((ps) => ps.security_score)
+    .filter((s): s is number => s !== null);
+
+  const presentation = buildExecutiveReportPresentation({
+    report: intelligence,
+    passed,
+    headers,
+    sslValid: scanRow.ssl_valid,
+    previousScore: previousScan?.security_score ?? null,
+    completedAt: scanRow.completed_at,
+    startedAt: scanRow.started_at,
+    historicalScores,
+  });
 
   const scannedAt = scanRow.completed_at
     ? new Date(scanRow.completed_at).toLocaleString()
     : new Date(scanRow.started_at).toLocaleString();
-
-  const passed = scanRow.passed ?? [];
-  const headers = scanRow.headers;
-
-  const headerChecks = [
-    { key: 'csp' as keyof HeaderChecks, label: 'Content-Security-Policy' },
-    { key: 'hsts' as keyof HeaderChecks, label: 'Strict-Transport-Security (HSTS)' },
-    { key: 'xFrame' as keyof HeaderChecks, label: 'X-Frame-Options' },
-    { key: 'xContentType' as keyof HeaderChecks, label: 'X-Content-Type-Options' },
-    { key: 'referrerPolicy' as keyof HeaderChecks, label: 'Referrer-Policy' },
-    { key: 'permissionsPolicy' as keyof HeaderChecks, label: 'Permissions-Policy' },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -189,97 +194,21 @@ export default async function ReportPage({ params }: PageProps) {
           </div>
         </div>
 
-        <SecurityOverviewPanel report={intelligence} locked={!gate.canViewFull} />
-
-        {gate.canViewFull && (
-          <SecurityPostureTimeline
-            previousScore={previousScan?.security_score ?? null}
-            currentScore={intelligence.securityScore}
-            changeSummary={intelligence.changeSummary}
-          />
+        {!gate.canViewFull && (
+          <SecurityOverviewPanel report={intelligence} locked />
         )}
-
-        <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-          <h2 className="mb-4 text-sm font-semibold text-gray-300">SSL / HTTPS</h2>
-          <div className="flex items-center gap-3">
-            {scanRow.ssl_valid ? (
-              <>
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20">
-                  <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </span>
-                <span className="text-sm font-medium text-green-400">HTTPS Enabled</span>
-              </>
-            ) : (
-              <>
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
-                  <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </span>
-                <span className="text-sm font-medium text-red-400">No HTTPS — traffic is unencrypted</span>
-              </>
-            )}
-          </div>
-        </div>
 
         {gate.canViewFull ? (
           <>
-            {intelligence.findings.length === 0 ? (
+            {intelligence.findings.length === 0 && (
               <SecurityReportEmptyState report={intelligence} />
-            ) : (
-              <SecurityFindingsPanel findings={intelligence.findings} />
             )}
-
-            <SecurityRecommendationsPanel
-              recommendations={intelligence.recommendations}
+            <SecurityReportExperience
+              presentation={presentation}
               findings={intelligence.findings}
+              recommendations={intelligence.recommendations}
+              sslValid={scanRow.ssl_valid}
             />
-
-            {headers && (
-              <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-                <h2 className="mb-4 text-sm font-semibold text-gray-300">Security Headers</h2>
-                <ul className="space-y-2">
-                  {headerChecks.map(({ key, label }) => {
-                    const headerPassed = headers[key] === true;
-                    return (
-                      <li key={key} className="flex items-center justify-between rounded-lg bg-gray-800/50 px-4 py-3">
-                        <span className="text-sm text-gray-200">{label}</span>
-                        {headerPassed ? (
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-green-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                            Present
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-red-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                            Missing
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-
-            {passed.length > 0 && (
-              <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-                <h2 className="mb-4 text-sm font-semibold text-gray-300">Passed Checks</h2>
-                <ul className="space-y-2">
-                  {passed.map((item) => (
-                    <li key={item} className="flex items-center gap-3 rounded-lg bg-gray-800/50 px-4 py-3">
-                      <svg className="h-4 w-4 shrink-0 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-sm text-gray-300">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             {scanRow.website_id && (
               <SecurityTrendPanel websiteId={scanRow.website_id} period={30} />
             )}
