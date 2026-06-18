@@ -36,6 +36,7 @@ const FEATURE_MIN_PLAN: Record<Exclude<Feature, 'admin'>, Plan> = {
 const FREE_TIER_FEATURES = new Set<Feature>(['dashboard']);
 
 function hasActiveSubscription(user: UserForFeatureGate): boolean {
+  if (user.isQaAccount) return true;
   const status = user.subscription_status ?? 'inactive';
   return status === 'active' || status === 'trialing';
 }

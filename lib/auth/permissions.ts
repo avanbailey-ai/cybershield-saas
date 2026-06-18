@@ -4,11 +4,15 @@ import { canAccessFeature, type UserForFeatureGate } from './featureGate';
 import type { OrgRole } from '@/lib/auth/orgRoles';
 import { isOrgAdminRole } from '@/lib/auth/orgRoles';
 
+import type { QaSimulatedPlan } from '@/lib/auth/qaAccount';
+
 export type UserWithPlan = {
   id?: string;
   email?: string | null;
   plan?: string | null;
   subscription_status?: string | null;
+  isQaAccount?: boolean;
+  qaSimulatedPlan?: QaSimulatedPlan;
 };
 
 const LEGACY_PLAN_MAP: Record<string, Plan> = {
@@ -26,6 +30,7 @@ export function normalizePlan(raw: string | null | undefined): Plan {
 /** Effective plan for limits — owner email always gets agency-tier limits. */
 export function getEffectivePlan(user: UserWithPlan): Plan {
   if (isOwner(user.email)) return 'agency';
+  if (user.isQaAccount && user.qaSimulatedPlan) return user.qaSimulatedPlan;
   const plan = normalizePlan(user.plan);
   if (plan === 'owner') return 'agency';
   return plan;

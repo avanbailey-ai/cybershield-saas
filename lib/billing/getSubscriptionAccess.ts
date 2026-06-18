@@ -6,6 +6,7 @@ import { getActiveOrgId } from '@/lib/org/context';
 import { getUserOrgRole } from '@/lib/auth/rbac';
 import { getOrgSubscription } from './orgSubscriptionService';
 import { isSubscriptionActive } from './subscriptionService';
+import { applyQaSubscriptionAccess, fetchQaAccountFlags } from './qaAccessService';
 
 export type SubscriptionAccess = {
   plan: Plan;
@@ -57,15 +58,16 @@ export async function getSubscriptionAccess(
   orgId?: string | null,
 ): Promise<SubscriptionAccess> {
   const resolvedOrgId = orgId ?? (await getActiveOrgId(userId));
+  const qaFlags = await fetchQaAccountFlags(userId);
   if (!resolvedOrgId) {
-    return resolveSubscriptionAccess(email, null);
+    return applyQaSubscriptionAccess(resolveSubscriptionAccess(email, null), qaFlags);
   }
 
   const [subscription, orgRole] = await Promise.all([
     getOrgSubscription(resolvedOrgId),
     getUserOrgRole(userId, resolvedOrgId),
   ]);
-  return {
+  const base = {
     ...resolveSubscriptionAccess(email, {
       plan: subscription.plan,
       status: subscription.status,
@@ -73,6 +75,7 @@ export async function getSubscriptionAccess(
     orgId: resolvedOrgId,
     orgRole,
   };
+  return applyQaSubscriptionAccess(base, qaFlags);
 }
 
 export type SessionSubscriptionClient = {

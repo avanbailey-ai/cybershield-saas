@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import BillingCard from "@/components/dashboard/BillingCard";
 import NotificationPreferencesCard from "@/components/dashboard/NotificationPreferencesCard";
 import SettingsUpgradeBanner from "@/components/dashboard/SettingsUpgradeBanner";
+import QaSimulationPanel from "@/components/dashboard/QaSimulationPanel";
 import { normalizePlan } from "@/lib/auth/permissions";
 import { canAccessFeature } from "@/lib/auth/featureGate";
 import { getUserWithPlan } from "@/lib/billing/planService";
@@ -48,6 +49,7 @@ export default async function SettingsPage({
       email: user.email,
       plan: currentPlan,
       subscription_status: subscriptionStatus,
+      isQaAccount: userWithPlan.isQaAccount,
     },
     'alerts',
   );
@@ -59,6 +61,10 @@ export default async function SettingsPage({
       <main className="flex-1 overflow-auto p-6">
         <div className="max-w-2xl space-y-8">
           {upgradeFeature && <SettingsUpgradeBanner feature={upgradeFeature} />}
+
+          {userWithPlan.isQaAccount && userWithPlan.qaSimulatedPlan && (
+            <QaSimulationPanel initialPlan={userWithPlan.qaSimulatedPlan} />
+          )}
 
           {/* Profile Settings */}
           <Card>

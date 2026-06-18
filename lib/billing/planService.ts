@@ -22,6 +22,7 @@ import { getActiveOrgId } from '@/lib/org/context';
 import { getUserOrgRole } from '@/lib/auth/rbac';
 
 import { getOrgSubscription } from './orgSubscriptionService';
+import { applyQaUserWithPlan, fetchQaAccountFlags } from './qaAccessService';
 
 
 
@@ -52,6 +53,10 @@ export interface UserProfile {
   bonus_scans: number;
 
   pro_unlock_until: string | null;
+
+  is_qa_account: boolean;
+
+  qa_simulated_plan: string | null;
 
 }
 
@@ -93,7 +98,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
       .from('profiles')
 
-      .select('plan, email, subscription_status, bonus_scans, pro_unlock_until')
+      .select('plan, email, subscription_status, bonus_scans, pro_unlock_until, is_qa_account, qa_simulated_plan')
 
       .eq('id', userId)
 
@@ -103,7 +108,15 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
     if (error || !data) {
 
-      return { plan: 'free', email: null, subscription_status: null, bonus_scans: 0, pro_unlock_until: null };
+      return {
+        plan: 'free',
+        email: null,
+        subscription_status: null,
+        bonus_scans: 0,
+        pro_unlock_until: null,
+        is_qa_account: false,
+        qa_simulated_plan: null,
+      };
 
     }
 
@@ -119,11 +132,23 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
       pro_unlock_until: data.pro_unlock_until ?? null,
 
+      is_qa_account: data.is_qa_account === true,
+
+      qa_simulated_plan: data.qa_simulated_plan ?? null,
+
     };
 
   } catch {
 
-    return { plan: 'free', email: null, subscription_status: null, bonus_scans: 0, pro_unlock_until: null };
+    return {
+      plan: 'free',
+      email: null,
+      subscription_status: null,
+      bonus_scans: 0,
+      pro_unlock_until: null,
+      is_qa_account: false,
+      qa_simulated_plan: null,
+    };
 
   }
 
@@ -192,10 +217,11 @@ export async function getUserWithPlan(
 ): Promise<UserWithPlan & { id: string }> {
   const resolvedOrgId = orgId != null ? orgId : await getActiveOrgId(userId);
 
-  const [profile, orgRole, subscription] = await Promise.all([
+  const [profile, orgRole, subscription, qaFlags] = await Promise.all([
     getUserProfile(userId),
     resolvedOrgId ? getUserOrgRole(userId, resolvedOrgId) : Promise.resolve(null),
     resolvedOrgId ? getOrgSubscription(resolvedOrgId) : Promise.resolve(null),
+    fetchQaAccountFlags(userId),
   ]);
 
   const email = authEmail ?? profile.email;
@@ -209,13 +235,17 @@ export async function getUserWithPlan(
       subscriptionTier: null,
       subscriptionStatus: 'inactive',
       resolvedPlan,
+      qaAccount: qaFlags.isQaAccount,
     });
-    return {
-      id: userId,
-      email,
-      plan: resolvedPlan,
-      subscription_status: 'inactive',
-    };
+    return applyQaUserWithPlan(
+      {
+        id: userId,
+        email,
+        plan: resolvedPlan,
+        subscription_status: 'inactive',
+      },
+      qaFlags,
+    );
   }
 
   const resolvedPlan = normalizePlan(subscription.plan);
@@ -226,14 +256,18 @@ export async function getUserWithPlan(
     subscriptionTier: subscription.plan,
     subscriptionStatus: subscription.status,
     resolvedPlan,
+    qaAccount: qaFlags.isQaAccount,
   });
 
-  return {
-    id: userId,
-    email,
-    plan: resolvedPlan,
-    subscription_status: subscription.status,
-  };
+  return applyQaUserWithPlan(
+    {
+      id: userId,
+      email,
+      plan: resolvedPlan,
+      subscription_status: subscription.status,
+    },
+    qaFlags,
+  );
 }
 
 

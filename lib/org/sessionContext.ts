@@ -12,6 +12,7 @@ import {
 } from '@/lib/billing/orgSubscriptionService';
 import { resolveSubscriptionAccess, type SubscriptionAccess } from '@/lib/billing/getSubscriptionAccess';
 import type { Plan } from '@/lib/billing/plans';
+import { applyQaSubscriptionAccess, fetchQaAccountFlags } from '@/lib/billing/qaAccessService';
 
 export const ORG_CONTEXT_COOKIE = 'cybershield_org_id';
 
@@ -56,7 +57,8 @@ export async function resolveOrgSessionContext(
     status: subscription.status,
   });
 
-  return { orgId, role, subscription, access };
+  const qaFlags = await fetchQaAccountFlags(userId);
+  return { orgId, role, subscription, access: applyQaSubscriptionAccess(access, qaFlags) };
 }
 
 /** Session-scoped read for middleware (anon client + RLS). */
@@ -112,20 +114,25 @@ export async function resolveOrgSessionContextFromSession(
       .maybeSingle();
 
     if (!membership) {
+      const qaFlags = await fetchQaAccountFlags(userId);
       return {
         orgId: null,
         role: null,
         subscription: null,
-        access: resolveSubscriptionAccess(email, null),
+        access: applyQaSubscriptionAccess(resolveSubscriptionAccess(email, null), qaFlags),
       };
     }
 
     const sub = await getOrgSubscription(membership.org_id);
+    const qaFlags = await fetchQaAccountFlags(userId);
     return {
       orgId: membership.org_id,
       role: membership.role as OrgRole,
       subscription: sub,
-      access: resolveSubscriptionAccess(email, { plan: sub.plan, status: sub.status }),
+      access: applyQaSubscriptionAccess(
+        resolveSubscriptionAccess(email, { plan: sub.plan, status: sub.status }),
+        qaFlags,
+      ),
     };
   }
 
@@ -142,11 +149,15 @@ export async function resolveOrgSessionContextFromSession(
   }
 
   const sub = await getOrgSubscription(orgId);
+  const qaFlags = await fetchQaAccountFlags(userId);
   return {
     orgId,
     role: membership.role as OrgRole,
     subscription: sub,
-    access: resolveSubscriptionAccess(email, { plan: sub.plan, status: sub.status }),
+    access: applyQaSubscriptionAccess(
+      resolveSubscriptionAccess(email, { plan: sub.plan, status: sub.status }),
+      qaFlags,
+    ),
   };
 }
 

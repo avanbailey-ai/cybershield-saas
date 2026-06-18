@@ -13,9 +13,11 @@ export function gateReport(
   plan: UserPlan,
   email?: string | null,
   subscriptionStatus?: string | null,
+  isQaAccount?: boolean,
 ): GatedReport {
   const hasActivePaid =
-    plan !== 'free' && (subscriptionStatus === 'active' || subscriptionStatus === 'trialing');
+    isQaAccount === true ||
+    (plan !== 'free' && (subscriptionStatus === 'active' || subscriptionStatus === 'trialing'));
   const canViewFull = isOwner(email) || hasActivePaid;
   const genericMessage = riskScore > 40
     ? 'Risk Detected — upgrade to see full details'

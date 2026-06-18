@@ -95,7 +95,13 @@ export default async function ReportPage({ params }: PageProps) {
   const plan = getEffectivePlan(userWithPlan) as UserPlan;
   const riskScore = scanRow.risk_score ?? 0;
 
-  const gate = gateReport(riskScore, plan, user.email, userWithPlan.subscription_status);
+  const gate = gateReport(
+    riskScore,
+    plan,
+    user.email,
+    userWithPlan.subscription_status,
+    userWithPlan.isQaAccount,
+  );
 
   interface PastScan {
     id: string;
