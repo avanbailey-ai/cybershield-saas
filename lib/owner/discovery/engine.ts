@@ -3,15 +3,19 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { runScan } from '@/lib/scanner/runScan';
 import { computeLeadScore } from '@/lib/owner/leadScore';
 import { scoreOpportunity } from '@/lib/owner/opportunityScore';
-import { discoverFromOpenStreetMap } from './sources/openstreetmap';
-import { discoverFromPlatformWebsites } from './sources/platformWebsites';
+import { openStreetMapProvider } from './sources/openstreetmap';
+import { nominatimSearchProvider } from './sources/nominatimSearch';
+import { directorySeedProvider } from './sources/seedDirectory';
 import { validateProspectWebsite } from './validate';
 import { websiteHostKey } from './normalize';
 import { pipelineStateFromScan, topIssueFromFindings } from '../pipeline';
 import type { DiscoveryRunResult, RawDiscoveredBusiness } from './types';
-
-const MAX_INSERT_PER_RUN = 15;
-const MAX_SCAN_PER_RUN = 8;
+import type { ProviderDiagnostic, DiscoveryProvider } from './provider';
+import {
+  getDiscoverySettings,
+  type DiscoverySettings,
+  DEFAULT_DISCOVERY_SETTINGS,
+} from './settings';
 
 async function loadExistingHosts(admin: SupabaseClient): Promise<Set<string>> {
   const { data } = await admin
@@ -19,6 +23,19 @@ async function loadExistingHosts(admin: SupabaseClient): Promise<Set<string>> {
     .select('website')
     .is('deleted_at', null);
   return new Set((data ?? []).map((r) => websiteHostKey(r.website as string)));
+}
+
+async function loadCustomerHosts(admin: SupabaseClient): Promise<Set<string>> {
+  const { data } = await admin.from('websites').select('url').not('url', 'is', null);
+  const hosts = new Set<string>();
+  for (const row of data ?? []) {
+    try {
+      hosts.add(websiteHostKey(row.url as string));
+    } catch {
+      /* skip malformed */
+    }
+  }
+  return hosts;
 }
 
 async function scanProspect(admin: SupabaseClient, prospectId: string): Promise<boolean> {
@@ -83,52 +100,103 @@ async function scanProspect(admin: SupabaseClient, prospectId: string): Promise<
   }
 }
 
+function providersForSettings(settings: DiscoverySettings): DiscoveryProvider[] {
+  const all = [openStreetMapProvider, nominatimSearchProvider, directorySeedProvider];
+  return all.filter((p) => {
+    const key = p.name as keyof DiscoverySettings['providers'];
+    return settings.providers[key] !== false;
+  });
+}
+
 export async function runProspectDiscovery(options?: {
-  maxDiscover?: number;
+  settings?: Partial<DiscoverySettings>;
   autoScan?: boolean;
 }): Promise<DiscoveryRunResult> {
   const admin = createAdminClient();
-  const maxDiscover = options?.maxDiscover ?? MAX_INSERT_PER_RUN;
+  const baseSettings = await getDiscoverySettings(admin);
+  const settings: DiscoverySettings = {
+    ...baseSettings,
+    ...options?.settings,
+    providers: {
+      ...baseSettings.providers,
+      ...(options?.settings?.providers ?? {}),
+    },
+  };
+
+  const maxInsert = Math.min(settings.maxProspectsPerRun, 50);
+  const maxScan = Math.min(settings.maxAutoScansPerRun, 10);
   const autoScan = options?.autoScan !== false;
-  const errors: string[] = [];
 
   const existingHosts = await loadExistingHosts(admin);
+  const customerHosts = await loadCustomerHosts(admin);
+  const providerDiagnostics: ProviderDiagnostic[] = [];
+  const errors: string[] = [];
   const raw: RawDiscoveredBusiness[] = [];
 
-  try {
-    const osm = await discoverFromOpenStreetMap({ limit: maxDiscover });
-    raw.push(...osm);
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : 'OSM discovery failed');
-  }
+  const params = {
+    location: settings.location || DEFAULT_DISCOVERY_SETTINGS.location,
+    industry: settings.industry || DEFAULT_DISCOVERY_SETTINGS.industry,
+    radiusMeters: settings.radiusMeters,
+    maxResults: maxInsert,
+    seedDirectoryUrl: settings.seedDirectoryUrl,
+  };
 
-  try {
-    const platform = await discoverFromPlatformWebsites(admin, Math.max(5, maxDiscover));
-    raw.push(...platform);
-  } catch (e) {
-    errors.push(e instanceof Error ? e.message : 'Platform discovery failed');
+  for (const provider of providersForSettings(settings)) {
+    try {
+      const { results, diagnostic } = await provider.discover(params);
+      providerDiagnostics.push(diagnostic);
+      if (diagnostic.status === 'failed' && diagnostic.failureReason) {
+        errors.push(`${diagnostic.provider}: ${diagnostic.failureReason}`);
+      }
+      raw.push(...results);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : `${provider.name} failed`;
+      errors.push(msg);
+      providerDiagnostics.push({
+        provider: provider.name,
+        status: 'failed',
+        found: 0,
+        failureReason: msg,
+      });
+    }
   }
 
   const discovered = raw.length;
   let inserted = 0;
   let scanned = 0;
   let skipped = 0;
+  let validated = 0;
 
   const pendingScanIds: string[] = [];
+  const seenThisRun = new Set<string>();
 
   for (const item of raw) {
-    if (inserted >= maxDiscover) break;
+    if (inserted >= maxInsert) break;
+
     const host = websiteHostKey(item.website);
+    if (seenThisRun.has(host)) {
+      skipped++;
+      continue;
+    }
+    seenThisRun.add(host);
+
     if (existingHosts.has(host)) {
       skipped++;
       continue;
     }
 
-    const validation = await validateProspectWebsite(item.website);
-    if (!validation.dns_valid) {
+    if (customerHosts.has(host)) {
       skipped++;
       continue;
     }
+
+    const validation = await validateProspectWebsite(item.website);
+    if (validation.rejected || !validation.dns_valid) {
+      skipped++;
+      continue;
+    }
+
+    validated++;
 
     const { data, error } = await admin
       .from('owner_prospects')
@@ -165,11 +233,13 @@ export async function runProspectDiscovery(options?: {
   }
 
   if (autoScan) {
-    for (const id of pendingScanIds.slice(0, MAX_SCAN_PER_RUN)) {
+    for (const id of pendingScanIds.slice(0, maxScan)) {
       const ok = await scanProspect(admin, id);
       if (ok) scanned++;
     }
   }
+
+  const errorSummary = errors.length ? errors.join('; ') : null;
 
   await admin.from('owner_discovery_runs').insert({
     source: 'combined',
@@ -177,13 +247,22 @@ export async function runProspectDiscovery(options?: {
     inserted_count: inserted,
     scanned_count: scanned,
     skipped_count: skipped,
-    error_message: errors.length ? errors.join('; ') : null,
+    error_message: errorSummary,
+    provider_diagnostics: providerDiagnostics,
   });
 
-  return { discovered, inserted, scanned, skipped, errors };
+  return {
+    discovered,
+    inserted,
+    scanned,
+    skipped,
+    validated,
+    errors,
+    providerDiagnostics,
+  };
 }
 
-export async function scanPendingProspects(limit = MAX_SCAN_PER_RUN): Promise<number> {
+export async function scanPendingProspects(limit = 10): Promise<number> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('owner_prospects')

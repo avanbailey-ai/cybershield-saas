@@ -1,5 +1,23 @@
+import { createHash } from 'crypto';
+import type { DiscoveryParams } from '../provider';
+import {
+  failedDiagnostic,
+  skippedDiagnostic,
+  succeededDiagnostic,
+  type DiscoveryProvider,
+  type ProviderResult,
+} from '../provider';
 import type { RawDiscoveredBusiness } from '../types';
+import { geocodeLocation } from '../geocode';
 import { normalizeWebsiteUrl, nameFromWebsite } from '../normalize';
+
+const OVERPASS_UA =
+  'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com';
+
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
 
 const OSM_INDUSTRY_MAP: Record<string, string> = {
   dentist: 'Healthcare',
@@ -16,9 +34,22 @@ const OSM_INDUSTRY_MAP: Record<string, string> = {
   cafe: 'Hospitality',
   shop: 'Retail',
   supermarket: 'Retail',
-  ecommerce: 'E-commerce',
   it: 'Technology',
   software: 'Technology',
+  electrician: 'Contractors',
+  plumber: 'Contractors',
+  carpenter: 'Contractors',
+};
+
+const INDUSTRY_OVERPASS_FILTERS: Record<string, string[]> = {
+  healthcare: ['["amenity"~"^(dentist|doctors|clinic|hospital|pharmacy)$"]'],
+  dental: ['["amenity"="dentist"]'],
+  legal: ['["office"="lawyer"]', '["amenity"="lawyer"]'],
+  contractors: ['["craft"]', '["building"]'],
+  retail: ['["shop"]'],
+  hospitality: ['["amenity"~"^(restaurant|cafe|fast_food)$"]'],
+  technology: ['["office"="it"]', '["office"="software"]'],
+  general: ['["website"]'],
 };
 
 function inferIndustry(tags: Record<string, string>): string {
@@ -38,52 +69,82 @@ function extractWebsite(tags: Record<string, string>): string | null {
   return normalizeWebsiteUrl(raw);
 }
 
-/** Discover real businesses with public websites via OpenStreetMap Overpass API. */
-export async function discoverFromOpenStreetMap(options?: {
-  south?: number;
-  west?: number;
-  north?: number;
-  east?: number;
-  limit?: number;
-}): Promise<RawDiscoveredBusiness[]> {
-  const south = options?.south ?? 30.0;
-  const west = options?.west ?? -97.9;
-  const north = options?.north ?? 30.5;
-  const east = options?.east ?? -97.5;
-  const limit = Math.min(options?.limit ?? 30, 50);
+function queryHash(query: string): string {
+  return createHash('sha256').update(query).digest('hex').slice(0, 12);
+}
 
-  const query = `
-    [out:json][timeout:25];
-    (
-      node["website"](${south},${west},${north},${east});
-      way["website"](${south},${west},${north},${east});
-    );
-    out center ${limit};
-  `;
+function buildOverpassQuery(
+  lat: number,
+  lon: number,
+  radiusMeters: number,
+  industry: string,
+  limit: number,
+): string {
+  const filters = INDUSTRY_OVERPASS_FILTERS[industry.toLowerCase()] ?? INDUSTRY_OVERPASS_FILTERS.general;
+  const capped = Math.min(Math.max(limit, 1), 50);
+  const filterBlocks = filters
+    .map(
+      (f) => `
+      node["website"]${f}(around:${radiusMeters},${lat},${lon});
+      way["website"]${f}(around:${radiusMeters},${lat},${lon});
+    `,
+    )
+    .join('\n');
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`,
-  });
+  return `[out:json][timeout:25];
+(
+${filterBlocks}
+);
+out center ${capped};`;
+}
 
-  if (!res.ok) {
-    throw new Error(`Overpass API error: ${res.status}`);
+async function callOverpass(query: string): Promise<{
+  ok: boolean;
+  status: number;
+  data?: { elements?: Array<{ tags?: Record<string, string> }> };
+  snippet: string;
+  endpoint: string;
+}> {
+  let lastStatus = 0;
+  let lastSnippet = '';
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        Accept: 'application/json',
+        'User-Agent': OVERPASS_UA,
+      },
+      body: query,
+    });
+
+    const text = await res.text();
+    lastStatus = res.status;
+    lastSnippet = text.slice(0, 300);
+
+    if (!res.ok) continue;
+
+    try {
+      const data = JSON.parse(text) as { elements?: Array<{ tags?: Record<string, string> }> };
+      return { ok: true, status: res.status, data, snippet: lastSnippet, endpoint };
+    } catch {
+      lastSnippet = `Invalid JSON: ${lastSnippet}`;
+    }
   }
 
-  const data = (await res.json()) as {
-    elements?: Array<{
-      tags?: Record<string, string>;
-      lat?: number;
-      lon?: number;
-      center?: { lat: number; lon: number };
-    }>;
-  };
+  return { ok: false, status: lastStatus, snippet: lastSnippet, endpoint: OVERPASS_ENDPOINTS[0] };
+}
 
+function parseElements(
+  elements: Array<{ tags?: Record<string, string> }> | undefined,
+  maxResults: number,
+): RawDiscoveredBusiness[] {
   const results: RawDiscoveredBusiness[] = [];
   const seen = new Set<string>();
 
-  for (const el of data.elements ?? []) {
+  for (const el of elements ?? []) {
+    if (results.length >= maxResults) break;
     const tags = el.tags ?? {};
     const website = extractWebsite(tags);
     if (!website || seen.has(website)) continue;
@@ -99,8 +160,49 @@ export async function discoverFromOpenStreetMap(options?: {
       country: tags['addr:country'] ?? 'US',
       discovery_source: 'openstreetmap',
       discovery_source_url: 'https://www.openstreetmap.org',
+      confidence: 0.85,
     });
   }
 
   return results;
 }
+
+export async function discoverFromOpenStreetMap(
+  params: DiscoveryParams,
+): Promise<ProviderResult> {
+  const geo = await geocodeLocation(params.location);
+  if (!geo) {
+    return failedDiagnostic('openstreetmap', `Could not geocode location: ${params.location}`);
+  }
+
+  const limit = Math.min(params.maxResults, 50);
+  const query = buildOverpassQuery(
+    geo.lat,
+    geo.lon,
+    Math.min(params.radiusMeters, 25_000),
+    params.industry,
+    limit,
+  );
+  const hash = queryHash(query);
+
+  const response = await callOverpass(query);
+  if (!response.ok) {
+    return failedDiagnostic('openstreetmap', `Overpass API error: ${response.status}`, {
+      statusCode: response.status,
+      responseSnippet: response.snippet,
+      queryHash: hash,
+    });
+  }
+
+  const results = parseElements(response.data?.elements, limit);
+  return succeededDiagnostic('openstreetmap', results, {
+    queryHash: hash,
+    responseSnippet: `endpoint=${response.endpoint} elements=${response.data?.elements?.length ?? 0}`,
+  });
+}
+
+export const openStreetMapProvider: DiscoveryProvider = {
+  name: 'openstreetmap',
+  enabled: true,
+  discover: discoverFromOpenStreetMap,
+};
