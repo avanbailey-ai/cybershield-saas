@@ -16,8 +16,10 @@ function todayTask(camp: CampaignWithTasks): OwnerCampaignTask | null {
 
 export default function CampaignPlanner({
   initialCampaigns,
+  embedded,
 }: {
   initialCampaigns: CampaignWithTasks[];
+  embedded?: boolean;
 }) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [name, setName] = useState('');
@@ -56,12 +58,8 @@ export default function CampaignPlanner({
   const activeCampaign = campaigns.find((c) => c.status === 'active') ?? campaigns[0];
   const today = activeCampaign ? todayTask(activeCampaign) : null;
 
-  return (
-    <SectionCard
-      id="campaigns"
-      title="Campaign Command Center"
-      subtitle="Daily tasks, goals, and completion tracking"
-    >
+  const inner = (
+    <>
       {today && (
         <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
           <p className="text-xs font-medium uppercase text-violet-400">Today&apos;s Goal</p>
@@ -145,6 +143,14 @@ export default function CampaignPlanner({
           })}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="campaigns">{inner}</div>;
+
+  return (
+    <SectionCard id="campaigns" title="Campaigns" subtitle="Daily outreach tasks">
+      {inner}
     </SectionCard>
   );
 }

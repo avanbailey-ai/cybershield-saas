@@ -67,8 +67,8 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
       title: `Review ${input.churnRisk} at-risk account(s)`,
       description: 'Accounts with churn risk score > 70 in your platform data.',
       impact: 'high',
-      module: 'customer-intel',
-      cta: 'Review churn signals',
+      module: 'customers',
+      cta: 'Review customers',
     });
   }
 
@@ -78,8 +78,8 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
       title: `Welcome ${input.briefing.newSignups} new signup(s) from last 24h`,
       description: 'Real signups in the last 24 hours — send onboarding follow-up.',
       impact: 'high',
-      module: 'campaigns',
-      cta: 'Start nurture campaign',
+      module: 'outreach',
+      cta: 'Start campaign',
     });
   }
 
@@ -103,7 +103,7 @@ export function generateFounderActions(input: FounderActionInput): FounderAction
       title: 'Publish content from this week’s scan findings',
       description: 'Content Intelligence has angles from real platform scans.',
       impact: 'medium',
-      module: 'social',
+      module: 'outreach',
       cta: 'Create content',
     });
   }

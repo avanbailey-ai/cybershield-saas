@@ -6,8 +6,10 @@ import type { OwnerCompetitor } from '@/lib/owner/types';
 
 export default function CompetitorIntel({
   initialCompetitors,
+  embedded,
 }: {
   initialCompetitors: OwnerCompetitor[];
+  embedded?: boolean;
 }) {
   const [competitors, setCompetitors] = useState(initialCompetitors);
   const [form, setForm] = useState({
@@ -38,12 +40,8 @@ export default function CompetitorIntel({
     }
   }
 
-  return (
-    <SectionCard
-      id="competitors"
-      title="Competitor Watch"
-      subtitle="Advantages, gaps, opportunities, and change tracking"
-    >
+  const inner = (
+    <>
       <form onSubmit={addCompetitor} className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <input
           placeholder="Competitor name"
@@ -135,6 +133,14 @@ export default function CompetitorIntel({
           ))}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="competitors">{inner}</div>;
+
+  return (
+    <SectionCard id="competitors" title="Competitors" subtitle="Market intelligence">
+      {inner}
     </SectionCard>
   );
 }

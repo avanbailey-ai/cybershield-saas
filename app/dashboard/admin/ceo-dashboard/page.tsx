@@ -10,5 +10,5 @@ export const dynamic = 'force-dynamic';
 
 /** Legacy route — CEO Dashboard merged into Founder OS. */
 export default function CeoDashboardPage() {
-  redirect('/dashboard/admin/owner#ceo-advisory');
+  redirect('/dashboard/admin/owner#insights');
 }

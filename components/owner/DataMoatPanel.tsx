@@ -9,15 +9,17 @@ const MOAT_LABELS = {
   established: { label: 'Established', color: 'text-emerald-400' },
 };
 
-export default function DataMoatPanel({ moat }: { moat: DataMoatSnapshot }) {
+export default function DataMoatPanel({
+  moat,
+  embedded,
+}: {
+  moat: DataMoatSnapshot;
+  embedded?: boolean;
+}) {
   const strength = MOAT_LABELS[moat.moatStrength];
 
-  return (
-    <SectionCard
-      id="data-moat"
-      title="Data Moat Engine"
-      subtitle="Dataset growth, benchmark coverage, and moat strength"
-    >
+  const inner = (
+    <>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-5 py-3">
           <p className="text-xs text-gray-500">Moat Strength</p>
@@ -79,6 +81,14 @@ export default function DataMoatPanel({ moat }: { moat: DataMoatSnapshot }) {
           ))}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="data-moat">{inner}</div>;
+
+  return (
+    <SectionCard id="data-moat" title="Benchmarks" subtitle="Industry trends from real scans">
+      {inner}
     </SectionCard>
   );
 }

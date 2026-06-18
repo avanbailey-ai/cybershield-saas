@@ -6,8 +6,10 @@ import type { OwnerContentPost } from '@/lib/owner/types';
 
 export default function ContentPerformance({
   initialPosts,
+  embedded,
 }: {
   initialPosts: OwnerContentPost[];
+  embedded?: boolean;
 }) {
   const [posts, setPosts] = useState(initialPosts);
   const [form, setForm] = useState({
@@ -49,12 +51,8 @@ export default function ContentPerformance({
     { views: 0, leads: 0, customers: 0 },
   );
 
-  return (
-    <SectionCard
-      id="content-performance"
-      title="Content Performance"
-      subtitle="Track posts, views, leads, and customers by platform"
-    >
+  const inner = (
+    <>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4 text-center">
           <p className="text-xs text-gray-500">Total Views</p>
@@ -136,6 +134,14 @@ export default function ContentPerformance({
           </table>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="content-performance">{inner}</div>;
+
+  return (
+    <SectionCard id="content-performance" title="Content" subtitle="Post performance">
+      {inner}
     </SectionCard>
   );
 }

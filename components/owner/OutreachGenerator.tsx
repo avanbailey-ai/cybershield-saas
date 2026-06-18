@@ -6,7 +6,13 @@ import CopyButton from './CopyButton';
 import { OUTREACH_TYPES, type OutreachType } from '@/lib/owner/generators/outreach';
 import type { OwnerProspect } from '@/lib/owner/types';
 
-export default function OutreachGenerator({ prospects }: { prospects: OwnerProspect[] }) {
+export default function OutreachGenerator({
+  prospects,
+  embedded,
+}: {
+  prospects: OwnerProspect[];
+  embedded?: boolean;
+}) {
   const [type, setType] = useState<OutreachType>('cold_email');
   const [selectedId, setSelectedId] = useState(prospects[0]?.id ?? '');
   const [content, setContent] = useState('');
@@ -76,12 +82,8 @@ export default function OutreachGenerator({ prospects }: { prospects: OwnerProsp
     }
   }
 
-  return (
-    <SectionCard
-      id="outreach"
-      title="AI Outreach Engine"
-      subtitle="Findings-based copy · Copy, edit, approve, and save drafts"
-    >
+  const inner = (
+    <>
       <div className="mb-4 flex flex-wrap gap-3">
         <select
           value={selectedId}
@@ -177,6 +179,14 @@ export default function OutreachGenerator({ prospects }: { prospects: OwnerProsp
           </p>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="outreach">{inner}</div>;
+
+  return (
+    <SectionCard id="outreach" title="Outreach" subtitle="Findings-based copy from scan results">
+      {inner}
     </SectionCard>
   );
 }

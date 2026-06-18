@@ -6,7 +6,13 @@ import { scoreOpportunity } from '@/lib/owner/opportunityScore';
 import { leadScoreColor } from '@/lib/owner/leadScore';
 import { CRM_STAGES, type OwnerCrmLead, type CrmStage } from '@/lib/owner/types';
 
-export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[] }) {
+export default function LeadCrm({
+  initialLeads,
+  embedded,
+}: {
+  initialLeads: OwnerCrmLead[];
+  embedded?: boolean;
+}) {
   const [leads, setLeads] = useState(initialLeads);
   const [form, setForm] = useState({
     business_name: '',
@@ -59,13 +65,9 @@ export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[]
     if (data.lead) setLeads((l) => l.map((x) => (x.id === id ? data.lead : x)));
   }
 
-  return (
-    <SectionCard
-      id="crm"
-      title="Smart CRM"
-      subtitle="Auto-prioritized by lead score, opportunity score, and revenue potential"
-    >
-      {topValue && (
+  const inner = (
+    <>
+      {!embedded && topValue && (
         <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
           <p className="text-xs text-emerald-400">Highest Value Lead</p>
           <p className="font-semibold text-white">{topValue.business_name}</p>
@@ -148,7 +150,6 @@ export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[]
                     {lead.lead_score}
                   </span>
                 )}
-                <span className="text-xs text-violet-400">{opp.conversionLikelihood}% likely</span>
                 {lead.potential_revenue && (
                   <span className="text-sm text-emerald-400">
                     ${Number(lead.potential_revenue).toLocaleString()}
@@ -170,6 +171,14 @@ export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[]
           })}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="crm">{inner}</div>;
+
+  return (
+    <SectionCard id="crm" title="Pipeline" subtitle="Lead · status · revenue · next action">
+      {inner}
     </SectionCard>
   );
 }

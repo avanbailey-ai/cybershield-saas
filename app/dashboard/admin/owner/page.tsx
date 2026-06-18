@@ -12,7 +12,7 @@ import { generateMarketingInsights } from '@/lib/owner/generators/insights';
 import { buildRevenueOpportunity } from '@/lib/owner/revenueOpportunity';
 import { generateContentSuggestions } from '@/lib/owner/generators/contentIntel';
 import { loadCeoAdvisory, EMPTY_CEO_ADVISORY } from '@/lib/owner/ceoAdvisory';
-import FounderCommandCenter from '@/components/owner/FounderCommandCenter';
+import FounderOs from '@/components/owner/FounderOs';
 import type { OwnerCampaign, OwnerCampaignTask, OwnerProspect, OwnerCrmLead } from '@/lib/owner/types';
 
 export const metadata: Metadata = {
@@ -195,7 +195,8 @@ export default async function OwnerCommandCenterPage() {
   });
 
   return (
-    <FounderCommandCenter
+    <FounderOs
+      email={user.email ?? 'Owner'}
       briefing={briefing}
       windows={windows}
       prospects={prospects}

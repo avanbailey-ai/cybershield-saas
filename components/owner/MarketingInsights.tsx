@@ -9,13 +9,15 @@ const PRIORITY_STYLES = {
   low: 'border-gray-700 bg-gray-950/50',
 };
 
-export default function MarketingInsights({ insights }: { insights: MarketingInsight[] }) {
-  return (
-    <SectionCard
-      id="insights"
-      title="Marketing Insights Engine"
-      subtitle="Real insights with recommendations — not raw metrics"
-    >
+export default function MarketingInsights({
+  insights,
+  embedded,
+}: {
+  insights: MarketingInsight[];
+  embedded?: boolean;
+}) {
+  const inner = (
+    <>
       {insights.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
           <p className="text-sm text-gray-400">Not enough data yet.</p>
@@ -55,6 +57,14 @@ export default function MarketingInsights({ insights }: { insights: MarketingIns
           ))}
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="insights">{inner}</div>;
+
+  return (
+    <SectionCard id="insights" title="Recommendations" subtitle="From real platform data">
+      {inner}
     </SectionCard>
   );
 }

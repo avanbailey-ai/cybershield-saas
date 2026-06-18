@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { isOwner } from '@/lib/auth/owner';
-import FounderShell from '@/components/owner/FounderShell';
 
 export default async function OwnerLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -15,8 +14,6 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[#050810]">
-      <FounderShell email={user.email ?? 'Owner'}>{children}</FounderShell>
-    </div>
+    <div className="fixed inset-0 z-50 overflow-hidden bg-[#050810]">{children}</div>
   );
 }

@@ -5,15 +5,13 @@ import type { CustomerIntelligenceSummary } from '@/lib/owner/customerIntelligen
 
 export default function CustomerIntelligencePanel({
   intelligence,
+  embedded,
 }: {
   intelligence: CustomerIntelligenceSummary;
+  embedded?: boolean;
 }) {
-  return (
-    <SectionCard
-      id="customer-intel"
-      title="Customer Intelligence"
-      subtitle="Conversion and churn drivers from user and scan data"
-    >
+  const inner = (
+    <>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
           <p className="text-xs text-gray-500">Avg Risk Score</p>
@@ -98,6 +96,14 @@ export default function CustomerIntelligencePanel({
           )}
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) return <div id="customer-intel">{inner}</div>;
+
+  return (
+    <SectionCard id="customer-intel" title="Customers" subtitle="Churn and conversion drivers">
+      {inner}
     </SectionCard>
   );
 }

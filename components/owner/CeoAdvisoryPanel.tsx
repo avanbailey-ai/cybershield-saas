@@ -51,7 +51,15 @@ function FunnelBars({ stages }: { stages: Record<string, number> }) {
   );
 }
 
-export default function CeoAdvisoryPanel({ data }: { data: CeoAdvisoryData }) {
+export default function CeoAdvisoryPanel({
+  data,
+  embedded,
+  insightsOnly,
+}: {
+  data: CeoAdvisoryData;
+  embedded?: boolean;
+  insightsOnly?: boolean;
+}) {
   const [running, setRunning] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState(data.recommendations);
@@ -107,18 +115,10 @@ export default function CeoAdvisoryPanel({ data }: { data: CeoAdvisoryData }) {
     }
   }
 
-  function scrollToRevenue() {
-    document.getElementById('revenue')?.scrollIntoView({ behavior: 'smooth' });
-  }
-
   const hasMetrics = m !== null;
 
-  return (
-    <SectionCard
-      id="ceo-advisory"
-      title="CEO Advisory"
-      subtitle="Platform funnel, retention signals, and autopilot recommendations — merged from CEO Dashboard"
-    >
+  const inner = (
+    <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           {data.lastAnalysis && (
@@ -206,6 +206,7 @@ export default function CeoAdvisoryPanel({ data }: { data: CeoAdvisoryData }) {
               <h3 className="mb-3 text-sm font-medium text-white">Conversion funnel</h3>
               <FunnelBars stages={(m as DailyMetrics).funnelStages ?? {}} />
             </div>
+            {!insightsOnly && (
             <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
               <h3 className="mb-3 text-sm font-medium text-white">Retention</h3>
               <p className="text-3xl font-bold text-white">{data.churnRisk.usersAtRisk}</p>
@@ -215,14 +216,8 @@ export default function CeoAdvisoryPanel({ data }: { data: CeoAdvisoryData }) {
                 {' · '}
                 Avg score: <span className="text-white">{data.churnRisk.averageScore}</span>
               </p>
-              <button
-                type="button"
-                onClick={scrollToRevenue}
-                className="mt-3 text-xs font-medium text-violet-400 hover:text-violet-300"
-              >
-                View revenue pipeline →
-              </button>
             </div>
+            )}
           </div>
         </>
       )}
@@ -327,6 +322,14 @@ export default function CeoAdvisoryPanel({ data }: { data: CeoAdvisoryData }) {
           </ul>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return <div id="ceo-advisory">{inner}</div>;
+
+  return (
+    <SectionCard id="ceo-advisory" title="Platform advisory" subtitle="Funnel, recommendations, alerts">
+      {inner}
     </SectionCard>
   );
 }

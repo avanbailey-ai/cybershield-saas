@@ -10,7 +10,7 @@ interface Props {
   suggestions: ContentSuggestion[];
 }
 
-export default function SocialContentStudio({ suggestions }: Props) {
+export default function SocialContentStudio({ suggestions, embedded }: Props & { embedded?: boolean }) {
   const [platform, setPlatform] = useState<SocialPlatform>('linkedin');
   const [topic, setTopic] = useState('');
   const [content, setContent] = useState('');
@@ -46,12 +46,8 @@ export default function SocialContentStudio({ suggestions }: Props) {
     }
   }
 
-  return (
-    <SectionCard
-      id="social"
-      title="Content Intelligence Center"
-      subtitle="Weekly content suggestions from scan findings · LinkedIn, X, TikTok, YouTube"
-    >
+  const inner = (
+    <>
       {suggestions.length > 0 && (
         <div className="mb-6">
           <h3 className="mb-3 text-sm font-medium text-white">This Week&apos;s Best Angles</h3>
@@ -126,6 +122,14 @@ export default function SocialContentStudio({ suggestions }: Props) {
           </p>
         </div>
       ) : null}
+    </>
+  );
+
+  if (embedded) return <div id="social">{inner}</div>;
+
+  return (
+    <SectionCard id="social" title="Content ideas" subtitle="From real scan findings">
+      {inner}
     </SectionCard>
   );
 }

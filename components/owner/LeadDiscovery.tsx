@@ -2,13 +2,19 @@
 
 import { useState, useMemo, useRef } from 'react';
 import { SectionCard } from './MetricCard';
-import { leadScoreColor } from '@/lib/owner/leadScore';
+import EmptyState from './EmptyState';
 import { scoreOpportunity, opportunityTierColor } from '@/lib/owner/opportunityScore';
 import type { OwnerProspect } from '@/lib/owner/types';
 
 type ImportTab = 'urls' | 'csv' | 'manual';
 
-export default function LeadDiscovery({ initialProspects }: { initialProspects: OwnerProspect[] }) {
+export default function LeadDiscovery({
+  initialProspects,
+  embedded,
+}: {
+  initialProspects: OwnerProspect[];
+  embedded?: boolean;
+}) {
   const [prospects, setProspects] = useState(initialProspects);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -135,41 +141,17 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
     }
   }
 
-  return (
-    <SectionCard
-      id="prospects"
-      title="Prospect Discovery"
-      subtitle="Import websites · run scans · score opportunities from real findings"
-    >
-      {stats.total > 0 && (
-        <div className="mb-4 flex flex-wrap gap-3 text-sm">
-          <span className="rounded-full bg-gray-800 px-3 py-1 text-gray-300">
-            {stats.total} imported
-          </span>
-          {stats.scanned > 0 && (
-            <span className="rounded-full bg-violet-500/20 px-3 py-1 text-violet-300">
-              {stats.scanned} scanned
-            </span>
-          )}
-          {stats.hot > 0 && (
-            <span className="rounded-full bg-red-500/20 px-3 py-1 text-red-300">
-              {stats.hot} HOT
-            </span>
-          )}
-          {stats.warm > 0 && (
-            <span className="rounded-full bg-amber-500/20 px-3 py-1 text-amber-300">
-              {stats.warm} WARM
-            </span>
-          )}
-          {stats.pending > 0 && (
-            <button
-              type="button"
-              onClick={scanAllPending}
-              className="rounded-full border border-violet-500/40 px-3 py-1 text-violet-400 hover:bg-violet-500/10"
-            >
-              Scan {stats.pending} pending →
-            </button>
-          )}
+  const body = (
+    <>
+      {stats.pending > 0 && embedded && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={scanAllPending}
+            className="text-sm font-medium text-violet-400 hover:text-violet-300"
+          >
+            Scan {stats.pending} pending →
+          </button>
         </div>
       )}
 
@@ -307,22 +289,21 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
       )}
 
       {sorted.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-700 p-8 text-center">
-          <p className="text-sm font-medium text-gray-300">No prospects discovered yet.</p>
-          <p className="mt-2 text-xs text-gray-500">
-            Import a prospect list (CSV or URLs), then run scans to generate scores and opportunities.
-          </p>
-        </div>
+        <EmptyState
+          title="No prospects imported yet"
+          description="Import websites to begin prospect discovery. Run scans to unlock opportunity scoring."
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-800 text-xs uppercase text-gray-500">
                 <th className="pb-3 pr-4">Business</th>
-                <th className="pb-3 pr-4">Scan</th>
+                <th className="pb-3 pr-4">Industry</th>
+                <th className="pb-3 pr-4">Score</th>
                 <th className="pb-3 pr-4">Tier</th>
-                <th className="pb-3 pr-4">Status</th>
-                <th className="pb-3">Action</th>
+                <th className="pb-3 pr-4">Next step</th>
+                <th className="pb-3">Scan</th>
               </tr>
             </thead>
             <tbody>
@@ -334,17 +315,26 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
                   industry: p.industry,
                   scanCompleted: p.scan_status === 'completed',
                 });
+                const nextStep =
+                  p.scan_status === 'pending'
+                    ? 'Run scan'
+                    : opp.tier === 'HOT'
+                      ? 'Generate outreach'
+                      : opp.tier === 'WARM'
+                        ? 'Send audit summary'
+                        : opp.rationale;
                 return (
                   <tr key={p.id} className="border-b border-gray-800/50">
                     <td className="py-3 pr-4">
                       <p className="text-white">{p.business_name}</p>
                       <p className="text-xs text-gray-500">{p.website}</p>
                     </td>
+                    <td className="py-3 pr-4 text-gray-400">{p.industry || '—'}</td>
                     <td className="py-3 pr-4">
                       {p.scan_score !== null ? (
                         <span className="text-white">{p.scan_score}/100</span>
                       ) : (
-                        <span className="text-gray-600">Not scanned</span>
+                        <span className="text-gray-600">—</span>
                       )}
                     </td>
                     <td className="py-3 pr-4">
@@ -354,17 +344,11 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
                         >
                           {opp.tier}
                         </span>
-                      ) : p.lead_score ? (
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${leadScoreColor(p.lead_score)}`}
-                        >
-                          {p.lead_score}
-                        </span>
                       ) : (
                         <span className="text-gray-600">—</span>
                       )}
                     </td>
-                    <td className="py-3 pr-4 text-xs text-gray-500">{p.scan_status}</td>
+                    <td className="max-w-[200px] py-3 pr-4 text-xs text-gray-500">{nextStep}</td>
                     <td className="py-3">
                       <button
                         type="button"
@@ -376,7 +360,7 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
                           ? 'Scanning…'
                           : p.scan_status === 'completed'
                             ? 'Re-scan'
-                            : 'Run Scan'}
+                            : 'Run scan'}
                       </button>
                     </td>
                   </tr>
@@ -386,6 +370,20 @@ export default function LeadDiscovery({ initialProspects }: { initialProspects: 
           </table>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <div id="prospects">{body}</div>;
+  }
+
+  return (
+    <SectionCard
+      id="prospects"
+      title="Prospects"
+      subtitle="Import websites · run scans · score opportunities"
+    >
+      {body}
     </SectionCard>
   );
 }
