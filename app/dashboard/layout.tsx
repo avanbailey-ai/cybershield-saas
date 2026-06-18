@@ -9,6 +9,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { ConversionProvider } from "@/components/conversion/ConversionProvider";
 
 import { canAccessEnterprise } from "@/lib/auth/permissions";
+import { userFromSubscriptionAccess } from "@/lib/auth/enterpriseGateUser";
 
 import { getRedirectPath } from "@/lib/auth/redirect";
 
@@ -63,24 +64,12 @@ export default async function DashboardLayout({
 
   if (!access.canAccessDashboard) {
 
-    redirect(getRedirectPath({
-
-      email: user.email,
-
-      plan: access.plan,
-
-      subscription_status: access.status,
-
-    }, orgCtx.role));
+    redirect(getRedirectPath(userFromSubscriptionAccess(access, user.email), orgCtx.role));
 
   }
 
   const showEnterprise = canAccessEnterprise(
-    {
-      email: user.email,
-      plan: access.plan,
-      subscription_status: access.status,
-    },
+    userFromSubscriptionAccess(access, user.email),
     orgCtx.role,
   );
 

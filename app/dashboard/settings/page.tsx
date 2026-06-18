@@ -63,7 +63,10 @@ export default async function SettingsPage({
           {upgradeFeature && <SettingsUpgradeBanner feature={upgradeFeature} />}
 
           {userWithPlan.isQaAccount && userWithPlan.qaSimulatedPlan && (
-            <QaSimulationPanel initialPlan={userWithPlan.qaSimulatedPlan} />
+            <QaSimulationPanel
+              initialPlan={userWithPlan.qaSimulatedPlan}
+              initialEnterpriseEnabled={userWithPlan.qaEnterpriseEnabled === true}
+            />
           )}
 
           {/* Profile Settings */}

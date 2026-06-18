@@ -8,6 +8,8 @@ import { getOrgSubscription } from './orgSubscriptionService';
 import { isSubscriptionActive } from './subscriptionService';
 import { applyQaSubscriptionAccess, fetchQaAccountFlags } from './qaAccessService';
 
+import type { QaSimulatedPlan } from '@/lib/auth/qaAccount';
+
 export type SubscriptionAccess = {
   plan: Plan;
   status: string;
@@ -15,6 +17,9 @@ export type SubscriptionAccess = {
   canAccessDashboard: boolean;
   orgId?: string | null;
   orgRole?: OrgRole | null;
+  isQaAccount?: boolean;
+  qaSimulatedPlan?: QaSimulatedPlan;
+  qaEnterpriseEnabled?: boolean;
 };
 
 export type SubscriptionRow = {

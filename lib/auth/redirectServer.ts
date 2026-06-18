@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSubscriptionAccessFromSession } from "@/lib/billing/getSubscriptionAccess";
 import { getRedirectPath, type SessionSupabaseClient } from "@/lib/auth/redirect";
+import { userFromSubscriptionAccess } from "@/lib/auth/enterpriseGateUser";
 
 /** Server-only — resolves post-auth redirect using admin-backed org/subscription reads. */
 export async function getRedirectPathForSession(
@@ -20,11 +21,7 @@ export async function getRedirectPathForSession(
   );
 
   return getRedirectPath(
-    {
-      email: user.email,
-      plan: access.plan,
-      subscription_status: access.status,
-    },
+    userFromSubscriptionAccess(access, user.email),
     access.orgRole,
   );
 }

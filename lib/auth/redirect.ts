@@ -1,16 +1,9 @@
 import { isOwner } from './owner';
 import { canAccessEnterprise } from './permissions';
+import type { UserForFeatureGate } from './featureGate';
 import type { OrgRole } from '@/lib/auth/rbac';
 
-export type UserForRedirect = {
-
-  email?: string | null;
-
-  plan?: string | null;
-
-  subscription_status?: string | null;
-
-};
+export type UserForRedirect = UserForFeatureGate;
 
 
 

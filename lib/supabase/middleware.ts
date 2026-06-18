@@ -7,6 +7,7 @@ import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
 import { getRedirectPath, type SessionSupabaseClient } from "@/lib/auth/redirect";
 import { getRedirectPathForSession } from "@/lib/auth/redirectServer";
+import { userFromSubscriptionAccess } from "@/lib/auth/enterpriseGateUser";
 
 import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from "@/lib/billing/getSubscriptionAccess";
 import {
@@ -278,11 +279,7 @@ export async function updateSession(request: NextRequest) {
 
 
       if (isEnterprisePortal) {
-        const enterpriseUser = {
-          email: user.email,
-          plan: orgCtx.access.plan,
-          subscription_status: orgCtx.access.status,
-        };
+        const enterpriseUser = userFromSubscriptionAccess(orgCtx.access, user.email);
 
         if (!canAccessEnterprise(enterpriseUser, orgCtx.role)) {
           const url = request.nextUrl.clone();
@@ -299,14 +296,7 @@ export async function updateSession(request: NextRequest) {
       if (
         pathname.startsWith('/app') &&
         !isEnterpriseOperationalAppPath(pathname) &&
-        canAccessEnterprise(
-          {
-            email: user.email,
-            plan: orgCtx.access.plan,
-            subscription_status: orgCtx.access.status,
-          },
-          orgCtx.role,
-        )
+        canAccessEnterprise(userFromSubscriptionAccess(orgCtx.access, user.email), orgCtx.role)
       ) {
         const url = request.nextUrl.clone();
         url.pathname = '/enterprise/portal';
@@ -317,14 +307,7 @@ export async function updateSession(request: NextRequest) {
 
       if (isEnterpriseOnboarding) {
         if (
-          !canAccessEnterprise(
-            {
-              email: user.email,
-              plan: orgCtx.access.plan,
-              subscription_status: orgCtx.access.status,
-            },
-            orgCtx.role,
-          )
+          !canAccessEnterprise(userFromSubscriptionAccess(orgCtx.access, user.email), orgCtx.role)
         ) {
           const url = request.nextUrl.clone();
           url.pathname = '/app';
@@ -336,15 +319,10 @@ export async function updateSession(request: NextRequest) {
 
         const url = request.nextUrl.clone();
 
-        url.pathname = getRedirectPath({
-
-          email: user.email,
-
-          plan: orgCtx.access.plan,
-
-          subscription_status: orgCtx.access.status,
-
-        }, orgCtx.role);
+        url.pathname = getRedirectPath(
+          userFromSubscriptionAccess(orgCtx.access, user.email),
+          orgCtx.role,
+        );
 
         return NextResponse.redirect(url);
 
@@ -383,11 +361,7 @@ export async function updateSession(request: NextRequest) {
         );
         const url = request.nextUrl.clone();
         url.pathname = canAccessEnterprise(
-          {
-            email: user.email,
-            plan: access.plan,
-            subscription_status: access.status,
-          },
+          userFromSubscriptionAccess(access, user.email),
           access.orgRole,
         )
           ? '/enterprise/portal'

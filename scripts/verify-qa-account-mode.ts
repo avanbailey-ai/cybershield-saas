@@ -62,11 +62,17 @@ assert(
 const websiteLimit = canAddWebsite({ isQaAccount: true, qaSimulatedPlan: 'pro', plan: 'pro' }, 10);
 assert(!websiteLimit.allowed, 'pro website limit enforced for QA at cap');
 
-const enterprise = canAccessEnterprise(
-  { plan: 'agency', subscription_status: 'active', isQaAccount: true },
+const enterpriseBlocked = canAccessEnterprise(
+  { plan: 'agency', subscription_status: 'active', isQaAccount: true, qaEnterpriseEnabled: false },
   'owner',
 );
-assert(enterprise, 'QA agency enterprise access');
+assert(!enterpriseBlocked, 'QA agency blocks enterprise without flag');
+
+const enterpriseAllowed = canAccessEnterprise(
+  { plan: 'agency', subscription_status: 'active', isQaAccount: true, qaEnterpriseEnabled: true },
+  'owner',
+);
+assert(enterpriseAllowed, 'QA agency enterprise when flag enabled');
 
 const access: SubscriptionAccess = qaFlags.isQaAccount
   ? {

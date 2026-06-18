@@ -13,6 +13,7 @@ export type UserWithPlan = {
   subscription_status?: string | null;
   isQaAccount?: boolean;
   qaSimulatedPlan?: QaSimulatedPlan;
+  qaEnterpriseEnabled?: boolean;
 };
 
 const LEGACY_PLAN_MAP: Record<string, Plan> = {
@@ -117,12 +118,14 @@ export function canUseMonitoring(user: UserForFeatureGate): boolean {
 
 const ENTERPRISE_PLANS = new Set<Plan>(['agency', 'growth']);
 
-/** Enterprise portal: active agency/growth org subscription + org owner or admin. */
+/** Enterprise portal: active agency/growth org subscription + org owner or admin. QA simulates customer plans unless qa_enterprise_enabled. */
 export function canAccessEnterprise(
   user: UserForFeatureGate,
   orgRole?: OrgRole | null,
 ): boolean {
   if (!orgRole || !isOrgAdminRole(orgRole)) return false;
+
+  if (user.isQaAccount && !user.qaEnterpriseEnabled) return false;
 
   const plan = normalizePlan(user.plan);
   const status = user.subscription_status ?? 'inactive';

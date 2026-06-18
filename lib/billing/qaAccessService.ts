@@ -13,13 +13,13 @@ export async function fetchQaAccountFlags(userId: string): Promise<QaAccountFlag
     const supabase = createAdminClient();
     const { data } = await supabase
       .from('profiles')
-      .select('is_qa_account, qa_simulated_plan')
+      .select('is_qa_account, qa_simulated_plan, qa_enterprise_enabled')
       .eq('id', userId)
       .maybeSingle();
 
     return qaAccountFlagsFromProfile(data as QaAccountProfileRow | null);
   } catch {
-    return { isQaAccount: false, qaSimulatedPlan: 'agency' };
+    return { isQaAccount: false, qaSimulatedPlan: 'agency', qaEnterpriseEnabled: false };
   }
 }
 
@@ -34,12 +34,15 @@ export function applyQaSubscriptionAccess(
     status: 'active',
     isActive: true,
     canAccessDashboard: true,
+    isQaAccount: true,
+    qaSimulatedPlan: flags.qaSimulatedPlan,
+    qaEnterpriseEnabled: flags.qaEnterpriseEnabled,
   };
 }
 
 export function applyQaUserWithPlan<T extends UserWithPlan & { id?: string }>(
   user: T,
   flags: QaAccountFlags,
-): T & { isQaAccount?: boolean; qaSimulatedPlan?: QaAccountFlags['qaSimulatedPlan'] } {
+): T & { isQaAccount?: boolean; qaSimulatedPlan?: QaAccountFlags['qaSimulatedPlan']; qaEnterpriseEnabled?: boolean } {
   return applyQaPlanOverride(user, flags);
 }
