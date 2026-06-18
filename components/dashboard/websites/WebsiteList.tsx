@@ -1414,6 +1414,16 @@ export default function WebsiteList() {
                     <div className="flex flex-wrap items-center justify-end gap-2">
 
                       <Link
+                        href={`/app/websites/${site.id}/health`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800/80"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                        Health
+                      </Link>
+
+                      <Link
                         href={`/app/websites/${site.id}/changes`}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-800/80"
                       >
