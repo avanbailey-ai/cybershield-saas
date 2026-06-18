@@ -12,6 +12,7 @@ export async function GET() {
   const { data, error } = await admin
     .from('owner_prospects')
     .select('*')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -33,9 +34,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'business_name and website required' }, { status: 400 });
   }
 
-  const { scoreOpportunity } = await import('@/lib/owner/opportunityScore');
-  const opp = scoreOpportunity({ industry: industry?.trim() });
-
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('owner_prospects')
@@ -47,10 +45,8 @@ export async function POST(req: NextRequest) {
       state: state?.trim() || null,
       country: country?.trim() || null,
       scan_status: 'pending',
-      conversion_likelihood: opp.conversionLikelihood,
-      estimated_mrr: opp.estimatedMrr,
-      estimated_arr: opp.estimatedArr,
-      opportunity_priority: opp.priority,
+      pipeline_state: 'new',
+      discovery_source: 'manual',
     })
     .select()
     .single();

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SectionCard } from './MetricCard';
+import HygieneControls from './HygieneControls';
 import type { OwnerCompetitor } from '@/lib/owner/types';
 
 export default function CompetitorIntel({
@@ -12,6 +13,7 @@ export default function CompetitorIntel({
   embedded?: boolean;
 }) {
   const [competitors, setCompetitors] = useState(initialCompetitors);
+  const [view, setView] = useState<'active' | 'archived'>('active');
   const [form, setForm] = useState({
     name: '',
     website: '',
@@ -40,8 +42,42 @@ export default function CompetitorIntel({
     }
   }
 
+  async function hygieneCompetitor(id: string, body: Record<string, boolean>) {
+    const res = await fetch(`/api/owner/competitors/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.competitor) {
+      setCompetitors((c) => c.map((x) => (x.id === id ? data.competitor : x)));
+    }
+  }
+
+  async function deleteCompetitor(id: string) {
+    const res = await fetch(`/api/owner/competitors/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setCompetitors((c) => c.filter((x) => x.id !== id));
+  }
+
+  const visible = competitors.filter((c) => (view === 'archived' ? c.archived_at : !c.archived_at));
+
   const inner = (
     <>
+      <div className="mb-4 flex gap-2">
+        {(['active', 'archived'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-lg px-3 py-1 text-xs ${
+              view === v ? 'bg-violet-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            {v === 'active' ? 'Active' : 'Archived'}
+          </button>
+        ))}
+      </div>
       <form onSubmit={addCompetitor} className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <input
           placeholder="Competitor name"
@@ -76,24 +112,33 @@ export default function CompetitorIntel({
         </button>
       </form>
 
-      {competitors.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
           <p className="text-sm text-gray-500">No competitors tracked. Add your top 3 alternatives.</p>
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {competitors.map((c) => (
+          {visible.map((c) => (
             <div key={c.id} className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-medium text-white">{c.name}</h3>
                   {c.website && <p className="text-xs text-gray-500">{c.website}</p>}
                 </div>
-                {c.last_reviewed_at && (
-                  <span className="text-[10px] text-gray-600">
-                    Reviewed {new Date(c.last_reviewed_at).toLocaleDateString()}
-                  </span>
-                )}
+                <div className="text-right">
+                  {c.last_reviewed_at && (
+                    <span className="block text-[10px] text-gray-600">
+                      Reviewed {new Date(c.last_reviewed_at).toLocaleDateString()}
+                    </span>
+                  )}
+                  <HygieneControls
+                    compact
+                    archived={!!c.archived_at}
+                    onArchive={() => hygieneCompetitor(c.id, { archive: true })}
+                    onUnarchive={() => hygieneCompetitor(c.id, { unarchive: true })}
+                    onDelete={() => deleteCompetitor(c.id)}
+                  />
+                </div>
               </div>
               <div className="mt-3 space-y-2 text-sm">
                 {c.pricing_notes && (

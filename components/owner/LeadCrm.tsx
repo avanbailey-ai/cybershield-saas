@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SectionCard } from './MetricCard';
+import HygieneControls from './HygieneControls';
 import { scoreOpportunity } from '@/lib/owner/opportunityScore';
 import { leadScoreColor } from '@/lib/owner/leadScore';
 import { CRM_STAGES, type OwnerCrmLead, type CrmStage } from '@/lib/owner/types';
@@ -14,6 +15,7 @@ export default function LeadCrm({
   embedded?: boolean;
 }) {
   const [leads, setLeads] = useState(initialLeads);
+  const [view, setView] = useState<'active' | 'archived'>('active');
   const [form, setForm] = useState({
     business_name: '',
     website: '',
@@ -22,7 +24,9 @@ export default function LeadCrm({
     potential_revenue: '',
   });
 
-  const sorted = [...leads].sort((a, b) => {
+  const sorted = [...leads]
+    .filter((l) => (view === 'archived' ? l.archived_at : !l.archived_at))
+    .sort((a, b) => {
     const pa = scoreOpportunity({
       leadScore: a.lead_score,
       industry: a.industry,
@@ -65,8 +69,38 @@ export default function LeadCrm({
     if (data.lead) setLeads((l) => l.map((x) => (x.id === id ? data.lead : x)));
   }
 
+  async function hygieneLead(id: string, body: Record<string, boolean>) {
+    const res = await fetch(`/api/owner/crm/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.lead) setLeads((l) => l.map((x) => (x.id === id ? data.lead : x)));
+  }
+
+  async function deleteLead(id: string) {
+    const res = await fetch(`/api/owner/crm/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setLeads((l) => l.filter((x) => x.id !== id));
+  }
+
   const inner = (
     <>
+      <div className="mb-4 flex gap-2">
+        {(['active', 'archived'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-lg px-3 py-1 text-xs ${
+              view === v ? 'bg-violet-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            {v === 'active' ? 'Active' : 'Archived'}
+          </button>
+        ))}
+      </div>
       {!embedded && topValue && (
         <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
           <p className="text-xs text-emerald-400">Highest Value Lead</p>
@@ -166,6 +200,13 @@ export default function LeadCrm({
                     </option>
                   ))}
                 </select>
+                <HygieneControls
+                  compact
+                  archived={!!lead.archived_at}
+                  onArchive={() => hygieneLead(lead.id, { archive: true })}
+                  onUnarchive={() => hygieneLead(lead.id, { unarchive: true })}
+                  onDelete={() => deleteLead(lead.id)}
+                />
               </div>
             );
           })}

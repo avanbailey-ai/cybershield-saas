@@ -3,17 +3,22 @@ import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { defaultCampaignTasks } from '@/lib/owner/campaignTemplates';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireOwner();
   if (!auth.ok) {
     return NextResponse.json({ error: 'Forbidden' }, { status: auth.status });
   }
 
+  const view = req.nextUrl.searchParams.get('view') ?? 'active';
   const admin = createAdminClient();
-  const { data: campaigns, error } = await admin
+  let query = admin
     .from('owner_campaigns')
     .select('*, owner_campaign_tasks(*)')
-    .order('created_at', { ascending: false });
+    .is('deleted_at', null);
+  if (view === 'archived') query = query.not('archived_at', 'is', null);
+  else if (view === 'active') query = query.is('archived_at', null);
+
+  const { data: campaigns, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

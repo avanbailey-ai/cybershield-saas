@@ -36,6 +36,14 @@ export interface OwnerProspect {
   estimated_mrr: number | null;
   estimated_arr: number | null;
   opportunity_priority: number | null;
+  pipeline_state: string;
+  discovery_source: string | null;
+  discovery_source_url: string | null;
+  top_issue: string | null;
+  dns_valid: boolean | null;
+  http_valid: boolean | null;
+  archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +55,8 @@ export interface OwnerOutreachDraft {
   business_name: string | null;
   content: string;
   status: 'draft' | 'approved' | 'sent';
+  archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,6 +73,8 @@ export interface OwnerCrmLead {
   lead_score: LeadScore | null;
   potential_revenue: number | null;
   last_contact_at: string | null;
+  archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -75,6 +87,8 @@ export interface OwnerCampaign {
   status: 'draft' | 'active' | 'completed';
   daily_goal: string | null;
   goals_completed: number;
+  archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +115,8 @@ export interface OwnerCompetitor {
   opportunities: string | null;
   last_reviewed_at: string | null;
   changes_notes: string | null;
+  archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -115,6 +131,8 @@ export interface OwnerContentPost {
   leads_generated: number;
   customers_acquired: number;
   published_at: string | null;
+  archived_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

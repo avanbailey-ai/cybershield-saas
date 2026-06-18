@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { hygieneUpdates } from '@/lib/owner/hygiene';
+import type { ProspectPipelineState } from '@/lib/owner/discovery/types';
 
 export async function PATCH(
   req: NextRequest,
@@ -15,49 +15,39 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
   const admin = createAdminClient();
+  const updates: Record<string, unknown> = {};
 
-  const hygiene = hygieneUpdates(body);
-  if (hygiene) {
-    const { data, error } = await admin
-      .from('owner_crm_leads')
-      .update(hygiene)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .select()
-      .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, lead: data });
+  if (body.archive === true) {
+    updates.pipeline_state = 'archived';
+    updates.archived_at = new Date().toISOString();
+  }
+  if (body.unarchive === true) {
+    updates.pipeline_state = body.pipeline_state ?? 'scanned';
+    updates.archived_at = null;
+  }
+  if (body.pipeline_state) {
+    updates.pipeline_state = body.pipeline_state as ProspectPipelineState;
+    if (body.pipeline_state === 'archived') {
+      updates.archived_at = new Date().toISOString();
+    }
   }
 
-  const updates: Record<string, unknown> = {};
-  const fields = [
-    'business_name',
-    'website',
-    'industry',
-    'contact_name',
-    'contact_email',
-    'notes',
-    'stage',
-    'lead_score',
-    'potential_revenue',
-    'last_contact_at',
-  ] as const;
-
-  for (const f of fields) {
-    if (body[f] !== undefined) updates[f] = body[f];
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No updates' }, { status: 400 });
   }
 
   const { data, error } = await admin
-    .from('owner_crm_leads')
+    .from('owner_prospects')
     .update(updates)
     .eq('id', id)
+    .is('deleted_at', null)
     .select()
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, lead: data });
+  return NextResponse.json({ ok: true, prospect: data });
 }
 
 export async function DELETE(
@@ -71,8 +61,9 @@ export async function DELETE(
 
   const { id } = await params;
   const admin = createAdminClient();
+
   const { data, error } = await admin
-    .from('owner_crm_leads')
+    .from('owner_prospects')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .select()
@@ -81,5 +72,5 @@ export async function DELETE(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, lead: data });
+  return NextResponse.json({ ok: true, prospect: data });
 }

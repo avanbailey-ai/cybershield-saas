@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SectionCard } from './MetricCard';
+import HygieneControls from './HygieneControls';
 import type { OwnerContentPost } from '@/lib/owner/types';
 
 export default function ContentPerformance({
@@ -12,6 +13,7 @@ export default function ContentPerformance({
   embedded?: boolean;
 }) {
   const [posts, setPosts] = useState(initialPosts);
+  const [view, setView] = useState<'active' | 'archived'>('active');
   const [form, setForm] = useState({
     platform: 'linkedin',
     title: '',
@@ -42,7 +44,25 @@ export default function ContentPerformance({
     }
   }
 
-  const totals = posts.reduce(
+  async function hygienePost(id: string, body: Record<string, boolean>) {
+    const res = await fetch(`/api/owner/content-posts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.post) setPosts((p) => p.map((x) => (x.id === id ? data.post : x)));
+  }
+
+  async function deletePost(id: string) {
+    const res = await fetch(`/api/owner/content-posts/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setPosts((p) => p.filter((x) => x.id !== id));
+  }
+
+  const visible = posts.filter((p) => (view === 'archived' ? p.archived_at : !p.archived_at));
+
+  const totals = visible.reduce(
     (acc, p) => ({
       views: acc.views + p.views,
       leads: acc.leads + p.leads_generated,
@@ -53,6 +73,20 @@ export default function ContentPerformance({
 
   const inner = (
     <>
+      <div className="mb-4 flex gap-2">
+        {(['active', 'archived'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-lg px-3 py-1 text-xs ${
+              view === v ? 'bg-violet-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            {v === 'active' ? 'Active' : 'Archived'}
+          </button>
+        ))}
+      </div>
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-4 text-center">
           <p className="text-xs text-gray-500">Total Views</p>
@@ -106,7 +140,7 @@ export default function ContentPerformance({
         </button>
       </form>
 
-      {posts.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="text-sm text-gray-500">No content tracked yet. Log your first post above.</p>
       ) : (
         <div className="overflow-x-auto">
@@ -117,17 +151,27 @@ export default function ContentPerformance({
                 <th className="pb-3 pr-4">Title</th>
                 <th className="pb-3 pr-4">Views</th>
                 <th className="pb-3 pr-4">Leads</th>
-                <th className="pb-3">Customers</th>
+                <th className="pb-3 pr-4">Customers</th>
+                <th className="pb-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {posts.map((p) => (
+              {visible.map((p) => (
                 <tr key={p.id} className="border-b border-gray-800/50">
                   <td className="py-3 pr-4 capitalize text-gray-400">{p.platform}</td>
                   <td className="py-3 pr-4 text-white">{p.title ?? '—'}</td>
                   <td className="py-3 pr-4 text-white">{p.views}</td>
                   <td className="py-3 pr-4 text-violet-400">{p.leads_generated}</td>
-                  <td className="py-3 text-emerald-400">{p.customers_acquired}</td>
+                  <td className="py-3 pr-4 text-emerald-400">{p.customers_acquired}</td>
+                  <td className="py-3">
+                    <HygieneControls
+                      compact
+                      archived={!!p.archived_at}
+                      onArchive={() => hygienePost(p.id, { archive: true })}
+                      onUnarchive={() => hygienePost(p.id, { unarchive: true })}
+                      onDelete={() => deletePost(p.id)}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

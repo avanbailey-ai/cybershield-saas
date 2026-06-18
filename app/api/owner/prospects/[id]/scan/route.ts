@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { runScan } from '@/lib/scanner/runScan';
 import { computeLeadScore } from '@/lib/owner/leadScore';
 import { scoreOpportunity } from '@/lib/owner/opportunityScore';
+import { pipelineStateFromScan, topIssueFromFindings } from '@/lib/owner/pipeline';
 
 export async function POST(
   _req: NextRequest,
@@ -48,6 +49,12 @@ export async function POST(
       scanCompleted: true,
     });
 
+    const pipeline_state = pipelineStateFromScan({
+      scanStatus: 'completed',
+      leadScore,
+      currentState: prospect.pipeline_state,
+    });
+
     const { data: updated, error: updateErr } = await admin
       .from('owner_prospects')
       .update({
@@ -66,6 +73,8 @@ export async function POST(
         estimated_mrr: opp.estimatedMrr,
         estimated_arr: opp.estimatedArr,
         opportunity_priority: opp.priority,
+        pipeline_state,
+        top_issue: topIssueFromFindings({ issues: result.issues }),
       })
       .eq('id', id)
       .select()

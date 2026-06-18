@@ -3,6 +3,26 @@ import { requireOwner } from '@/lib/owner/requireOwner';
 import { parseUrlBatch, parseCsvImport } from '@/lib/owner/prospectDiscovery';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+export async function GET() {
+  const auth = await requireOwner();
+  if (!auth.ok) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: auth.status });
+  }
+
+  const admin = createAdminClient();
+  const { data: runs, error } = await admin
+    .from('owner_discovery_runs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, runs: runs ?? [] });
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireOwner();
   if (!auth.ok) {
@@ -41,6 +61,8 @@ export async function POST(req: NextRequest) {
         state: p.state,
         country: p.country,
         scan_status: 'pending',
+        pipeline_state: 'new',
+        discovery_source: mode === 'csv' ? 'csv' : 'url_batch',
         lead_score: null,
         conversion_likelihood: null,
         estimated_mrr: null,

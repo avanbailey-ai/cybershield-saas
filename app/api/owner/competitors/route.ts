@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireOwner();
   if (!auth.ok) {
     return NextResponse.json({ error: 'Forbidden' }, { status: auth.status });
   }
 
+  const view = req.nextUrl.searchParams.get('view') ?? 'active';
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('owner_competitors')
-    .select('*')
-    .order('name');
+  let query = admin.from('owner_competitors').select('*').is('deleted_at', null);
+  if (view === 'archived') query = query.not('archived_at', 'is', null);
+  else if (view === 'active') query = query.is('archived_at', null);
+
+  const { data, error } = await query.order('name');
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

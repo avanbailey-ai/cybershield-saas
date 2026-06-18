@@ -57,8 +57,16 @@ assert(overview.includes('topActions'), 'Overview uses topActions');
 
 const prospects = readFile('components/owner/views/ProspectsView.tsx');
 assert(prospects.includes('LeadDiscovery'), 'Prospects uses single discovery source');
-assert(readFile('components/owner/LeadDiscovery.tsx').includes('Next step'), 'Prospects has next step column');
-assert(readFile('components/owner/LeadDiscovery.tsx').includes('No prospects imported yet'), 'Prospects empty state');
+assert(
+  readFile('components/owner/LeadDiscovery.tsx').includes('Next step') ||
+    readFile('components/owner/ProspectPipeline.tsx').includes('Next step'),
+  'Prospects has next step column',
+);
+assert(
+  readFile('components/owner/LeadDiscovery.tsx').includes('No prospects discovered yet') ||
+    readFile('components/owner/ProspectPipeline.tsx').includes('No prospects discovered yet'),
+  'Prospects empty state',
+);
 
 assert(readFile('components/owner/views/OutreachView.tsx').includes('No HOT prospects yet'), 'Outreach empty state');
 assert(readFile('components/owner/views/CustomersView.tsx').includes('No customer data yet'), 'Customers empty state');

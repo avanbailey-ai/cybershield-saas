@@ -18,41 +18,43 @@ export async function PATCH(
 
   const hygiene = hygieneUpdates(body);
   if (hygiene) {
-    await admin.from('owner_campaigns').update(hygiene).eq('id', id).is('deleted_at', null);
-    const { data } = await admin
-      .from('owner_campaigns')
-      .select('*, owner_campaign_tasks(*)')
+    const { data, error } = await admin
+      .from('owner_content_posts')
+      .update(hygiene)
       .eq('id', id)
+      .is('deleted_at', null)
+      .select()
       .single();
-    return NextResponse.json({ ok: true, campaign: data });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, post: data });
   }
 
-  if (body.taskId !== undefined) {
-    const { error } = await admin
-      .from('owner_campaign_tasks')
-      .update({
-        completed: body.completed ?? true,
-        completed_at: body.completed ? new Date().toISOString() : null,
-      })
-      .eq('id', body.taskId)
-      .eq('campaign_id', id);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  const fields = [
+    'platform',
+    'title',
+    'content',
+    'status',
+    'views',
+    'leads_generated',
+    'customers_acquired',
+    'published_at',
+  ] as const;
+  const updates: Record<string, unknown> = {};
+  for (const f of fields) {
+    if (body[f] !== undefined) updates[f] = body[f];
   }
 
-  if (body.status) {
-    await admin.from('owner_campaigns').update({ status: body.status }).eq('id', id);
-  }
-
-  const { data } = await admin
-    .from('owner_campaigns')
-    .select('*, owner_campaign_tasks(*)')
+  const { data, error } = await admin
+    .from('owner_content_posts')
+    .update(updates)
     .eq('id', id)
+    .select()
     .single();
 
-  return NextResponse.json({ ok: true, campaign: data });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, post: data });
 }
 
 export async function DELETE(
@@ -67,7 +69,7 @@ export async function DELETE(
   const { id } = await params;
   const admin = createAdminClient();
   const { data, error } = await admin
-    .from('owner_campaigns')
+    .from('owner_content_posts')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .select()
@@ -76,5 +78,5 @@ export async function DELETE(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, campaign: data });
+  return NextResponse.json({ ok: true, post: data });
 }

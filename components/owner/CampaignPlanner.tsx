@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SectionCard } from './MetricCard';
+import HygieneControls from './HygieneControls';
 import type { OwnerCampaign, OwnerCampaignTask } from '@/lib/owner/types';
 
 type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
@@ -22,6 +23,7 @@ export default function CampaignPlanner({
   embedded?: boolean;
 }) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [view, setView] = useState<'active' | 'archived'>('active');
   const [name, setName] = useState('');
   const [duration, setDuration] = useState<7 | 30>(7);
   const [loading, setLoading] = useState(false);
@@ -55,11 +57,43 @@ export default function CampaignPlanner({
     }
   }
 
-  const activeCampaign = campaigns.find((c) => c.status === 'active') ?? campaigns[0];
+  async function hygieneCampaign(id: string, body: Record<string, boolean>) {
+    const res = await fetch(`/api/owner/campaigns/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.campaign) setCampaigns((c) => c.map((x) => (x.id === id ? data.campaign : x)));
+  }
+
+  async function deleteCampaign(id: string) {
+    const res = await fetch(`/api/owner/campaigns/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setCampaigns((c) => c.filter((x) => x.id !== id));
+  }
+
+  const visible = campaigns.filter((c) => (view === 'archived' ? c.archived_at : !c.archived_at));
+  const activeCampaign = visible.find((c) => c.status === 'active') ?? visible[0];
+
   const today = activeCampaign ? todayTask(activeCampaign) : null;
 
   const inner = (
     <>
+      <div className="mb-4 flex gap-2">
+        {(['active', 'archived'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-lg px-3 py-1 text-xs ${
+              view === v ? 'bg-violet-600 text-white' : 'text-gray-400'
+            }`}
+          >
+            {v === 'active' ? 'Active' : 'Archived'}
+          </button>
+        ))}
+      </div>
       {today && (
         <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
           <p className="text-xs font-medium uppercase text-violet-400">Today&apos;s Goal</p>
@@ -93,13 +127,13 @@ export default function CampaignPlanner({
         </button>
       </div>
 
-      {campaigns.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
           <p className="text-sm text-gray-500">No campaigns yet. Launch a 7-day growth sprint.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {campaigns.map((camp) => {
+          {visible.map((camp) => {
             const tasks = camp.owner_campaign_tasks ?? [];
             const done = tasks.filter((t) => t.completed).length;
             const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
@@ -118,6 +152,13 @@ export default function CampaignPlanner({
                       style={{ width: `${pct}%` }}
                     />
                   </div>
+                  <HygieneControls
+                    compact
+                    archived={!!camp.archived_at}
+                    onArchive={() => hygieneCampaign(camp.id, { archive: true })}
+                    onUnarchive={() => hygieneCampaign(camp.id, { unarchive: true })}
+                    onDelete={() => deleteCampaign(camp.id)}
+                  />
                 </div>
                 <ul className="space-y-2">
                   {tasks

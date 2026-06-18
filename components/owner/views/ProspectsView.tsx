@@ -17,10 +17,10 @@ export default function ProspectsView({ prospects, revenue }: Props) {
     <div className="mx-auto max-w-6xl space-y-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Prospects</h1>
-        <p className="mt-2 text-gray-500">Import → scan → score → outreach</p>
+        <p className="mt-2 text-gray-500">Discover → scan → score → outreach</p>
         {prospects.length > 0 && (
           <p className="mt-4 text-sm text-gray-400">
-            {prospects.length} imported · {scanned} scanned · {hot} HOT
+            {prospects.length} prospects · {scanned} scanned · {hot} HOT
             {revenue.crmPipelineMrr > 0 &&
               ` · $${revenue.crmPipelineMrr.toLocaleString()}/mo CRM pipeline`}
           </p>
