@@ -254,9 +254,9 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
                     >
                       {change.severity}
                     </span>
-                    <span className="text-xs text-blue-400/90">{change.category}</span>
+                    <span className="text-xs text-blue-400/90">{change.categoryLabel}</span>
                   </div>
-                  <p className="mt-1 truncate text-sm text-white">{change.summary}</p>
+                  <p className="mt-1 truncate text-sm text-white">{change.title}</p>
                   <p className="text-xs text-gray-500">{formatTimelineTimestamp(change.detectedAt)}</p>
                 </div>
               </li>

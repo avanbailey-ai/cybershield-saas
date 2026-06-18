@@ -11,8 +11,17 @@ import {
   changeCategoryLabel,
   type ChangeTimelineItem,
   type ChangeTimelinePeriod,
+  type GroupedTimelineEvent,
   periodStartDate,
 } from './changeTimeline';
+import {
+  filterTimelineEvents,
+  transformTimelineEvents,
+  type TimelineFilter,
+} from './transformTimelineEvents';
+
+export { filterTimelineEvents };
+export type { TimelineFilter };
 
 type ScanRow = {
   id: string;
@@ -66,6 +75,9 @@ function enrichChangeRow(
 export interface WebsiteChangeTimelineResult {
   website: { id: string; url: string; label: string | null };
   period: ChangeTimelinePeriod;
+  events: GroupedTimelineEvent[];
+  rawChangeCount: number;
+  /** @deprecated Use `events` — raw rows preserved inside each event's technicalDetails */
   changes: ChangeTimelineItem[];
 }
 
@@ -94,7 +106,7 @@ export async function fetchWebsiteChangeTimeline(
 
   if (changesError) {
     console.error('[changeTimeline] fetch changes failed:', changesError);
-    return { website, period, changes: [] };
+    return { website, period, events: [], rawChangeCount: 0, changes: [] };
   }
 
   const { data: scanRows } = await supabase
@@ -118,6 +130,11 @@ export async function fetchWebsiteChangeTimeline(
     previousByScanId.set(scans[i].id, prev);
   }
 
+  const baselineScanIds = new Set<string>();
+  for (const [scanId, prev] of previousByScanId) {
+    if (prev === null) baselineScanIds.add(scanId);
+  }
+
   const changes = (changeRows ?? []).map((row) =>
     enrichChangeRow(
       row,
@@ -126,5 +143,23 @@ export async function fetchWebsiteChangeTimeline(
     ),
   );
 
-  return { website, period, changes };
+  const events = transformTimelineEvents(changes, {
+    websiteUrl: website.url,
+    baselineScanIds,
+  });
+
+  return {
+    website,
+    period,
+    events,
+    rawChangeCount: changes.length,
+    changes,
+  };
+}
+
+export function fetchImportantTimelineEvents(
+  result: WebsiteChangeTimelineResult,
+  limit = 5,
+): GroupedTimelineEvent[] {
+  return filterTimelineEvents(result.events, 'important').slice(0, limit);
 }

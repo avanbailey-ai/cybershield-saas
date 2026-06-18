@@ -1,4 +1,5 @@
 import type { ChangeSeverity, ChangeType } from '@/lib/scanner/diffDetection';
+import type { GroupedSeverity, TimelineFilter } from './transformTimelineEvents';
 
 export type ChangeTimelinePeriod = 'day' | 'week' | 'month';
 
@@ -70,4 +71,42 @@ export interface ChangeTimelineItem {
   detectedAt: string;
   before: string;
   after: string;
+}
+
+export type {
+  BusinessChangeCategory,
+  GroupedSeverity,
+  GroupedTimelineEvent,
+  TimelineFilter,
+} from './transformTimelineEvents';
+
+export {
+  businessCategoryLabel,
+  filterTimelineEvents,
+  sortGroupedTimelineEvents,
+} from './transformTimelineEvents';
+
+export const TIMELINE_FILTERS: { key: TimelineFilter; label: string }[] = [
+  { key: 'important', label: 'Important only' },
+  { key: 'all', label: 'All activity' },
+  { key: 'security', label: 'Security changes' },
+  { key: 'website_updates', label: 'Website updates' },
+  { key: 'technical', label: 'Technical details' },
+];
+
+export function parseTimelineFilter(raw: string | undefined): TimelineFilter {
+  if (
+    raw === 'important' ||
+    raw === 'all' ||
+    raw === 'security' ||
+    raw === 'website_updates' ||
+    raw === 'technical'
+  ) {
+    return raw;
+  }
+  return 'important';
+}
+
+export function groupedSeverityBadgeClass(severity: GroupedSeverity): string {
+  return severityBadgeClass(severity);
 }

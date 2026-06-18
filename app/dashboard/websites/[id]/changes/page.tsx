@@ -4,7 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import WebsiteChangeTimeline from '@/components/dashboard/websites/WebsiteChangeTimeline';
 import { fetchWebsiteChangeTimeline } from '@/lib/scanChanges/fetchWebsiteChanges';
-import { parseChangeTimelinePeriod } from '@/lib/scanChanges/changeTimeline';
+import { parseChangeTimelinePeriod, parseTimelineFilter } from '@/lib/scanChanges/changeTimeline';
 
 export const metadata: Metadata = {
   title: 'Change Timeline — CyberShield',
@@ -15,11 +15,12 @@ export default async function WebsiteChangesPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; filter?: string }>;
 }) {
   const { id } = await params;
-  const { period: periodRaw } = await searchParams;
+  const { period: periodRaw, filter: filterRaw } = await searchParams;
   const period = parseChangeTimelinePeriod(periodRaw);
+  const filter = parseTimelineFilter(filterRaw);
 
   const supabase = await createClient();
   const {
@@ -50,7 +51,9 @@ export default async function WebsiteChangesPage({
           websiteLabel={displayLabel}
           websiteUrl={timeline.website.url}
           period={timeline.period}
-          changes={timeline.changes}
+          events={timeline.events}
+          rawChangeCount={timeline.rawChangeCount}
+          initialFilter={filter}
         />
       </main>
     </div>

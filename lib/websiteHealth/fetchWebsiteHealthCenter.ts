@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { LightweightMonitorMeta } from '@/lib/scanner/runLightweightMonitor';
-import { fetchWebsiteChangeTimeline } from '@/lib/scanChanges/fetchWebsiteChanges';
-import type { ChangeTimelineItem } from '@/lib/scanChanges/changeTimeline';
+import { fetchWebsiteChangeTimeline, fetchImportantTimelineEvents } from '@/lib/scanChanges/fetchWebsiteChanges';
+import type { GroupedTimelineEvent } from '@/lib/scanChanges/changeTimeline';
 import { sslHealthFromDays } from '@/lib/ssl/sslStatus';
 import type { SslHealthStatus } from '@/lib/ssl/types';
 import { domainHealthFromDays } from '@/lib/domain/domainStatus';
@@ -68,7 +68,7 @@ export interface WebsiteHealthCenterData {
     priorityMonitoring: boolean;
     scanFrequency: string | null;
   };
-  recentChanges: ChangeTimelineItem[];
+  recentChanges: GroupedTimelineEvent[];
   alerts: {
     unreadCount: number;
     recent: WebsiteHealthAlert[];
@@ -174,7 +174,8 @@ export async function fetchWebsiteHealthCenter(
         ? 'online'
         : 'unknown';
 
-  const recentChanges = (changeTimeline?.changes ?? []).slice(0, 5);
+  const recentChanges =
+    changeTimeline != null ? fetchImportantTimelineEvents(changeTimeline, 5) : [];
 
   const recentAlerts: WebsiteHealthAlert[] = (recentUnreadAlertsRes.data ?? []).map((a) => ({
     id: a.id,
