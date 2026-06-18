@@ -32,8 +32,9 @@ function suggestedAction(score: number, status: string): string {
   return 'New inbound lead — review and send intro email.';
 }
 
-const siteUrl = () =>
-  process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://cybershield-saas.vercel.app';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
+
+const siteUrl = () => resolveSiteUrl();
 
 function adminLeadEmailHtml(lead: EnterpriseLeadNotification): string {
   const needs = Array.isArray(lead.security_needs) ? lead.security_needs.join(', ') : 'None specified';

@@ -3,6 +3,7 @@ import { monitoringAlertEmail } from './emailTemplates';
 import { createAdminClient } from './supabase/admin';
 import { logEvent } from '@/lib/observability';
 import { canAccessFeature } from '@/lib/auth/featureGate';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 import { getUserWithPlan } from '@/lib/billing/planService';
 import { getActiveOrgId } from '@/lib/org/context';
 import {
@@ -200,7 +201,7 @@ export async function sendMonitoringAlert(
     return { sent: false, reason: 'scan_not_found' };
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas.vercel.app';
+  const siteUrl = resolveSiteUrl();
   const reportUrl = `${siteUrl}/report/${scan.id}`;
   const websiteUrl = websiteData?.url ?? '';
 

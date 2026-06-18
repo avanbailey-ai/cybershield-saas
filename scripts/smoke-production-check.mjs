@@ -9,7 +9,7 @@
  *
  * Usage:
  *   npm run smoke:production
- *   SMOKE_BASE_URL=https://cybershield-saas-1o19.vercel.app node scripts/smoke-production-check.mjs
+ *   SMOKE_BASE_URL=https://cybershieldcloud.com node scripts/smoke-production-check.mjs
  *
  * Authenticated plan shape (optional):
  *   SMOKE_SESSION_COOKIE="sb-...-auth-token=..." npm run smoke:production
@@ -28,7 +28,7 @@ const root = path.resolve(__dirname, '..');
 const BASE_URL = (
   process.env.SMOKE_BASE_URL ||
   process.env.SMOKE_TEST_URL ||
-  'https://cybershield-saas-1o19.vercel.app' ||
+  'https://cybershieldcloud.com' ||
   'http://localhost:3000'
 ).replace(/\/$/, '');
 

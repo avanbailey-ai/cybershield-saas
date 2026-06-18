@@ -10,8 +10,9 @@ interface DemoBody {
   notes?: string;
 }
 
-const siteUrl = () =>
-  process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://cybershield-saas.vercel.app';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
+
+const siteUrl = () => resolveSiteUrl();
 
 function escapeHtml(str: string): string {
   return str

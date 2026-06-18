@@ -6,6 +6,7 @@ import type { SessionSupabaseClient } from "@/lib/auth/redirect";
 import { getRedirectPathForSession } from "@/lib/auth/redirectServer";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { PRODUCTION_SITE_URL } from "@/lib/site/getSiteUrl";
 
 export async function signUp(formData: FormData) {
   try {
@@ -15,11 +16,11 @@ export async function signUp(formData: FormData) {
   const password = formData.get("password") as string;
 
   // IMPORTANT: Also update Site URL in Supabase Dashboard:
-  // Authentication → URL Configuration → Site URL → set to your Vercel URL
-  // Also add your Vercel URL to "Redirect URLs" allowlist
+  // Authentication → URL Configuration → Site URL → https://cybershieldcloud.com
+  // Also add https://cybershieldcloud.com and https://www.cybershieldcloud.com to Redirect URLs
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
-    (typeof window !== "undefined" ? window.location.origin : "https://cybershield-saas.vercel.app");
+    (typeof window !== "undefined" ? window.location.origin : PRODUCTION_SITE_URL);
 
   const { error } = await supabase.auth.signUp({
     email,

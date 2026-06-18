@@ -7,6 +7,7 @@ import { checkEmailBudget } from './emailBudget';
 import { getAccountEmailPreferences, resolveAccountId } from './accountEmailPreferences';
 import { logEmailAlert } from './emailAlertLog';
 import { planAllowsWeeklyDigest } from './emailDecision';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -116,7 +117,7 @@ export async function sendWeeklyDigests(): Promise<{ sent: number; skipped: numb
       }),
     );
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas-1o19.vercel.app';
+    const siteUrl = resolveSiteUrl();
     const perAccountBudget = await checkEmailBudget('weekly_digest');
     if (!perAccountBudget.allowed) {
       skipped++;

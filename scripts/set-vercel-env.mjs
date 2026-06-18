@@ -12,7 +12,7 @@ const updates = [
   ["NEXT_PUBLIC_SUPABASE_ANON_KEY", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY],
   [
     "NEXT_PUBLIC_SITE_URL",
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://cybershield-saas-1o19.vercel.app",
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://cybershieldcloud.com",
   ],
 ];
 

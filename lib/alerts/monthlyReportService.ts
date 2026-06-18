@@ -6,6 +6,7 @@ import { checkEmailBudget } from './emailBudget';
 import { getAccountEmailPreferences, resolveAccountId } from './accountEmailPreferences';
 import { logEmailAlert } from './emailAlertLog';
 import { planAllowsMonthlyReport } from './emailDecision';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 export async function sendMonthlyReports(): Promise<{ sent: number; skipped: number }> {
   const supabase = createAdminClient();
@@ -90,7 +91,7 @@ export async function sendMonthlyReports(): Promise<{ sent: number; skipped: num
       continue;
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas-1o19.vercel.app';
+    const siteUrl = resolveSiteUrl();
     const subject = 'Your monthly CyberShield security report';
     const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;padding:24px;color:#111;">
       <h2>Monthly security report</h2>

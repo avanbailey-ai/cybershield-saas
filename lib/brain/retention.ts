@@ -2,10 +2,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { emitEvent } from './eventBus';
 
-const siteUrl = () =>
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  'https://cybershield-saas.vercel.app';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
+
+const siteUrl = () => resolveSiteUrl();
 
 function retentionEmailHtml(template: string, domain: string): string {
   const subjects: Record<string, { title: string; body: string; cta: string }> = {

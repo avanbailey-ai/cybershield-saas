@@ -1,8 +1,9 @@
 import { sendEmail } from '@/lib/email';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const siteUrl = () =>
-  process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://cybershield-saas.vercel.app';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
+
+const siteUrl = () => resolveSiteUrl();
 
 async function logEmailEvent(params: {
   userId?: string | null;

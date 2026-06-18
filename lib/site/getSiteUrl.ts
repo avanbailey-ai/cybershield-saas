@@ -1,8 +1,10 @@
 /**
- * Canonical site URL for Stripe return URLs and emails.
- * In production, avoid Vercel preview deployment hashes in NEXT_PUBLIC_SITE_URL.
+ * Canonical site URL for Stripe return URLs, auth redirects, and emails.
+ *
+ * Production: https://cybershieldcloud.com (Vercel alias → cybershield-saas-1o19).
+ * Every production deploy to that project automatically serves the .com domain.
  */
-const PRODUCTION_CANONICAL_URL = 'https://cybershield-saas-1o19.vercel.app';
+export const PRODUCTION_SITE_URL = 'https://cybershieldcloud.com';
 
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/$/, '');
@@ -22,7 +24,7 @@ export function getSiteUrl(): string {
     if (configured && !isPreviewDeploymentUrl(configured)) {
       return stripTrailingSlash(configured);
     }
-    return PRODUCTION_CANONICAL_URL;
+    return PRODUCTION_SITE_URL;
   }
 
   if (configured) {
@@ -35,4 +37,9 @@ export function getSiteUrl(): string {
   }
 
   return '';
+}
+
+/** Prefer env-aware URL; fall back to production .com when unset. */
+export function resolveSiteUrl(): string {
+  return getSiteUrl() || PRODUCTION_SITE_URL;
 }

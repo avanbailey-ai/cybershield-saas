@@ -19,6 +19,7 @@ import {
 } from './emailDecision';
 import { getEffectivePlan } from '@/lib/auth/permissions';
 import { emailWhyItMattersFromCopy } from './alertCopyFromTimeline';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 type PendingEvent = {
   id: string;
@@ -198,7 +199,7 @@ export async function processPendingAlertEvents(options?: {
       continue;
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas-1o19.vercel.app';
+    const siteUrl = resolveSiteUrl();
     const dashboardUrl = `${siteUrl}/app/alerts`;
 
     const items = emailable.map((event) => ({

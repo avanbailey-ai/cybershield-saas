@@ -15,6 +15,7 @@ import {
   shouldQueueAlertEmail,
 } from '@/lib/alerts/alertEmailRules';
 import { checkEmailBudget } from '@/lib/alerts/emailBudget';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 type PendingAlert = {
   id: string;
@@ -271,7 +272,7 @@ export async function flushLegacyGroupedAlerts(options?: {
       ? 'You are receiving this urgent alert because CyberShield detected signs your website(s) may be under attack or have sharply worsened since your daily digest earlier today.'
       : 'You are receiving this once-daily summary because CyberShield monitoring detected critical or high-risk issues on your websites. We limit monitoring emails to one digest per day unless an active attack is detected.';
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://cybershield-saas-1o19.vercel.app';
+    const siteUrl = resolveSiteUrl();
     const dashboardUrl = `${siteUrl}/app/alerts`;
 
     const items = emailable.map((alert) => {
