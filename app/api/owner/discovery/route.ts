@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         state: p.state,
         country: p.country,
         scan_status: 'pending',
-        pipeline_state: 'new',
+        pipeline_state: 'new_discovery',
         discovery_source: mode === 'csv' ? 'csv' : 'url_batch',
         lead_score: null,
         conversion_likelihood: null,

@@ -36,6 +36,17 @@ export interface OwnerProspect {
   estimated_mrr: number | null;
   estimated_arr: number | null;
   opportunity_priority: number | null;
+  opportunity_score: number | null;
+  estimated_plan_fit: number | null;
+  contact_page_found: boolean | null;
+  contact_email_found: boolean | null;
+  contact_phone_found: boolean | null;
+  contact_linkedin_found: boolean | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  contact_linkedin: string | null;
+  qualification_reasons: string[] | null;
+  selection_reason: string | null;
   pipeline_state: string;
   discovery_source: string | null;
   discovery_source_url: string | null;

@@ -67,6 +67,10 @@ export default async function OwnerCommandCenterPage() {
       const { data } = await admin
         .from('owner_prospects')
         .select('*')
+        .is('deleted_at', null)
+        .not('pipeline_state', 'eq', 'archived')
+        .not('pipeline_state', 'eq', 'ignore_forever')
+        .order('opportunity_score', { ascending: false, nullsFirst: false })
         .order('opportunity_priority', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
       return { data: data ?? [] };

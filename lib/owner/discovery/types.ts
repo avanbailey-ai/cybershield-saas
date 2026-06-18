@@ -1,12 +1,14 @@
 export type ProspectPipelineState =
   | 'new'
+  | 'new_discovery'
   | 'scanned'
   | 'qualified'
   | 'outreach_ready'
   | 'contacted'
   | 'interested'
   | 'customer'
-  | 'archived';
+  | 'archived'
+  | 'ignore_forever';
 
 export type DiscoverySource =
   | 'openstreetmap'
@@ -43,6 +45,8 @@ export interface DiscoveryRunResult {
   scanned: number;
   skipped: number;
   validated: number;
+  qualified: number;
+  outreachReady: number;
   errors: string[];
   providerDiagnostics: ProviderDiagnostic[];
 }

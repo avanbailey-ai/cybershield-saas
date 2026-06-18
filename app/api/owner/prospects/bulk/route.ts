@@ -11,7 +11,15 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { action, ids, pipeline_state } = body as {
-    action: 'archive' | 'delete' | 'unarchive' | 'set_state' | 'generate_outreach';
+    action:
+      | 'archive'
+      | 'ignore_forever'
+      | 'delete'
+      | 'unarchive'
+      | 'set_state'
+      | 'generate_outreach'
+      | 'mark_contacted'
+      | 'mark_customer';
     ids: string[];
     pipeline_state?: string;
   };
@@ -30,10 +38,31 @@ export async function POST(req: NextRequest) {
       .in('id', ids)
       .is('deleted_at', null);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else if (action === 'ignore_forever') {
+    const { error } = await admin
+      .from('owner_prospects')
+      .update({ pipeline_state: 'ignore_forever', archived_at: now })
+      .in('id', ids)
+      .is('deleted_at', null);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else if (action === 'mark_contacted') {
+    const { error } = await admin
+      .from('owner_prospects')
+      .update({ pipeline_state: 'contacted' })
+      .in('id', ids)
+      .is('deleted_at', null);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else if (action === 'mark_customer') {
+    const { error } = await admin
+      .from('owner_prospects')
+      .update({ pipeline_state: 'customer' })
+      .in('id', ids)
+      .is('deleted_at', null);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   } else if (action === 'unarchive') {
     const { error } = await admin
       .from('owner_prospects')
-      .update({ pipeline_state: pipeline_state ?? 'scanned', archived_at: null })
+      .update({ pipeline_state: pipeline_state ?? 'new_discovery', archived_at: null })
       .in('id', ids)
       .is('deleted_at', null);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

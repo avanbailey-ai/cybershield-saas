@@ -1,0 +1,136 @@
+export interface ContactSignals {
+  contact_page_found: boolean;
+  contact_email_found: boolean;
+  contact_phone_found: boolean;
+  contact_linkedin_found: boolean;
+  contact_email: string | null;
+  contact_phone: string | null;
+  contact_linkedin: string | null;
+}
+
+const EMPTY_SIGNALS: ContactSignals = {
+  contact_page_found: false,
+  contact_email_found: false,
+  contact_phone_found: false,
+  contact_linkedin_found: false,
+  contact_email: null,
+  contact_phone: null,
+  contact_linkedin: null,
+};
+
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const PHONE_RE = /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+const LINKEDIN_RE = /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[a-zA-Z0-9_-]+/gi;
+const CONTACT_PATH_RE = /href=["'][^"']*\/(contact|about|get-in-touch)[^"']*["']/i;
+
+function pickBestEmail(matches: string[]): string | null {
+  const filtered = matches.filter(
+    (e) =>
+      !e.endsWith('.png') &&
+      !e.endsWith('.jpg') &&
+      !e.includes('example.com') &&
+      !e.includes('sentry.io') &&
+      !e.includes('wixpress.com'),
+  );
+  return filtered[0] ?? null;
+}
+
+export function parseContactSignalsFromHtml(html: string, pageUrl: string): ContactSignals {
+  const signals = { ...EMPTY_SIGNALS };
+
+  const mailto = html.match(/mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+  if (mailto?.[1]) {
+    signals.contact_email_found = true;
+    signals.contact_email = mailto[1];
+  } else {
+    const emails = pickBestEmail(html.match(EMAIL_RE) ?? []);
+    if (emails) {
+      signals.contact_email_found = true;
+      signals.contact_email = emails;
+    }
+  }
+
+  const tel = html.match(/tel:([+\d().\s-]+)/i);
+  if (tel?.[1]) {
+    signals.contact_phone_found = true;
+    signals.contact_phone = tel[1].trim().slice(0, 32);
+  } else {
+    const phones = html.match(PHONE_RE);
+    if (phones?.[0]) {
+      signals.contact_phone_found = true;
+      signals.contact_phone = phones[0].trim();
+    }
+  }
+
+  const linkedin = html.match(LINKEDIN_RE);
+  if (linkedin?.[0]) {
+    signals.contact_linkedin_found = true;
+    signals.contact_linkedin = linkedin[0];
+  }
+
+  if (CONTACT_PATH_RE.test(html)) {
+    signals.contact_page_found = true;
+  }
+
+  try {
+    const path = new URL(pageUrl).pathname.toLowerCase();
+    if (path.includes('contact') || path.includes('about')) {
+      signals.contact_page_found = true;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return signals;
+}
+
+export async function discoverContactSignals(website: string): Promise<ContactSignals> {
+  let url = website.trim();
+  if (!url.startsWith('http')) url = `https://${url}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { 'User-Agent': 'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com' },
+    });
+    if (!res.ok) return { ...EMPTY_SIGNALS };
+
+    const html = (await res.text()).slice(0, 120_000);
+    const signals = parseContactSignalsFromHtml(html, res.url || url);
+
+    if (!signals.contact_page_found) {
+      try {
+        const contactUrl = new URL('/contact', res.url || url).toString();
+        const contactRes = await fetch(contactUrl, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com' },
+        });
+        if (contactRes.ok) {
+          signals.contact_page_found = true;
+          const contactHtml = (await contactRes.text()).slice(0, 80_000);
+          const extra = parseContactSignalsFromHtml(contactHtml, contactUrl);
+          if (!signals.contact_email_found && extra.contact_email_found) {
+            signals.contact_email_found = true;
+            signals.contact_email = extra.contact_email;
+          }
+          if (!signals.contact_phone_found && extra.contact_phone_found) {
+            signals.contact_phone_found = true;
+            signals.contact_phone = extra.contact_phone;
+          }
+        }
+      } catch {
+        /* contact path optional */
+      }
+    }
+
+    return signals;
+  } catch {
+    return { ...EMPTY_SIGNALS };
+  } finally {
+    clearTimeout(timer);
+  }
+}

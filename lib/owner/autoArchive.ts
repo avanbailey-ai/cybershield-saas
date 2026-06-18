@@ -55,7 +55,7 @@ export async function runAutoArchive(admin: SupabaseClient): Promise<{
     .is('archived_at', null)
     .neq('pipeline_state', 'archived')
     .lt('updated_at', prospectCutoff)
-    .in('pipeline_state', ['new', 'scanned']);
+    .in('pipeline_state', ['new', 'new_discovery', 'scanned']);
 
   for (const row of staleProspects ?? []) {
     await admin

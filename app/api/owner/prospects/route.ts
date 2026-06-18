@@ -2,18 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireOwner();
   if (!auth.ok) {
     return NextResponse.json({ error: 'Forbidden' }, { status: auth.status });
   }
 
+  const includeArchived = req.nextUrl.searchParams.get('include_archived') === 'true';
+
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from('owner_prospects')
     .select('*')
     .is('deleted_at', null)
+    .order('opportunity_score', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
+
+  if (!includeArchived) {
+    query = query
+      .not('pipeline_state', 'eq', 'archived')
+      .not('pipeline_state', 'eq', 'ignore_forever');
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -45,7 +56,7 @@ export async function POST(req: NextRequest) {
       state: state?.trim() || null,
       country: country?.trim() || null,
       scan_status: 'pending',
-      pipeline_state: 'new',
+      pipeline_state: 'new_discovery',
       discovery_source: 'manual',
     })
     .select()

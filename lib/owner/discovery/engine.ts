@@ -1,18 +1,17 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { runScan } from '@/lib/scanner/runScan';
-import { computeLeadScore } from '@/lib/owner/leadScore';
-import { scoreOpportunity } from '@/lib/owner/opportunityScore';
 import { openStreetMapProvider } from './sources/openstreetmap';
 import { nominatimSearchProvider } from './sources/nominatimSearch';
 import { directorySeedProvider } from './sources/seedDirectory';
 import { validateProspectWebsite } from './validate';
 import { websiteHostKey } from './normalize';
-import { pipelineStateFromScan, topIssueFromFindings } from '../pipeline';
+import { applyProspectScan } from '../prospectScanUpdate';
+import { enrichProspect } from '../prospectEnrichment';
 import type { DiscoveryRunResult, RawDiscoveredBusiness } from './types';
 import type { ProviderDiagnostic, DiscoveryProvider } from './provider';
 import {
   getDiscoverySettings,
+  radiusForScope,
   type DiscoverySettings,
   DEFAULT_DISCOVERY_SETTINGS,
 } from './settings';
@@ -46,58 +45,8 @@ async function scanProspect(admin: SupabaseClient, prospectId: string): Promise<
     .single();
 
   if (!prospect) return false;
-
-  await admin.from('owner_prospects').update({ scan_status: 'running' }).eq('id', prospectId);
-
-  try {
-    let url = (prospect.website as string).trim();
-    if (!url.startsWith('http')) url = `https://${url}`;
-
-    const result = await runScan(url);
-    const leadScore = computeLeadScore(result);
-    const issueCount = result.issues?.length ?? 0;
-    const opp = scoreOpportunity({
-      leadScore,
-      scanScore: result.score,
-      scanRiskLevel: result.riskLevel,
-      industry: prospect.industry as string | null,
-      issueCount,
-      scanCompleted: true,
-    });
-
-    const pipeline_state = pipelineStateFromScan({
-      scanStatus: 'completed',
-      leadScore,
-    });
-
-    await admin
-      .from('owner_prospects')
-      .update({
-        scan_status: 'completed',
-        scan_score: result.score,
-        scan_risk_level: result.riskLevel,
-        scan_findings: {
-          issues: result.issues,
-          passed: result.passed,
-          headers: result.headers,
-          ssl: result.ssl,
-          explanation: result.explanation,
-        },
-        lead_score: leadScore,
-        conversion_likelihood: opp.conversionLikelihood,
-        estimated_mrr: opp.estimatedMrr,
-        estimated_arr: opp.estimatedArr,
-        opportunity_priority: opp.priority,
-        pipeline_state,
-        top_issue: topIssueFromFindings({ issues: result.issues }),
-      })
-      .eq('id', prospectId);
-
-    return true;
-  } catch {
-    await admin.from('owner_prospects').update({ scan_status: 'failed' }).eq('id', prospectId);
-    return false;
-  }
+  const result = await applyProspectScan(admin, prospect);
+  return result.ok;
 }
 
 function providersForSettings(settings: DiscoverySettings): DiscoveryProvider[] {
@@ -136,7 +85,7 @@ export async function runProspectDiscovery(options?: {
   const params = {
     location: settings.location || DEFAULT_DISCOVERY_SETTINGS.location,
     industry: settings.industry || DEFAULT_DISCOVERY_SETTINGS.industry,
-    radiusMeters: settings.radiusMeters,
+    radiusMeters: radiusForScope(settings),
     maxResults: maxInsert,
     seedDirectoryUrl: settings.seedDirectoryUrl,
   };
@@ -198,6 +147,16 @@ export async function runProspectDiscovery(options?: {
 
     validated++;
 
+    const enrichment = await enrichProspect({
+      business_name: item.business_name,
+      website: item.website,
+      industry: item.industry,
+      dns_valid: validation.dns_valid,
+      http_valid: validation.http_valid,
+      scan_status: 'pending',
+      skipContactFetch: false,
+    });
+
     const { data, error } = await admin
       .from('owner_prospects')
       .insert({
@@ -211,13 +170,24 @@ export async function runProspectDiscovery(options?: {
         discovery_source_url: item.discovery_source_url,
         dns_valid: validation.dns_valid,
         http_valid: validation.http_valid,
-        pipeline_state: 'new',
+        pipeline_state: 'new_discovery',
         scan_status: 'pending',
         lead_score: null,
-        conversion_likelihood: null,
-        estimated_mrr: null,
-        estimated_arr: null,
-        opportunity_priority: 0,
+        conversion_likelihood: enrichment.conversion_likelihood,
+        estimated_mrr: enrichment.estimated_plan_fit,
+        estimated_arr: enrichment.estimated_plan_fit ? enrichment.estimated_plan_fit * 12 : null,
+        opportunity_priority: enrichment.opportunity_priority,
+        opportunity_score: enrichment.opportunity_score,
+        estimated_plan_fit: enrichment.estimated_plan_fit,
+        contact_page_found: enrichment.contact_page_found,
+        contact_email_found: enrichment.contact_email_found,
+        contact_phone_found: enrichment.contact_phone_found,
+        contact_linkedin_found: enrichment.contact_linkedin_found,
+        contact_email: enrichment.contact_email,
+        contact_phone: enrichment.contact_phone,
+        contact_linkedin: enrichment.contact_linkedin,
+        qualification_reasons: enrichment.qualification_reasons,
+        selection_reason: enrichment.selection_reason,
       })
       .select('id')
       .single();
@@ -239,6 +209,19 @@ export async function runProspectDiscovery(options?: {
     }
   }
 
+  let qualifiedCount = 0;
+  let outreachReadyCount = 0;
+  if (pendingScanIds.length > 0) {
+    const { data: fresh } = await admin
+      .from('owner_prospects')
+      .select('pipeline_state')
+      .in('id', pendingScanIds);
+    for (const row of fresh ?? []) {
+      if (row.pipeline_state === 'qualified') qualifiedCount++;
+      if (row.pipeline_state === 'outreach_ready') outreachReadyCount++;
+    }
+  }
+
   const errorSummary = errors.length ? errors.join('; ') : null;
 
   await admin.from('owner_discovery_runs').insert({
@@ -247,6 +230,8 @@ export async function runProspectDiscovery(options?: {
     inserted_count: inserted,
     scanned_count: scanned,
     skipped_count: skipped,
+    qualified_count: qualifiedCount,
+    outreach_ready_count: outreachReadyCount,
     error_message: errorSummary,
     provider_diagnostics: providerDiagnostics,
   });
@@ -257,6 +242,8 @@ export async function runProspectDiscovery(options?: {
     scanned,
     skipped,
     validated,
+    qualified: qualifiedCount,
+    outreachReady: outreachReadyCount,
     errors,
     providerDiagnostics,
   };

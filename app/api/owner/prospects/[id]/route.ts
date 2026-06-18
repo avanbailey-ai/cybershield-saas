@@ -22,8 +22,12 @@ export async function PATCH(
     updates.archived_at = new Date().toISOString();
   }
   if (body.unarchive === true) {
-    updates.pipeline_state = body.pipeline_state ?? 'scanned';
+    updates.pipeline_state = body.pipeline_state ?? 'new_discovery';
     updates.archived_at = null;
+  }
+  if (body.ignore_forever === true) {
+    updates.pipeline_state = 'ignore_forever';
+    updates.archived_at = new Date().toISOString();
   }
   if (body.pipeline_state) {
     updates.pipeline_state = body.pipeline_state as ProspectPipelineState;
