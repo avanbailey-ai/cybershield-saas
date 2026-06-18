@@ -16,7 +16,7 @@ function FounderContent(props: FounderCommandCenterProps) {
 
   switch (section) {
     case 'overview':
-      return <OverviewView briefing={props.briefing} windows={props.windows} />;
+      return <OverviewView ceoDashboard={props.ceoDashboard} />;
     case 'prospects':
       return <ProspectsView prospects={props.prospects} revenue={props.revenue} />;
     case 'outreach':

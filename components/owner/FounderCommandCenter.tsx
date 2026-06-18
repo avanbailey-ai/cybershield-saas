@@ -15,6 +15,7 @@ import type { DataMoatSnapshot } from '@/lib/owner/dataMoat';
 import type { RevenueOpportunitySummary } from '@/lib/owner/revenueOpportunity';
 import type { ContentSuggestion } from '@/lib/owner/generators/contentIntel';
 import type { CeoAdvisoryData } from '@/lib/owner/ceoAdvisory';
+import type { CeoDashboard } from '@/lib/owner/ceoDashboard';
 
 type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
 
@@ -32,4 +33,5 @@ export interface FounderCommandCenterProps {
   revenue: RevenueOpportunitySummary;
   contentSuggestions: ContentSuggestion[];
   ceoAdvisory: CeoAdvisoryData;
+  ceoDashboard: CeoDashboard;
 }

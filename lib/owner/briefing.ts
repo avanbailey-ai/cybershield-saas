@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getBusinessOverview } from './metrics';
-import { generateFounderActions, type FounderAction } from './founderActions';
+import type { FounderAction } from './founderActions';
+import { buildCeoPriorities } from './ceoDashboard';
+import { buildRevenueOpportunity } from './revenueOpportunity';
 import type { OwnerProspect, OwnerCrmLead } from './types';
 
 export interface RecommendedAction {
@@ -106,7 +108,9 @@ export async function generateDailyBriefing(
   ];
 
   const unscanned = prospects.filter((p) => p.scan_status === 'pending').length;
-  const topActions = generateFounderActions({
+  void unscanned;
+  const revenue = buildRevenueOpportunity(prospects, crmLeads);
+  const ceoPriorities = buildCeoPriorities({
     briefing: {
       generatedAt: new Date().toISOString(),
       newCustomers: newCustomersRes.count ?? 0,
@@ -123,11 +127,20 @@ export async function generateDailyBriefing(
       recommendedActions: [],
       topActions: [],
     },
-    hotProspects: prospects.filter((p) => p.lead_score === 'HOT'),
+    prospects,
     crmLeads,
-    churnRisk: churnRes.count ?? 0,
-    unscannedProspects: unscanned,
+    revenue,
   });
+
+  const topActions: FounderAction[] = ceoPriorities.map((p, i) => ({
+    id: p.id,
+    rank: i + 1,
+    title: p.title,
+    description: p.reason,
+    impact: p.impact,
+    module: p.module,
+    cta: p.cta,
+  }));
 
   const recommendedActions: RecommendedAction[] = topActions.map((a) => ({
     title: a.title,
