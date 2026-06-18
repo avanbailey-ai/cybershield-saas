@@ -9,6 +9,7 @@ const MODULES = [
   { id: 'action-center', label: 'Action Center' },
   { id: 'briefing', label: 'CEO Briefing' },
   { id: 'overview', label: 'Business Overview' },
+  { id: 'ceo-advisory', label: 'CEO Advisory' },
   { id: 'prospects', label: 'Discovery' },
   { id: 'opportunity-center', label: 'Opportunity Center' },
   { id: 'revenue', label: 'Revenue Engine' },

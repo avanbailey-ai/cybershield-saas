@@ -1,4 +1,4 @@
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -10,7 +10,7 @@ import { getBrainConfig } from '@/lib/brain/optimizer';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { isQualifiableLead } from '@/lib/sales/leadValidation';
 
-const RevenueIntelligenceClient = dynamic(
+const RevenueIntelligenceClient = nextDynamic(
   () => import('@/components/analytics/RevenueIntelligenceClient'),
   { loading: () => <div className="flex flex-1 items-center justify-center p-12 text-gray-500">Loading revenue intelligence…</div> },
 );
@@ -18,6 +18,8 @@ const RevenueIntelligenceClient = dynamic(
 export const metadata: Metadata = {
   title: 'Revenue Intelligence — Admin',
 };
+
+export const dynamic = 'force-dynamic';
 
 const LTV_MONTHS = 3;
 

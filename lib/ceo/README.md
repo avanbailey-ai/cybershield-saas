@@ -19,7 +19,7 @@
 
 ## Manual apply flow
 
-1. Owner runs **Run analysis** on `/dashboard/admin/ceo-dashboard`
+1. Owner runs **Run analysis** in Founder OS → **CEO Advisory** (`/dashboard/admin/owner#ceo-advisory`)
 2. Recommendations are stored in `autopilot_config.ceo_recommendations`
 3. Owner clicks **Apply suggestion** on a single item
 4. `applyRecommendation()` updates only whitelisted `autopilot_config` keys (same whitelist as `lib/brain/safety.ts`)

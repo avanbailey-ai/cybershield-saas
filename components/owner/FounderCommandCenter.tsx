@@ -1,7 +1,9 @@
 ﻿'use client';
 
+import { useEffect } from 'react';
 import DailyBriefing from './DailyBriefing';
 import BusinessOverview from './BusinessOverview';
+import CeoAdvisoryPanel from './CeoAdvisoryPanel';
 import LeadDiscovery from './LeadDiscovery';
 import OpportunityCenter from './OpportunityCenter';
 import RevenueOpportunityPanel from './RevenueOpportunityPanel';
@@ -22,6 +24,7 @@ import type { CustomerIntelligenceSummary } from '@/lib/owner/customerIntelligen
 import type { DataMoatSnapshot } from '@/lib/owner/dataMoat';
 import type { RevenueOpportunitySummary } from '@/lib/owner/revenueOpportunity';
 import type { ContentSuggestion } from '@/lib/owner/generators/contentIntel';
+import type { CeoAdvisoryData } from '@/lib/owner/ceoAdvisory';
 
 type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
 
@@ -38,9 +41,18 @@ export interface FounderCommandCenterProps {
   moat: DataMoatSnapshot;
   revenue: RevenueOpportunitySummary;
   contentSuggestions: ContentSuggestion[];
+  ceoAdvisory: CeoAdvisoryData;
 }
 
 export default function FounderCommandCenter(props: FounderCommandCenterProps) {
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      requestAnimationFrame(() => {
+        document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  }, []);
   return (
     <div className="space-y-8 p-6 lg:p-8">
       <header className="border-b border-violet-500/10 pb-6">
@@ -56,6 +68,7 @@ export default function FounderCommandCenter(props: FounderCommandCenterProps) {
 
       <DailyBriefing briefing={props.briefing} />
       <BusinessOverview initialWindows={props.windows} />
+      <CeoAdvisoryPanel data={props.ceoAdvisory} />
       <LeadDiscovery initialProspects={props.prospects} />
       <OpportunityCenter revenue={props.revenue} crmLeads={props.crmLeads} />
       <RevenueOpportunityPanel revenue={props.revenue} />

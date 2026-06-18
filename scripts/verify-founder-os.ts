@@ -73,6 +73,11 @@ for (const rel of REALITY_SOURCES) {
 }
 
 assert(fileExists('components/owner/OpportunityCenter.tsx'), 'OpportunityCenter component exists');
+assert(fileExists('components/owner/CeoAdvisoryPanel.tsx'), 'CeoAdvisoryPanel component exists');
+
+const ceoDashboardPage = readFile('app/dashboard/admin/ceo-dashboard/page.tsx');
+assert(ceoDashboardPage.includes("redirect('/dashboard/admin/owner#ceo-advisory')"), 'ceo-dashboard redirects to Founder OS');
+assert(ceoDashboardPage.includes('force-dynamic'), 'ceo-dashboard is force-dynamic');
 
 
 // â”€â”€ 14 V2 module components â”€â”€
@@ -80,6 +85,7 @@ const MODULE_COMPONENTS = [
   { file: 'components/owner/FounderActionCenter.tsx', section: 'action-center', module: 14 },
   { file: 'components/owner/DailyBriefing.tsx', section: 'briefing', module: 1 },
   { file: 'components/owner/BusinessOverview.tsx', section: 'overview', module: 1 },
+  { file: 'components/owner/CeoAdvisoryPanel.tsx', section: 'ceo-advisory', module: 16 },
   { file: 'components/owner/LeadDiscovery.tsx', section: 'prospects', module: 2 },
   { file: 'components/owner/OpportunityCenter.tsx', section: 'opportunity-center', module: 15 },
   { file: 'components/owner/RevenueOpportunityPanel.tsx', section: 'revenue', module: 7 },
@@ -109,6 +115,7 @@ const commandCenter = readFile('components/owner/FounderCommandCenter.tsx');
 assert(commandCenter.includes('DailyBriefing'), 'FounderCommandCenter includes DailyBriefing (embeds Action Center)');
 assert(commandCenter.includes('RevenueOpportunityPanel'), 'FounderCommandCenter includes Revenue Engine');
 assert(commandCenter.includes('OpportunityCenter'), 'FounderCommandCenter includes OpportunityCenter');
+assert(commandCenter.includes('CeoAdvisoryPanel'), 'FounderCommandCenter includes CeoAdvisoryPanel');
 assert(commandCenter.includes('CyberShield Founder OS'), 'FounderCommandCenter branded Founder OS');
 
 for (const key of [
@@ -170,6 +177,7 @@ assert(!sidebar.includes('Founder OS'), 'Customer sidebar does not mention Found
 assert(fileExists('components/owner/FounderShell.tsx'), 'FounderShell exists');
 const founderShell = readFile('components/owner/FounderShell.tsx');
 assert(founderShell.includes('Action Center'), 'FounderShell nav includes Action Center');
+assert(founderShell.includes('CEO Advisory'), 'FounderShell nav includes CEO Advisory');
 assert(founderShell.includes('Revenue Engine'), 'FounderShell nav includes Revenue Engine');
 assert(founderShell.includes('opportunity-center'), 'FounderShell nav includes Opportunity Center');
 

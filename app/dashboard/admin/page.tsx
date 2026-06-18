@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: 'Admin — CyberShield',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
   const supabase = await createClient();
   const {
@@ -80,10 +82,10 @@ export default async function AdminPage() {
                 Founder OS →
               </a>
               <a
-                href="/dashboard/admin/ceo-dashboard"
+                href="/dashboard/admin/owner#ceo-advisory"
                 className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
               >
-                CEO Dashboard →
+                CEO Advisory (Founder OS) →
               </a>
               <a
                 href="/dashboard/admin/revenue-intelligence"

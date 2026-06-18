@@ -11,11 +11,12 @@ import { getBusinessOverview } from '@/lib/owner/metrics';
 import { generateMarketingInsights } from '@/lib/owner/generators/insights';
 import { buildRevenueOpportunity } from '@/lib/owner/revenueOpportunity';
 import { generateContentSuggestions } from '@/lib/owner/generators/contentIntel';
+import { loadCeoAdvisory, EMPTY_CEO_ADVISORY } from '@/lib/owner/ceoAdvisory';
 import FounderCommandCenter from '@/components/owner/FounderCommandCenter';
 import type { OwnerCampaign, OwnerCampaignTask, OwnerProspect, OwnerCrmLead } from '@/lib/owner/types';
 
 export const metadata: Metadata = {
-  title: 'Founder OS â€” CyberShield',
+  title: 'Founder OS — CyberShield',
   description: 'Owner command center for growth, outreach, and intelligence',
 };
 
@@ -93,6 +94,7 @@ export default async function OwnerCommandCenterPage() {
     hotRes,
     warmRes,
     churnRes,
+    ceoAdvisory,
   ] = await Promise.all([
     safeQuery(() => generateDailyBriefing({ prospects, crmLeads }), EMPTY_BRIEFING),
     safeQuery(() => getOverviewAllWindows(), {
@@ -170,6 +172,7 @@ export default async function OwnerCommandCenterPage() {
         .gt('churn_risk_score', 70);
       return { count: count ?? 0 };
     }, { count: 0 }),
+    safeQuery(() => loadCeoAdvisory(admin), EMPTY_CEO_ADVISORY),
   ]);
 
   const revenue = buildRevenueOpportunity(prospects, crmLeads);
@@ -205,6 +208,7 @@ export default async function OwnerCommandCenterPage() {
       moat={moat}
       revenue={revenue}
       contentSuggestions={contentSuggestions}
+      ceoAdvisory={ceoAdvisory}
     />
   );
 }
