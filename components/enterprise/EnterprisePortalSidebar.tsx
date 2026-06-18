@@ -6,7 +6,7 @@ import LogoutButton from '@/components/dashboard/LogoutButton';
 
 const navItems = [
   {
-    label: 'Overview',
+    label: 'Client Protection',
     href: '/enterprise/portal',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
