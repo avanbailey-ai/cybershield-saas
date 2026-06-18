@@ -23,6 +23,9 @@ export interface DataMoatSnapshot {
   trends: SecurityTrendPoint[];
   moatStrength: 'building' | 'emerging' | 'established';
   dataPoints: number;
+  scanGrowthPct: number;
+  benchmarkCoverage: number;
+  coverageLabel: string;
 }
 
 const DEFAULT_BENCHMARKS: IndustryBenchmark[] = [
@@ -86,15 +89,29 @@ export function buildDataMoatSnapshot(
     },
   ];
 
-  return { benchmarks: merged, trends, moatStrength, dataPoints };
+  return {
+    benchmarks: merged,
+    trends,
+    moatStrength,
+    dataPoints,
+    scanGrowthPct: 0,
+    benchmarkCoverage: merged.filter((b) => b.sampleSize > 0).length,
+    coverageLabel: merged.filter((b) => b.sampleSize > 0).length >= 5 ? 'Broad' : 'Early',
+  };
 }
 
 export async function getDataMoatSnapshot(): Promise<DataMoatSnapshot> {
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const admin = createAdminClient();
 
-  const [scansRes] = await Promise.all([
+  const [scansRes, prospectsRes, prevScansRes] = await Promise.all([
     admin.from('scans').select('score').order('created_at', { ascending: false }).limit(500),
+    admin.from('owner_prospects').select('industry, scan_score').not('scan_score', 'is', null),
+    admin
+      .from('scans')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString())
+      .lt('created_at', new Date(Date.now() - 7 * 86400000).toISOString()),
   ]);
 
   const scanScores = (scansRes.data ?? [])
@@ -102,6 +119,28 @@ export async function getDataMoatSnapshot(): Promise<DataMoatSnapshot> {
     .filter((s) => typeof s === 'number');
 
   const industryMap = new Map<string, number[]>();
+  for (const p of prospectsRes.data ?? []) {
+    const ind = (p.industry as string) ?? 'General';
+    const score = p.scan_score as number;
+    if (typeof score !== 'number') continue;
+    const arr = industryMap.get(ind) ?? [];
+    arr.push(score);
+    industryMap.set(ind, arr);
+  }
 
-  return buildDataMoatSnapshot(scanScores, industryMap);
+  const snapshot = buildDataMoatSnapshot(scanScores, industryMap);
+  const recentCount = scanScores.length;
+  const prevCount = prevScansRes.count ?? 0;
+  const scanGrowthPct =
+    prevCount > 0 ? Math.round(((recentCount - prevCount) / prevCount) * 100) : recentCount > 0 ? 100 : 0;
+  const benchmarkCoverage = snapshot.benchmarks.filter((b) => b.sampleSize > 0).length;
+  const coverageLabel =
+    benchmarkCoverage >= 5 ? 'Broad' : benchmarkCoverage >= 2 ? 'Growing' : 'Early';
+
+  return {
+    ...snapshot,
+    scanGrowthPct,
+    benchmarkCoverage,
+    coverageLabel,
+  };
 }

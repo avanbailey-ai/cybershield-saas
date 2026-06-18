@@ -6,14 +6,16 @@ import type { ReactNode } from 'react';
 import LogoutButton from '@/components/dashboard/LogoutButton';
 
 const MODULES = [
-  { id: 'briefing', label: 'Daily Briefing' },
+  { id: 'action-center', label: 'Action Center' },
+  { id: 'briefing', label: 'CEO Briefing' },
   { id: 'overview', label: 'Business Overview' },
-  { id: 'prospects', label: 'Lead Discovery' },
+  { id: 'prospects', label: 'Discovery' },
+  { id: 'revenue', label: 'Revenue Engine' },
   { id: 'outreach', label: 'Outreach' },
-  { id: 'social', label: 'Social Studio' },
+  { id: 'social', label: 'Content Intel' },
   { id: 'video', label: 'Video Ads' },
   { id: 'campaigns', label: 'Campaigns' },
-  { id: 'crm', label: 'Lead CRM' },
+  { id: 'crm', label: 'Smart CRM' },
   { id: 'competitors', label: 'Competitors' },
   { id: 'content-performance', label: 'Content Perf.' },
   { id: 'insights', label: 'Insights' },

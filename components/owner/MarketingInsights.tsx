@@ -14,10 +14,10 @@ export default function MarketingInsights({ insights }: { insights: MarketingIns
     <SectionCard
       id="insights"
       title="Marketing Insights Engine"
-      subtitle="Actionable cards from aggregated platform data"
+      subtitle="Real insights with recommendations — not raw metrics"
     >
       {insights.length === 0 ? (
-        <p className="text-sm text-gray-500">No insights available yet.</p>
+        <p className="text-sm text-gray-500">Connect data sources to generate insights.</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {insights.map((insight) => (
@@ -43,6 +43,9 @@ export default function MarketingInsights({ insights }: { insights: MarketingIns
               </div>
               <h3 className="font-medium text-white">{insight.title}</h3>
               <p className="mt-1 text-sm text-gray-400">{insight.body}</p>
+              <p className="mt-2 rounded-lg bg-violet-500/10 px-2 py-1.5 text-xs text-violet-300">
+                → {insight.recommendation}
+              </p>
             </div>
           ))}
         </div>

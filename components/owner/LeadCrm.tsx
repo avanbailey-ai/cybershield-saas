@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SectionCard } from './MetricCard';
+import { scoreOpportunity } from '@/lib/owner/opportunityScore';
 import { leadScoreColor } from '@/lib/owner/leadScore';
 import { CRM_STAGES, type OwnerCrmLead, type CrmStage } from '@/lib/owner/types';
 
@@ -14,6 +15,22 @@ export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[]
     contact_name: '',
     potential_revenue: '',
   });
+
+  const sorted = [...leads].sort((a, b) => {
+    const pa = scoreOpportunity({
+      leadScore: a.lead_score,
+      industry: a.industry,
+      stage: a.stage,
+    }).priority + Number(a.potential_revenue ?? 0) / 10;
+    const pb = scoreOpportunity({
+      leadScore: b.lead_score,
+      industry: b.industry,
+      stage: b.stage,
+    }).priority + Number(b.potential_revenue ?? 0) / 10;
+    return pb - pa;
+  });
+
+  const topValue = sorted[0];
 
   async function addLead(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +60,22 @@ export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[]
   }
 
   return (
-    <SectionCard id="crm" title="Lead CRM" subtitle="Pipeline from New Lead to Customer">
+    <SectionCard
+      id="crm"
+      title="Smart CRM"
+      subtitle="Auto-prioritized by lead score, opportunity score, and revenue potential"
+    >
+      {topValue && (
+        <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+          <p className="text-xs text-emerald-400">Highest Value Lead</p>
+          <p className="font-semibold text-white">{topValue.business_name}</p>
+          <p className="text-sm text-gray-400">
+            {topValue.stage.replace('_', ' ')} · $
+            {Number(topValue.potential_revenue ?? 0).toLocaleString()} potential
+          </p>
+        </div>
+      )}
+
       <form onSubmit={addLead} className="mb-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <input
           placeholder="Business"
@@ -84,46 +116,58 @@ export default function LeadCrm({ initialLeads }: { initialLeads: OwnerCrmLead[]
         </button>
       </form>
 
-      {leads.length === 0 ? (
-        <p className="text-sm text-gray-500">No CRM leads yet.</p>
+      {sorted.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
+          <p className="text-sm text-gray-500">No CRM leads yet. Move HOT prospects from discovery.</p>
+        </div>
       ) : (
         <div className="space-y-3">
-          {leads.map((lead) => (
-            <div
-              key={lead.id}
-              className="flex flex-wrap items-center gap-4 rounded-xl border border-gray-800 bg-gray-950/50 p-4"
-            >
-              <div className="min-w-[140px] flex-1">
-                <p className="font-medium text-white">{lead.business_name}</p>
-                <p className="text-xs text-gray-500">
-                  {lead.website ?? '—'} · {lead.industry ?? '—'}
-                </p>
-              </div>
-              {lead.lead_score && (
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-xs ${leadScoreColor(lead.lead_score)}`}
-                >
-                  {lead.lead_score}
-                </span>
-              )}
-              {lead.potential_revenue && (
-                <span className="text-sm text-emerald-400">
-                  ${Number(lead.potential_revenue).toLocaleString()}
-                </span>
-              )}
-              <select
-                value={lead.stage}
-                onChange={(e) => updateStage(lead.id, e.target.value as CrmStage)}
-                className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-white"
+          {sorted.map((lead, idx) => {
+            const opp = scoreOpportunity({
+              leadScore: lead.lead_score,
+              industry: lead.industry,
+              stage: lead.stage,
+            });
+            return (
+              <div
+                key={lead.id}
+                className={`flex flex-wrap items-center gap-4 rounded-xl border p-4 ${
+                  idx === 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-gray-800 bg-gray-950/50'
+                }`}
               >
-                {CRM_STAGES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
+                <div className="min-w-[140px] flex-1">
+                  <p className="font-medium text-white">{lead.business_name}</p>
+                  <p className="text-xs text-gray-500">
+                    {lead.website ?? '—'} · {lead.industry ?? '—'}
+                  </p>
+                </div>
+                {lead.lead_score && (
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-xs ${leadScoreColor(lead.lead_score)}`}
+                  >
+                    {lead.lead_score}
+                  </span>
+                )}
+                <span className="text-xs text-violet-400">{opp.conversionLikelihood}% likely</span>
+                {lead.potential_revenue && (
+                  <span className="text-sm text-emerald-400">
+                    ${Number(lead.potential_revenue).toLocaleString()}
+                  </span>
+                )}
+                <select
+                  value={lead.stage}
+                  onChange={(e) => updateStage(lead.id, e.target.value as CrmStage)}
+                  className="rounded-lg border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-white"
+                >
+                  {CRM_STAGES.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
         </div>
       )}
     </SectionCard>

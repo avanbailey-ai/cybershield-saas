@@ -3,6 +3,7 @@ import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { runScan } from '@/lib/scanner/runScan';
 import { computeLeadScore } from '@/lib/owner/leadScore';
+import { scoreOpportunity } from '@/lib/owner/opportunityScore';
 
 export async function POST(
   _req: NextRequest,
@@ -37,6 +38,14 @@ export async function POST(
 
     const result = await runScan(url);
     const leadScore = computeLeadScore(result);
+    const issueCount = result.issues?.length ?? 0;
+    const opp = scoreOpportunity({
+      leadScore,
+      scanScore: result.score,
+      scanRiskLevel: result.riskLevel,
+      industry: prospect.industry,
+      issueCount,
+    });
 
     const { data: updated, error: updateErr } = await admin
       .from('owner_prospects')
@@ -52,6 +61,10 @@ export async function POST(
           explanation: result.explanation,
         },
         lead_score: leadScore,
+        conversion_likelihood: opp.conversionLikelihood,
+        estimated_mrr: opp.estimatedMrr,
+        estimated_arr: opp.estimatedArr,
+        opportunity_priority: opp.priority,
       })
       .eq('id', id)
       .select()

@@ -6,6 +6,14 @@ import type { OwnerCampaign, OwnerCampaignTask } from '@/lib/owner/types';
 
 type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
 
+function todayTask(camp: CampaignWithTasks): OwnerCampaignTask | null {
+  if (!camp.start_date) return camp.owner_campaign_tasks?.[0] ?? null;
+  const start = new Date(camp.start_date);
+  const dayOffset = Math.floor((Date.now() - start.getTime()) / 86400000);
+  const tasks = [...(camp.owner_campaign_tasks ?? [])].sort((a, b) => a.day_offset - b.day_offset);
+  return tasks.find((t) => t.day_offset === dayOffset && !t.completed) ?? tasks.find((t) => !t.completed) ?? null;
+}
+
 export default function CampaignPlanner({
   initialCampaigns,
 }: {
@@ -23,7 +31,7 @@ export default function CampaignPlanner({
       const res = await fetch('/api/owner/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, duration_days: duration }),
+        body: JSON.stringify({ name, duration_days: duration, activate: true }),
       });
       const data = await res.json();
       if (data.campaign) setCampaigns((c) => [data.campaign, ...c]);
@@ -45,12 +53,23 @@ export default function CampaignPlanner({
     }
   }
 
+  const activeCampaign = campaigns.find((c) => c.status === 'active') ?? campaigns[0];
+  const today = activeCampaign ? todayTask(activeCampaign) : null;
+
   return (
     <SectionCard
       id="campaigns"
-      title="Campaign Planner"
-      subtitle="7-day and 30-day plans with task checklists"
+      title="Campaign Command Center"
+      subtitle="Daily tasks, goals, and completion tracking"
     >
+      {today && (
+        <div className="mb-6 rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
+          <p className="text-xs font-medium uppercase text-violet-400">Today&apos;s Goal</p>
+          <p className="mt-1 font-medium text-white">{today.title}</p>
+          <p className="text-xs text-gray-500">Campaign: {activeCampaign?.name}</p>
+        </div>
+      )}
+
       <div className="mb-6 flex flex-wrap gap-3">
         <input
           value={name}
@@ -72,32 +91,33 @@ export default function CampaignPlanner({
           disabled={loading}
           className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
         >
-          Create Plan
+          Launch Campaign
         </button>
       </div>
 
       {campaigns.length === 0 ? (
-        <p className="text-sm text-gray-500">No campaigns yet. Create your first growth plan.</p>
+        <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
+          <p className="text-sm text-gray-500">No campaigns yet. Launch a 7-day growth sprint.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {campaigns.map((camp) => {
             const tasks = camp.owner_campaign_tasks ?? [];
             const done = tasks.filter((t) => t.completed).length;
+            const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
             return (
               <div key={camp.id} className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-white">{camp.name}</h3>
                     <p className="text-xs text-gray-500">
-                      {camp.duration_days}-day plan · {done}/{tasks.length} complete
+                      {camp.duration_days}-day · {camp.status} · {done}/{tasks.length} complete ({pct}%)
                     </p>
                   </div>
                   <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-800">
                     <div
                       className="h-full rounded-full bg-violet-500 transition-all"
-                      style={{
-                        width: `${tasks.length ? (done / tasks.length) * 100 : 0}%`,
-                      }}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>

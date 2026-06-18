@@ -27,11 +27,14 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { business_name, website, industry, city } = body;
+  const { business_name, website, industry, city, state, country } = body;
 
   if (!business_name?.trim() || !website?.trim()) {
     return NextResponse.json({ error: 'business_name and website required' }, { status: 400 });
   }
+
+  const { scoreOpportunity } = await import('@/lib/owner/opportunityScore');
+  const opp = scoreOpportunity({ industry: industry?.trim() });
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -41,7 +44,13 @@ export async function POST(req: NextRequest) {
       website: website.trim(),
       industry: industry?.trim() || null,
       city: city?.trim() || null,
+      state: state?.trim() || null,
+      country: country?.trim() || null,
       scan_status: 'pending',
+      conversion_likelihood: opp.conversionLikelihood,
+      estimated_mrr: opp.estimatedMrr,
+      estimated_arr: opp.estimatedArr,
+      opportunity_priority: opp.priority,
     })
     .select()
     .single();

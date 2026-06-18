@@ -25,11 +25,28 @@ export interface OwnerProspect {
   website: string;
   industry: string | null;
   city: string | null;
+  state: string | null;
+  country: string | null;
   lead_score: LeadScore | null;
   scan_score: number | null;
   scan_risk_level: string | null;
   scan_findings: Record<string, unknown> | null;
   scan_status: 'pending' | 'running' | 'completed' | 'failed';
+  conversion_likelihood: number | null;
+  estimated_mrr: number | null;
+  estimated_arr: number | null;
+  opportunity_priority: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OwnerOutreachDraft {
+  id: string;
+  prospect_id: string | null;
+  outreach_type: string;
+  business_name: string | null;
+  content: string;
+  status: 'draft' | 'approved' | 'sent';
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +73,8 @@ export interface OwnerCampaign {
   duration_days: number;
   start_date: string | null;
   status: 'draft' | 'active' | 'completed';
+  daily_goal: string | null;
+  goals_completed: number;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +99,8 @@ export interface OwnerCompetitor {
   advantages: string | null;
   gaps: string | null;
   opportunities: string | null;
+  last_reviewed_at: string | null;
+  changes_notes: string | null;
   created_at: string;
   updated_at: string;
 }

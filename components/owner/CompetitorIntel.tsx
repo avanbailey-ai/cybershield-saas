@@ -28,6 +28,7 @@ export default function CompetitorIntel({
         advantages: 'CyberShield: continuous monitoring, SMB-friendly pricing, agency white-label',
         gaps: form.features ? `Gap vs ${form.name}: evaluate feature parity` : null,
         opportunities: 'Position as affordable alternative with faster onboarding',
+        last_reviewed_at: new Date().toISOString(),
       }),
     });
     const data = await res.json();
@@ -40,8 +41,8 @@ export default function CompetitorIntel({
   return (
     <SectionCard
       id="competitors"
-      title="Competitor Intelligence"
-      subtitle="Track positioning, pricing, and CyberShield advantages"
+      title="Competitor Watch"
+      subtitle="Advantages, gaps, opportunities, and change tracking"
     >
       <form onSubmit={addCompetitor} className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <input
@@ -78,15 +79,24 @@ export default function CompetitorIntel({
       </form>
 
       {competitors.length === 0 ? (
-        <p className="text-sm text-gray-500">No competitors tracked yet.</p>
+        <div className="rounded-xl border border-dashed border-gray-700 p-6 text-center">
+          <p className="text-sm text-gray-500">No competitors tracked. Add your top 3 alternatives.</p>
+        </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {competitors.map((c) => (
             <div key={c.id} className="rounded-xl border border-gray-800 bg-gray-950/50 p-4">
-              <h3 className="font-medium text-white">{c.name}</h3>
-              {c.website && (
-                <p className="text-xs text-gray-500">{c.website}</p>
-              )}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-medium text-white">{c.name}</h3>
+                  {c.website && <p className="text-xs text-gray-500">{c.website}</p>}
+                </div>
+                {c.last_reviewed_at && (
+                  <span className="text-[10px] text-gray-600">
+                    Reviewed {new Date(c.last_reviewed_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
               <div className="mt-3 space-y-2 text-sm">
                 {c.pricing_notes && (
                   <p>
@@ -102,7 +112,7 @@ export default function CompetitorIntel({
                 )}
                 {c.advantages && (
                   <p className="rounded-lg bg-emerald-500/10 px-2 py-1 text-emerald-300">
-                    ✓ {c.advantages}
+                    ✓ Advantage: {c.advantages}
                   </p>
                 )}
                 {c.gaps && (
@@ -113,6 +123,11 @@ export default function CompetitorIntel({
                 {c.opportunities && (
                   <p className="rounded-lg bg-violet-500/10 px-2 py-1 text-violet-300">
                     Opportunity: {c.opportunities}
+                  </p>
+                )}
+                {c.changes_notes && (
+                  <p className="rounded-lg bg-gray-800/50 px-2 py-1 text-xs text-gray-400">
+                    Changes: {c.changes_notes}
                   </p>
                 )}
               </div>

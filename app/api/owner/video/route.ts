@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
-import { generateVideoAd, VIDEO_DURATIONS } from '@/lib/owner/generators/video';
+import { generateVideoAd, generateVideoAdVersions, VIDEO_DURATIONS } from '@/lib/owner/generators/video';
 
 export async function GET() {
   const auth = await requireOwner();
@@ -23,13 +23,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid duration' }, { status: 400 });
   }
 
-  const script = generateVideoAd({
+  const multiVersion = body.multiVersion === true;
+  const input = {
     product: body.product ?? 'CyberShield',
     audience: body.audience ?? 'small business owners',
     painPoint: body.painPoint ?? 'Website security blind spots',
     cta: body.cta ?? 'Start your free security scan today',
     duration,
-  });
+  };
+
+  if (multiVersion) {
+    const scripts = generateVideoAdVersions(input, body.versionCount ?? 3);
+    return NextResponse.json({ ok: true, scripts });
+  }
+
+  const script = generateVideoAd({ ...input, version: body.version ?? 1 });
 
   return NextResponse.json({ ok: true, script });
 }

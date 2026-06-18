@@ -6,18 +6,25 @@ export interface CustomerIntelligenceSummary {
   avgRiskScore: number;
   churnSignals: number;
   conversionSignals: number;
+  hotProspects: number;
+  churnDrivers: string[];
+  conversionDrivers: string[];
 }
 
 export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSummary> {
   const admin = createAdminClient();
 
-  const [scansRes, profilesRes, crmRes] = await Promise.all([
+  const [scansRes, profilesRes, crmRes, hotProspectsRes] = await Promise.all([
     admin.from('scans').select('score, issues').order('created_at', { ascending: false }).limit(200),
     admin
       .from('profiles')
-      .select('churn_risk_score, subscription_status')
+      .select('churn_risk_score, subscription_status, plan, updated_at')
       .not('churn_risk_score', 'is', null),
     admin.from('owner_crm_leads').select('industry').not('industry', 'is', null),
+    admin
+      .from('owner_prospects')
+      .select('id', { count: 'exact', head: true })
+      .eq('lead_score', 'HOT'),
   ]);
 
   const industryCounts = new Map<string, number>();
@@ -59,11 +66,51 @@ export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSum
     .slice(0, 8)
     .map(([finding, count]) => ({ finding, count }));
 
+  const churnDrivers: string[] = [];
+  const atRisk = (profilesRes.data ?? []).filter((p) => (p.churn_risk_score ?? 0) > 70);
+  if (atRisk.length > 0) {
+    churnDrivers.push(`${atRisk.length} accounts with churn risk score > 70`);
+  }
+  const inactive = (profilesRes.data ?? []).filter((p) => {
+    const ts = (p as { updated_at?: string }).updated_at;
+    if (!ts) return false;
+    const days = (Date.now() - new Date(ts).getTime()) / 86400000;
+    return days > 30 && p.subscription_status === 'active';
+  });
+  if (inactive.length > 0) {
+    churnDrivers.push(`${inactive.length} active subscribers inactive 30+ days`);
+  }
+  const freeStuck = (profilesRes.data ?? []).filter(
+    (p) => p.plan === 'free' && p.subscription_status !== 'active',
+  );
+  if (freeStuck.length > 5) {
+    churnDrivers.push(`${freeStuck.length} free users not converting — onboarding friction`);
+  }
+
+  const conversionDrivers: string[] = [];
+  const paid = (profilesRes.data ?? []).filter(
+    (p) => p.subscription_status === 'active' || p.subscription_status === 'trialing',
+  );
+  if (paid.length > 0) {
+    conversionDrivers.push(`${paid.length} active/trialing subscribers — replicate their onboarding path`);
+  }
+  if (topIndustries.length > 0) {
+    conversionDrivers.push(`Top converting vertical: ${topIndustries[0].name} (${topIndustries[0].count} leads)`);
+  }
+  if (commonFindings.length > 0) {
+    conversionDrivers.push(
+      `Security pain point hook: "${commonFindings[0].finding.slice(0, 60)}"`,
+    );
+  }
+
   return {
     topIndustries,
     commonFindings,
     avgRiskScore: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0,
     churnSignals,
     conversionSignals,
+    hotProspects: hotProspectsRes.count ?? 0,
+    churnDrivers,
+    conversionDrivers,
   };
 }

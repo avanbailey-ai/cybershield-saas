@@ -38,14 +38,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'duration_days must be 7 or 30' }, { status: 400 });
   }
 
+  const activate = body.activate === true;
+  const today = new Date().toISOString().slice(0, 10);
+
   const admin = createAdminClient();
   const { data: campaign, error: campErr } = await admin
     .from('owner_campaigns')
     .insert({
       name,
       duration_days: durationDays,
-      status: 'draft',
-      start_date: body.start_date ?? null,
+      status: activate ? 'active' : 'draft',
+      start_date: body.start_date ?? (activate ? today : null),
+      daily_goal: defaultCampaignTasks(durationDays)[0]?.title ?? null,
     })
     .select()
     .single();

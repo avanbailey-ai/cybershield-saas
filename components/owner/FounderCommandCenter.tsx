@@ -3,6 +3,7 @@
 import DailyBriefing from './DailyBriefing';
 import BusinessOverview from './BusinessOverview';
 import LeadDiscovery from './LeadDiscovery';
+import RevenueOpportunityPanel from './RevenueOpportunityPanel';
 import OutreachGenerator from './OutreachGenerator';
 import SocialContentStudio from './SocialContentStudio';
 import VideoAdCreator from './VideoAdCreator';
@@ -18,6 +19,8 @@ import type { BusinessOverviewMetrics, TrendWindow, OwnerProspect, OwnerCrmLead,
 import type { MarketingInsight } from '@/lib/owner/generators/insights';
 import type { CustomerIntelligenceSummary } from '@/lib/owner/customerIntelligence';
 import type { DataMoatSnapshot } from '@/lib/owner/dataMoat';
+import type { RevenueOpportunitySummary } from '@/lib/owner/revenueOpportunity';
+import type { ContentSuggestion } from '@/lib/owner/generators/contentIntel';
 
 type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
 
@@ -32,6 +35,8 @@ export interface FounderCommandCenterProps {
   insights: MarketingInsight[];
   intelligence: CustomerIntelligenceSummary;
   moat: DataMoatSnapshot;
+  revenue: RevenueOpportunitySummary;
+  contentSuggestions: ContentSuggestion[];
 }
 
 export default function FounderCommandCenter(props: FounderCommandCenterProps) {
@@ -39,20 +44,21 @@ export default function FounderCommandCenter(props: FounderCommandCenterProps) {
     <div className="space-y-8 p-6 lg:p-8">
       <header className="border-b border-violet-500/10 pb-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
-          CyberShield Founder OS
+          CyberShield Founder OS V2
         </p>
         <h1 className="mt-1 text-3xl font-bold text-white">Growth Command Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-gray-500">
-          Executive command center for revenue, outbound, content, and competitive intelligence.
-          Owner-only access.
+          What should Avan do today to grow CyberShield? AI-powered briefing, discovery, outreach,
+          and revenue intelligence. Owner-only.
         </p>
       </header>
 
       <DailyBriefing briefing={props.briefing} />
       <BusinessOverview initialWindows={props.windows} />
       <LeadDiscovery initialProspects={props.prospects} />
+      <RevenueOpportunityPanel revenue={props.revenue} />
       <OutreachGenerator prospects={props.prospects} />
-      <SocialContentStudio />
+      <SocialContentStudio suggestions={props.contentSuggestions} />
       <VideoAdCreator />
       <CampaignPlanner initialCampaigns={props.campaigns} />
       <LeadCrm initialLeads={props.crmLeads} />
