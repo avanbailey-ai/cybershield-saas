@@ -26,6 +26,12 @@ export default function Footer() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+            <Link href="/features" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Features
+            </Link>
+            <Link href="/about" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              About
+            </Link>
             <Link href="/terms" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Terms
             </Link>
@@ -34,6 +40,12 @@ export default function Footer() {
             </Link>
             <Link href="/refund" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Refunds
+            </Link>
+            <Link href="/security" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Security
+            </Link>
+            <Link href="/responsible-disclosure" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Disclosure
             </Link>
             <Link href="/contact" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Contact

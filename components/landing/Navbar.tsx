@@ -13,6 +13,9 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3">
+          <Link href="/features" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
+            Features
+          </Link>
           <Link href="/#health-center" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
             Health Center
           </Link>

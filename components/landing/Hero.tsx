@@ -18,14 +18,14 @@ export default function Hero() {
             </div>
 
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:mb-6 sm:text-5xl lg:text-6xl">
-              Know When Your Website{" "}
-              <span className="text-blue-400">Changes — Before Customers Notice</span>
+              Website Security Monitoring{" "}
+              <span className="text-blue-400">— SSL, Health & Change Detection</span>
             </h1>
 
             <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              CyberShield continuously monitors SSL, uptime, security headers, and page changes.
-              Get alerted when certificates expire, sites go down, or security posture shifts —
-              so you can act before trust and revenue are affected.
+              CyberShield Cloud continuously monitors website security scores, SSL certificates,
+              domain health, and unauthorized changes. Get website security alerts before customers
+              see browser warnings or downtime.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">

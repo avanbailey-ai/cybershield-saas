@@ -1,39 +1,46 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 const features = [
   {
     icon: "health",
     title: "Health Center",
+    href: "/features/website-health-monitoring",
     description:
       "One dashboard per website — security score, SSL, domain, uptime, and alerts. See business-critical status at a glance without digging through logs.",
   },
   {
     icon: "shield",
     title: "Security Scoring",
+    href: "/features/website-security-monitoring",
     description:
       "A 0–100 score tracks your posture over time. When headers disappear or vulnerabilities appear, the score drops — and you get context on why.",
   },
   {
     icon: "lock",
     title: "SSL & Domain Monitoring",
+    href: "/features/ssl-monitoring",
     description:
       "Expired SSL triggers browser warnings that erode trust and reduce conversions. Domain lapses can take your site offline entirely — we alert you early.",
   },
   {
     icon: "timeline",
     title: "Change Timeline",
+    href: "/features/website-change-detection",
     description:
       "Everything that happened to your website — score changes, new scripts, header removals, SSL events. CyberShield remembers so you don't have to.",
   },
   {
     icon: "chart",
     title: "Continuous Monitoring",
+    href: "/features/website-security-monitoring",
     description:
       "Pro checks daily, Growth hourly, Agency priority sites every 5 minutes. Catch downtime, certificate issues, and malicious changes between manual reviews.",
   },
   {
     icon: "bell",
     title: "Email Alerts & Digests",
+    href: "/features/website-security-monitoring",
     description:
       "Get notified when something important changes — plus weekly and monthly summaries. Act on SSL expiry or downtime before leads stop and revenue drops.",
   },
@@ -85,22 +92,26 @@ export default function Features() {
           </h2>
           <p className="mx-auto max-w-2xl text-base text-gray-400 sm:text-gray-400">
             SSL expiry, downtime, security gaps, and unauthorized changes — each can cost trust,
-            leads, and revenue. CyberShield watches continuously so you can respond early.
+            leads, and revenue. CyberShield watches continuously so you can respond early.{' '}
+            <Link href="/features" className="text-blue-400 hover:text-blue-300">
+              Explore all features →
+            </Link>
           </p>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {features.map((feature) => (
-            <div
+            <Link
               key={feature.title}
-              className="group rounded-xl border border-gray-800 bg-gray-900/50 p-6 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 sm:p-6"
+              href={feature.href}
+              className="group block rounded-xl border border-gray-800 bg-gray-900/50 p-6 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 sm:p-6"
             >
               <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 group-hover:bg-blue-600/15">
                 {iconMap[feature.icon]}
               </div>
               <h3 className="mb-2 text-base font-semibold text-white">{feature.title}</h3>
               <p className="text-base leading-relaxed text-gray-400 sm:text-sm">{feature.description}</p>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
