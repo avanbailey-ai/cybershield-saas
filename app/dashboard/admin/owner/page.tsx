@@ -13,7 +13,7 @@ import { buildRevenueOpportunity } from '@/lib/owner/revenueOpportunity';
 import { generateContentSuggestions } from '@/lib/owner/generators/contentIntel';
 import { loadCeoAdvisory, EMPTY_CEO_ADVISORY } from '@/lib/owner/ceoAdvisory';
 import { getCeoDashboard, EMPTY_CEO_DASHBOARD } from '@/lib/owner/ceoDashboard';
-import { getFounderOsV5, EMPTY_FOUNDER_OS_V5 } from '@/lib/owner/founderOsV5';
+import { getFounderOsV6, EMPTY_FOUNDER_OS_V6 } from '@/lib/owner/founderOsV6';
 import FounderOs from '@/components/owner/FounderOs';
 import type { OwnerCampaign, OwnerCampaignTask, OwnerProspect, OwnerCrmLead } from '@/lib/owner/types';
 
@@ -214,8 +214,8 @@ export default async function OwnerCommandCenterPage() {
   );
 
   const founderOsV5 = await safeQuery(
-    () => getFounderOsV5({ prospects, crmLeads }),
-    EMPTY_FOUNDER_OS_V5,
+    () => getFounderOsV6({ prospects, crmLeads }),
+    EMPTY_FOUNDER_OS_V6,
   );
 
   return (

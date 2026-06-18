@@ -7,6 +7,7 @@ import FounderInboxView from './views/FounderInboxView';
 import ProspectsView from './views/ProspectsView';
 import CustomersView from './views/CustomersView';
 import SettingsView from './views/SettingsView';
+import CustomerSuccessView from './views/CustomerSuccessView';
 import type { FounderCommandCenterProps } from './FounderCommandCenter';
 
 function FounderContent(props: FounderCommandCenterProps) {
@@ -19,6 +20,8 @@ function FounderContent(props: FounderCommandCenterProps) {
       return <FounderInboxView initial={props.founderOsV5} />;
     case 'prospects':
       return <ProspectsView prospects={props.prospects} revenue={props.revenue} />;
+    case 'success':
+      return <CustomerSuccessView initial={props.founderOsV5} />;
     case 'customers':
       return (
         <CustomersView

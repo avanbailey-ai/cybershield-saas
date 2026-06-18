@@ -39,6 +39,23 @@ const DEPRIORITIZE_KEYWORDS = [
   'school district',
   'university',
   'college',
+  'parked domain',
+  'under construction',
+  'coming soon',
+  'test site',
+  'localhost',
+  'wix free',
+  'godaddy parking',
+];
+
+const JUNK_WEBSITE_PATTERNS = [
+  /parked/i,
+  /domain.*for sale/i,
+  /under construction/i,
+  /coming soon/i,
+  /\.blogspot\./i,
+  /\.wordpress\.com$/i,
+  /example\.(com|org)/i,
 ];
 
 export function normalizeIndustryKey(industry: string | null, businessName?: string | null): string {
@@ -48,6 +65,20 @@ export function normalizeIndustryKey(industry: string | null, businessName?: str
 export function isDeprioritizedIndustry(industry: string | null, businessName?: string | null): boolean {
   const key = normalizeIndustryKey(industry, businessName);
   return DEPRIORITIZE_KEYWORDS.some((w) => key.includes(w));
+}
+
+export function isJunkProspect(input: {
+  website?: string | null;
+  businessName?: string | null;
+  industry?: string | null;
+  httpValid?: boolean | null;
+  dnsValid?: boolean | null;
+}): boolean {
+  if (isDeprioritizedIndustry(input.industry ?? null, input.businessName)) return true;
+  const site = `${input.website ?? ''} ${input.businessName ?? ''}`;
+  if (JUNK_WEBSITE_PATTERNS.some((p) => p.test(site))) return true;
+  if (input.httpValid === false && input.dnsValid === false) return true;
+  return false;
 }
 
 export function industryFitPoints(industry: string | null, businessName?: string | null): number {
@@ -93,6 +124,7 @@ export function securityUrgencyPoints(
 }
 
 export interface OpportunityScoreInput {
+  website?: string | null;
   industry: string | null;
   businessName?: string | null;
   scanScore: number | null;
@@ -107,6 +139,18 @@ export interface OpportunityScoreInput {
 }
 
 export function computeOpportunityScore(input: OpportunityScoreInput): number {
+  if (
+    isJunkProspect({
+      website: input.website,
+      businessName: input.businessName,
+      industry: input.industry,
+      httpValid: input.httpValid,
+      dnsValid: input.dnsValid,
+    })
+  ) {
+    return Math.max(0, Math.min(25, industryFitPoints(input.industry, input.businessName) + 5));
+  }
+
   if (isDeprioritizedIndustry(input.industry, input.businessName)) {
     return Math.max(0, Math.min(35, industryFitPoints(input.industry, input.businessName) + 10));
   }
@@ -184,6 +228,14 @@ export function buildQualificationReasons(
     return reasons;
   }
 
+  if (input.signals.contact_email_found) reasons.push('✉ Business email found — ready for outreach');
+  if (input.signals.contact_phone_found) reasons.push('☎ Phone number found');
+  if (!input.signals.contact_email_found && !input.signals.contact_phone_found) {
+    reasons.push('✗ No direct contact — verify contact page');
+  }
+  if (input.signals.contact_page_found) reasons.push('Contact page found');
+  if (input.signals.contact_linkedin_found) reasons.push('LinkedIn profile found');
+
   for (const issue of (input.scanIssues ?? []).slice(0, 3)) {
     reasons.push(issue);
   }
@@ -195,14 +247,7 @@ export function buildQualificationReasons(
     }
   }
 
-  if (input.signals.contact_email_found) reasons.push('Business email found');
-  if (input.signals.contact_phone_found) reasons.push('Phone number found');
-  if (input.signals.contact_page_found) reasons.push('Contact page found');
-  if (input.signals.contact_linkedin_found) reasons.push('LinkedIn profile found');
   if (input.dnsValid && input.httpValid) reasons.push('Professional business website');
-  if (!input.signals.contact_email_found && !input.signals.contact_phone_found) {
-    reasons.push('Reachable contact not yet confirmed');
-  }
 
   if (input.scanCompleted && input.leadScore === 'HOT') {
     reasons.push('Elevated security risk — strong CyberShield fit');

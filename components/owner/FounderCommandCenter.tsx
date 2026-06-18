@@ -16,7 +16,7 @@ import type { RevenueOpportunitySummary } from '@/lib/owner/revenueOpportunity';
 import type { ContentSuggestion } from '@/lib/owner/generators/contentIntel';
 import type { CeoAdvisoryData } from '@/lib/owner/ceoAdvisory';
 import type { CeoDashboard } from '@/lib/owner/ceoDashboard';
-import type { FounderOsV5Data } from '@/lib/owner/founderOsV5';
+import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
 
 type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
 
@@ -35,5 +35,5 @@ export interface FounderCommandCenterProps {
   contentSuggestions: ContentSuggestion[];
   ceoAdvisory: CeoAdvisoryData;
   ceoDashboard: CeoDashboard;
-  founderOsV5: FounderOsV5Data;
+  founderOsV5: FounderOsV6Data;
 }

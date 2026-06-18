@@ -39,7 +39,8 @@ function readAllOwnerSources(): string {
   return parts.join('\n');
 }
 
-assert(FOUNDER_SECTIONS.length === 5, `Expected 5 nav sections, got ${FOUNDER_SECTIONS.length}`);
+assert(FOUNDER_SECTIONS.length === 6, `Expected 6 nav sections, got ${FOUNDER_SECTIONS.length}`);
+assert(FOUNDER_SECTIONS.some((s) => s.id === 'success'), 'Success nav section exists');
 
 const shell = readFile('components/owner/FounderShell.tsx');
 assert(shell.includes('FOUNDER_SECTIONS'), 'FounderShell uses FOUNDER_SECTIONS');
@@ -53,7 +54,10 @@ assert(!founderOs.includes('RevenueOpportunityPanel'), 'Duplicate RevenueOpportu
 assert(!founderOs.includes('DailyBriefing'), 'DailyBriefing merged into home');
 
 const home = readFile('components/owner/views/FounderHomeView.tsx');
-assert(home.includes('Business status') || home.includes('businessStatus'), 'Home has business status');
+assert(
+  home.includes('At a glance') || home.includes('Business status') || home.includes('businessStatus'),
+  'Home has business status',
+);
 assert(home.includes('AiChiefOfStaff') || home.includes('chiefOfStaff'), 'Home has AI Chief of Staff');
 
 const prospects = readFile('components/owner/views/ProspectsView.tsx');

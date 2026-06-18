@@ -2,6 +2,7 @@ export const FOUNDER_SECTIONS = [
   { id: 'home', label: 'Home' },
   { id: 'inbox', label: 'Inbox' },
   { id: 'prospects', label: 'Prospects' },
+  { id: 'success', label: 'Success' },
   { id: 'customers', label: 'Customers' },
   { id: 'settings', label: 'Settings' },
 ] as const;
@@ -10,9 +11,9 @@ export type FounderSectionId = (typeof FOUNDER_SECTIONS)[number]['id'];
 
 const LEGACY_SECTION_MAP: Record<string, FounderSectionId> = {
   overview: 'home',
-  outreach: 'inbox',
   crm: 'inbox',
   insights: 'home',
+  outreach: 'inbox',
 };
 
 export function isFounderSectionId(value: string): value is FounderSectionId {

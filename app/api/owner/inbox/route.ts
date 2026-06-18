@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { executeInboxApproval } from '@/lib/owner/inboxAutomation';
 
 export async function POST(req: NextRequest) {
   const auth = await requireOwner();
@@ -9,7 +10,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { action, ids } = body as { action: 'approve' | 'reject'; ids: string[] };
+  const { action, ids, meta } = body as {
+    action: 'approve' | 'reject';
+    ids: string[];
+    meta?: Record<string, unknown>;
+  };
 
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'ids required' }, { status: 400 });
@@ -17,21 +22,22 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
   let approved = 0;
+  const results: { id: string; ok: boolean; action?: string; detail?: string }[] = [];
 
   for (const id of ids) {
-    if (id.startsWith('draft-')) {
+    if (action === 'approve') {
+      const result = await executeInboxApproval(admin, id, meta);
+      results.push({ id, ...result });
+      if (result.ok) approved++;
+    } else if (id.startsWith('draft-')) {
       const draftId = id.replace('draft-', '');
       const { error } = await admin
         .from('owner_outreach_drafts')
-        .update({ status: action === 'approve' ? 'approved' : 'draft' })
+        .update({ status: 'draft' })
         .eq('id', draftId);
       if (!error) approved++;
     }
-    // expansion/risk/signup items are review-only — approval acknowledges in UI via refresh
-    else if (action === 'approve') {
-      approved++;
-    }
   }
 
-  return NextResponse.json({ ok: true, approved });
+  return NextResponse.json({ ok: true, approved, results });
 }
