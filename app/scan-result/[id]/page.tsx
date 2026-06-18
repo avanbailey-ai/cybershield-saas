@@ -88,6 +88,10 @@ export default async function SharedScanResultPage({ params }: PageProps) {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white sm:text-3xl">Security Intelligence Report</h1>
           <p className="mt-2 text-gray-400">{report.domain}</p>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-gray-500">
+            This is a snapshot from a single scan. Continuous monitoring tracks changes over time —
+            SSL expiry, downtime, and security posture shifts.
+          </p>
           <span
             className={`mt-3 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${riskBadgeClass(report.riskLevel)}`}
           >
@@ -122,8 +126,9 @@ export default async function SharedScanResultPage({ params }: PageProps) {
               ))}
             </div>
             <p className="mt-4 text-xs text-gray-500">
-              Full exploit scenarios and remediation steps are hidden for privacy. Run your own scan
-              for a complete intelligence report.
+              Full exploit scenarios, remediation assistant, send-to-developer, and ticket
+              generation require a CyberShield account. Run your own scan or enable monitoring for
+              complete intelligence.
             </p>
           </section>
         )}
@@ -144,10 +149,11 @@ export default async function SharedScanResultPage({ params }: PageProps) {
         </div>
 
         <p className="mt-8 text-center text-xs text-gray-500">
-          Want continuous monitoring?{' '}
+          One scan shows today.{' '}
           <Link href="/pricing" className="text-blue-400 hover:text-blue-300">
-            Upgrade to CyberShield Pro
-          </Link>
+            Enable continuous monitoring
+          </Link>{' '}
+          to track SSL, uptime, and changes over time.
         </p>
       </main>
     </div>

@@ -10,6 +10,7 @@ import CommandCenterQuickActions from './CommandCenterQuickActions';
 import RetentionBanner from './RetentionBanner';
 import CyberShieldValueSummary from './CyberShieldValueSummary';
 import RecentActivityFeed from './RecentActivityFeed';
+import DashboardMonitoringOverview from './DashboardMonitoringOverview';
 
 function accountStatusClass(status: CommandCenterData['accountStatus']): string {
   switch (status) {
@@ -155,11 +156,21 @@ export default function CommandCenterDashboard({ data }: { data: CommandCenterDa
     <div className="space-y-6">
       <CommandCenterHeader data={data} />
 
-      {data.showRetentionBanner && <RetentionBanner />}
+      {data.showRetentionBanner && <RetentionBanner variant="memory" />}
+
+      <DashboardMonitoringOverview data={data} />
 
       <CyberShieldValueSummary metrics={data.valueSummary} />
 
       <OrgHealthCard data={data} />
+
+      <RecentActivityFeed
+        items={data.activityFeed}
+        title="Recent Changes & Activity"
+        viewAllHref="/app/scans"
+        emptyMessage="Activity will appear here after your first security check — SSL events, score changes, and website updates."
+      />
+
       <QuickActionsSection />
 
       {data.websites.length > 0 && (
@@ -184,8 +195,6 @@ export default function CommandCenterDashboard({ data }: { data: CommandCenterDa
         <SecurityWinsCard wins={data.securityWins} />
         <NeedsAttentionCard items={data.needsAttention} />
       </div>
-
-      <RecentActivityFeed items={data.activityFeed} viewAllHref="/app/scans" />
     </div>
   );
 }

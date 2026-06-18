@@ -4,19 +4,24 @@ import { useState } from "react";
 
 const faqs = [
   {
+    question: "How is this different from a one-time security scan?",
+    answer:
+      "A one-time scan shows your posture today. CyberShield monitors continuously — tracking SSL expiry, uptime, header changes, and score trends over time. You get alerts when something changes, not just a snapshot.",
+  },
+  {
     question: "How does monitoring work?",
     answer:
       "Pro includes daily automated monitoring checks plus weekly deep scans. Growth adds hourly monitoring checks and change detection. Agency includes 5-minute monitoring for priority websites and hourly monitoring for remaining sites. Manual deep scans have separate daily quotas and do not count scheduled monitoring checks.",
   },
   {
+    question: "What happens when my SSL certificate expires?",
+    answer:
+      "Browsers show security warnings that erode visitor trust and can reduce conversions. CyberShield alerts you well before expiry so you can renew — avoiding the downtime and trust loss that comes with expired certificates.",
+  },
+  {
     question: "How often are websites checked?",
     answer:
       "Pro runs daily monitoring checks with weekly deep scans. Growth runs hourly monitoring checks with weekly deep scans. Agency runs 5-minute monitoring for priority websites and hourly checks for the rest. You can also run manual deep scans from the dashboard within your plan quota.",
-  },
-  {
-    question: "Does CyberShield perform penetration testing?",
-    answer:
-      "No. CyberShield is a passive monitoring and reconnaissance platform. We analyze publicly observable signals and known vulnerability patterns. We do not perform active exploitation or intrusive penetration testing against your systems.",
   },
   {
     question: "Can I monitor multiple websites?",
@@ -26,7 +31,7 @@ const faqs = [
   {
     question: "Is there a free option?",
     answer:
-      "Yes. Use the free public scan at /scan — no account required. To monitor websites continuously with alerts and a full dashboard, choose a paid plan after signing up.",
+      "Yes. Use the free public scan at /scan — no account required. To monitor websites continuously with alerts, Health Center, and Change Timeline, choose a paid plan after signing up.",
   },
 ];
 

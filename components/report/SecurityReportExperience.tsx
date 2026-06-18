@@ -224,9 +224,14 @@ export default function SecurityReportExperience({
       {/* Grouped Findings */}
       {groupedFindings.length > 0 && (
         <section className="mb-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
             Findings by Business Impact
           </h2>
+          <p className="mb-4 text-sm text-gray-400">
+            Each finding includes what it is, why it matters, business impact, and fix guidance.
+            Use the remediation assistant, send-to-developer, or generate ticket actions to
+            delegate fixes.
+          </p>
           <div className="space-y-6">
             {groupedFindings.map((group) => (
               <div
@@ -420,7 +425,10 @@ function ExecutiveFindingCard({
             <RemediationAssistantPanel finding={finding} />
           </div>
           {actionContext && (
-            <div>
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-blue-400">
+                Remediation tools
+              </p>
               <FindingActionBar finding={finding} context={actionContext} />
             </div>
           )}

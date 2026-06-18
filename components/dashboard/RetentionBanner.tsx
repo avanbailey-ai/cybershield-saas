@@ -1,7 +1,5 @@
-import { COMMAND_CENTER_COPY } from '@/lib/dashboard/dashboardCommandCenter';
-
 interface RetentionBannerProps {
-  variant?: 'monitoring' | 'protection';
+  variant?: 'monitoring' | 'protection' | 'memory';
   detail?: string;
 }
 
@@ -12,13 +10,17 @@ export default function RetentionBanner({
   const title =
     variant === 'protection'
       ? 'CyberShield Protection Active'
-      : COMMAND_CENTER_COPY.monitoringActive;
+      : variant === 'memory'
+        ? 'Your website memory is active'
+        : 'CyberShield Monitoring Active';
 
   const subtitle =
     detail ??
     (variant === 'protection'
       ? 'Your websites are protected with continuous monitoring and alerts.'
-      : COMMAND_CENTER_COPY.monitoringActiveDetail);
+      : variant === 'memory'
+        ? 'SSL, uptime, security posture, and changes are tracked continuously — so you always have context when something shifts.'
+        : 'Your websites are being checked automatically. We will alert you if anything changes.');
 
   return (
     <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3 sm:px-5">

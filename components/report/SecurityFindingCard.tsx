@@ -73,10 +73,17 @@ function FindingDetails({
 
   return (
     <>
+      <div className="mb-4">
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          What this is
+        </h4>
+        <p className="text-sm leading-relaxed text-gray-300">{finding.description}</p>
+      </div>
+
       {finding.impact.length > 0 && (
         <div className="mb-4">
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            What this means
+            Business impact
           </h4>
           <ul className="space-y-2">
             {finding.impact.map((item) => (
@@ -91,7 +98,7 @@ function FindingDetails({
 
       <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
         <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-400/90">
-          What this could mean for your site
+          Why this matters
         </h4>
         <p className="text-sm leading-relaxed text-amber-100/80">{finding.exploitScenario}</p>
       </div>
@@ -110,18 +117,66 @@ function FindingDetails({
       </div>
 
       {actionContext && (
-        <div className="mb-4">
+        <div className="mb-4 rounded-lg border border-gray-800 bg-gray-950/50 p-4">
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Take action
+          </h4>
           <FindingActionBar finding={findingWithId} context={actionContext} />
         </div>
       )}
 
       <div className="rounded-lg border border-green-500/15 bg-green-500/5 px-4 py-3">
         <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-400/90">
-          Why fixing this matters
+          Impact if fixed
         </h4>
         <p className="text-sm leading-relaxed text-green-100/80">{finding.securityImpactIfFixed}</p>
       </div>
     </>
+  );
+}
+
+function CompactFindingDetails({ finding }: { finding: SecurityIntelligenceCard }) {
+  return (
+    <div className="mt-4 space-y-4 border-t border-gray-800/80 pt-4">
+      <div>
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          What
+        </h4>
+        <p className="text-sm text-gray-300">{finding.description}</p>
+      </div>
+
+      {finding.impact.length > 0 && (
+        <div>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Impact
+          </h4>
+          <ul className="space-y-1.5">
+            {finding.impact.slice(0, 2).map((item) => (
+              <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
+                <WarningIcon />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div>
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          Why
+        </h4>
+        <p className="text-sm text-gray-400">{finding.exploitScenario}</p>
+      </div>
+
+      <div>
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          Fix
+        </h4>
+        <p className="line-clamp-3 font-mono text-xs leading-relaxed text-emerald-300/80">
+          {finding.fix}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -141,21 +196,7 @@ export default function SecurityFindingCard({
         className={`rounded-xl border bg-gray-900/80 p-5 ${severityGlowClass(finding.severity)}`}
       >
         <FindingHeader finding={finding} />
-        {finding.impact.length > 0 && (
-          <div className="mt-4">
-            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Impact
-            </h4>
-            <ul className="space-y-2">
-              {finding.impact.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
-                  <WarningIcon />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <CompactFindingDetails finding={finding} />
       </article>
     );
   }

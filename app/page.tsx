@@ -18,6 +18,14 @@ import CTA from "@/components/landing/CTA";
 
 import Footer from "@/components/landing/Footer";
 
+import TrustSignals from "@/components/landing/TrustSignals";
+
+import HealthCenterPreview from "@/components/landing/HealthCenterPreview";
+
+import WebsiteMemory from "@/components/landing/WebsiteMemory";
+
+import AgencySection from "@/components/landing/AgencySection";
+
 
 
 const ScanInput = dynamic(() => import("@/components/landing/ScanInput"), {
@@ -38,15 +46,19 @@ const ScanInput = dynamic(() => import("@/components/landing/ScanInput"), {
 
 export const metadata: Metadata = {
 
-  title: "Free Website Security Scanner — Instant Results",
+  title: "Website Monitoring & Security — CyberShield",
+
   description:
-    "Scan your website for free. Get an instant security score, vulnerability preview, and risk assessment — no signup required.",
+
+    "Continuously monitor your website and know when something changes. SSL, uptime, security headers, and change detection — with alerts before issues affect customers.",
 
   openGraph: {
 
-    title: "CyberShield — Free Website Security Scanner",
+    title: "CyberShield — Continuous Website Monitoring",
 
-    description: "Instant security score and vulnerability preview for any website.",
+    description:
+
+      "Monitor SSL, uptime, security posture, and website changes. Get alerted before issues impact trust and revenue.",
 
     type: "website",
 
@@ -72,9 +84,17 @@ export default function HomePage() {
 
         <ScanInput />
 
+        <HealthCenterPreview />
+
         <Features />
 
+        <WebsiteMemory />
+
         <HowItWorks />
+
+        <TrustSignals />
+
+        <AgencySection />
 
         <FAQ />
 

@@ -47,7 +47,9 @@ export default function OnboardingWizard() {
           Welcome to CyberShield monitoring
         </h1>
         <p className="mt-4 text-gray-400">
-          We&apos;ll help you add your first website, then show you the Health Center after your first scan.
+          CyberShield is the memory of your website — continuous tracking of SSL, domain, uptime,
+          security posture, and changes. We&apos;ll help you add your first site, then show you the
+          Health Center after your first scan.
         </p>
 
         <div className="mt-8 space-y-3">

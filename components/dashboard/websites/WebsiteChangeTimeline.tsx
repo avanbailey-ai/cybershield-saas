@@ -236,10 +236,28 @@ export default function WebsiteChangeTimeline({
           <span className="mx-2 text-gray-600">·</span>
           <span className="text-gray-500">{websiteUrl}</span>
         </p>
-        <p className="mt-2 text-sm text-gray-500">
-          CyberShield groups related scan changes into clear events so you can focus on what
-          matters.
+        <p className="mt-3 text-sm leading-relaxed text-gray-400">
+          Everything that happened to your website — score changes, new and resolved findings, SSL
+          and domain events, uptime incidents, and page structure changes. CyberShield groups
+          related scan diffs into clear events so you can focus on what matters.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            'Score changes',
+            'SSL & domain',
+            'Uptime events',
+            'New findings',
+            'Resolved issues',
+            'Script changes',
+          ].map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-gray-700 bg-gray-800/60 px-2.5 py-0.5 text-[10px] font-medium text-gray-400"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
       </div>
 
       <PeriodTabs websiteId={websiteId} active={period} filter={initialFilter} />

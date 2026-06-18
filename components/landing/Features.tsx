@@ -4,32 +4,38 @@ const features = [
   {
     icon: "health",
     title: "Health Center",
-    description: "One dashboard per website — security score, SSL, domain, uptime, and alerts in a single view.",
+    description:
+      "One dashboard per website — security score, SSL, domain, uptime, and alerts. See business-critical status at a glance without digging through logs.",
   },
   {
     icon: "shield",
     title: "Security Scoring",
-    description: "A simple 0–100 score shows your security posture at a glance. No security expertise required to understand it.",
+    description:
+      "A 0–100 score tracks your posture over time. When headers disappear or vulnerabilities appear, the score drops — and you get context on why.",
   },
   {
     icon: "lock",
     title: "SSL & Domain Monitoring",
-    description: "Get notified before certificates or domain registrations expire. Avoid browser warnings and downtime.",
+    description:
+      "Expired SSL triggers browser warnings that erode trust and reduce conversions. Domain lapses can take your site offline entirely — we alert you early.",
   },
   {
     icon: "timeline",
     title: "Change Timeline",
-    description: "See what changed between scans — headers, scripts, SSL, and page structure — grouped in plain language.",
+    description:
+      "Everything that happened to your website — score changes, new scripts, header removals, SSL events. CyberShield remembers so you don't have to.",
   },
   {
     icon: "chart",
     title: "Continuous Monitoring",
-    description: "Pro checks daily, Growth hourly, Agency priority sites every 5 minutes. Deep scans run weekly.",
+    description:
+      "Pro checks daily, Growth hourly, Agency priority sites every 5 minutes. Catch downtime, certificate issues, and malicious changes between manual reviews.",
   },
   {
     icon: "bell",
     title: "Email Alerts & Digests",
-    description: "Get notified when something important changes, plus weekly and monthly summaries.",
+    description:
+      "Get notified when something important changes — plus weekly and monthly summaries. Act on SSL expiry or downtime before leads stop and revenue drops.",
   },
 ];
 
@@ -75,10 +81,11 @@ export default function Features() {
             Platform Features
           </p>
           <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
-            Everything you need to stay secure
+            Monitor what matters to your business
           </h2>
           <p className="mx-auto max-w-2xl text-base text-gray-400 sm:text-gray-400">
-            Health Center, monitoring, scoring, and alerts across all your web properties.
+            SSL expiry, downtime, security gaps, and unauthorized changes — each can cost trust,
+            leads, and revenue. CyberShield watches continuously so you can respond early.
           </p>
         </div>
 

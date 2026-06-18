@@ -2,22 +2,26 @@ const steps = [
   {
     number: "01",
     title: "Add Your Website",
-    description: "Enter your website URL and CyberShield begins configuring monitoring for SSL, domain, and security checks.",
+    description:
+      "Enter your website URL. CyberShield configures continuous monitoring for SSL, domain, uptime, and security checks — no agents required.",
   },
   {
     number: "02",
-    title: "CyberShield Runs Checks",
-    description: "We scan SSL certificates, HTTP security headers, and page structure — then keep checking on your plan's schedule.",
+    title: "CyberShield Monitors Continuously",
+    description:
+      "Scheduled checks track certificates, headers, page structure, and availability. Changes are compared against your baseline automatically.",
   },
   {
     number: "03",
     title: "Review the Health Center",
-    description: "See security score, SSL/domain status, uptime, and recent changes in one place per website.",
+    description:
+      "See security score, SSL/domain status, uptime, recent changes, and active findings in one executive view per website.",
   },
   {
     number: "04",
     title: "Get Alerts When It Matters",
-    description: "Email alerts and digests when certificates expire, headers change, or scores drop — with clear next steps.",
+    description:
+      "Email alerts when certificates near expiry, sites go down, headers disappear, or scores drop — with clear context and next steps.",
   },
 ];
 
@@ -31,10 +35,11 @@ export default function HowItWorks() {
             How It Works
           </p>
           <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
-            Up and running in minutes
+            From free scan to continuous protection
           </h2>
           <p className="mx-auto max-w-xl text-base text-gray-400 sm:text-gray-400">
-            Add your website — no agents or complex setup.
+            Start with a free scan, then enable monitoring to track changes over time — not just
+            today&apos;s snapshot.
           </p>
         </div>
 

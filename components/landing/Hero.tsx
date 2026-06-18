@@ -14,16 +14,18 @@ export default function Hero() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
               </span>
-              Free instant security scan — no signup
+              Continuous monitoring — free scan to start
             </div>
 
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:mb-6 sm:text-5xl lg:text-6xl">
-              Is Your Website{" "}
-              <span className="text-blue-400">Exposed Right Now?</span>
+              Know When Your Website{" "}
+              <span className="text-blue-400">Changes — Before Customers Notice</span>
             </h1>
 
             <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              Find out in 30 seconds. CyberShield checks SSL, security headers, and website health — then monitors changes on an ongoing basis.
+              CyberShield continuously monitors SSL, uptime, security headers, and page changes.
+              Get alerted when certificates expire, sites go down, or security posture shifts —
+              so you can act before trust and revenue are affected.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
@@ -31,29 +33,29 @@ export default function Hero() {
                 href="#scan"
                 className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0a0f1e]"
               >
-                Scan your website for free
+                Start with a free scan
                 <ArrowRightIcon className="h-4 w-4" />
               </a>
               <a
-                href="#how-it-works"
+                href="#health-center"
                 className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-gray-700 px-7 py-3.5 text-base font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
               >
-                See How It Works
+                See Health Center
               </a>
             </div>
 
             <div className="flex flex-col gap-3 text-sm text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                No credit card required
+                SSL expiry alerts before browser warnings
               </span>
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Results in under 30 seconds
+                Uptime checks — catch downtime early
               </span>
               <span className="hidden items-center gap-2 sm:flex">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Trusted by developers & agencies
+                Change timeline — your website&apos;s memory
               </span>
             </div>
           </div>
@@ -65,32 +67,29 @@ export default function Hero() {
                 <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
                 <span className="h-3 w-3 rounded-full bg-green-500/70" />
                 <span className="ml-3 font-mono text-xs text-gray-500">
-                  cybershield — security scan
+                  cybershield — continuous monitor
                 </span>
               </div>
               <div className="p-5 font-mono text-sm leading-relaxed">
-                <p className="text-gray-500">$ cybershield scan --target example.com</p>
+                <p className="text-gray-500">$ cybershield monitor --target example.com</p>
                 <p className="mt-2 text-blue-400">
-                  [*] Initializing security scan for example.com...
+                  [*] Monitoring active for example.com...
                 </p>
-                <p className="text-gray-400">[*] Resolving DNS records...</p>
-                <p className="text-green-400">[✓] DNS records resolved (4 records found)</p>
-                <p className="mt-1 text-gray-400">[*] Checking SSL certificate...</p>
-                <p className="text-green-400">[✓] SSL valid — expires in 87 days</p>
-                <p className="mt-1 text-gray-400">[*] Checking security headers...</p>
-                <p className="text-yellow-400">[!] Missing: Content-Security-Policy</p>
-                <p className="text-yellow-400">[!] Missing: X-Frame-Options</p>
-                <p className="mt-1 text-gray-400">[*] Recording monitoring baseline...</p>
-                <p className="text-green-400">[✓] SSL certificate valid — expires in 87 days</p>
-                <p className="mt-1 text-gray-400">[*] Checking domain registration...</p>
+                <p className="text-gray-400">[*] SSL certificate valid — expires in 87 days</p>
+                <p className="text-green-400">[✓] Uptime check passed (142ms)</p>
+                <p className="mt-1 text-gray-400">[*] Comparing against last baseline...</p>
+                <p className="text-yellow-400">[!] Change detected: X-Frame-Options removed</p>
+                <p className="text-yellow-400">[!] Change detected: new script analytics.js</p>
+                <p className="mt-1 text-gray-400">[*] Security score recalculated...</p>
                 <p className="text-green-400">[✓] Domain registration healthy</p>
                 <p className="mt-3 text-gray-500">─────────────────────────────────</p>
                 <p className="mt-1 font-semibold text-white">
                   Security Score:{" "}
                   <span className="text-yellow-400">72/100</span>
+                  <span className="ml-2 text-xs font-normal text-red-400">↓ 6 since last week</span>
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
-                  2 warnings · 0 critical issues · Scan complete in 3.2s
+                  2 changes detected · alert sent · next check in 1h
                 </p>
                 <p className="mt-3 animate-pulse text-gray-600">█</p>
               </div>

@@ -13,6 +13,12 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-3">
+          <Link href="/#health-center" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
+            Health Center
+          </Link>
+          <Link href="/#agencies" className="hidden text-sm text-gray-400 hover:text-white md:inline">
+            Agencies
+          </Link>
           <Link href="/pricing" className="hidden text-sm text-gray-400 hover:text-white sm:inline">
             Pricing
           </Link>
@@ -21,7 +27,7 @@ export default function Navbar() {
           </Link>
           <Link href="/#scan">
             <Button variant="primary" size="sm">
-              Scan your website for free
+              Start monitoring
             </Button>
           </Link>
           <Link href="/login">

@@ -241,8 +241,12 @@ export default function ScanResultPaywall({
 
       {topIssues.length > 0 && (
         <div className="mt-8">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
             Top findings ({topIssues.length} of {result.vulnerabilitiesCount})
+          </p>
+          <p className="mb-4 text-sm text-gray-400">
+            Each finding includes what it is, why it matters, business impact, and how to fix it.
+            Upgrade to unlock remediation assistant, send-to-developer, and ticket generation.
           </p>
           <ul className="space-y-3">
             {topIssues.map((issue, i) => (
@@ -254,9 +258,35 @@ export default function ScanResultPaywall({
                   Finding #{i + 1}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-white">{issueHeadline(issue)}</p>
-                <p className="mt-1 text-xs text-gray-500 blur-[3px] select-none">
-                  Remediation steps and exploit details locked on Free plan
-                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      Why it matters
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400 blur-[3px] select-none">
+                      Business impact and exploit context locked on Free plan
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      How to fix
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400 blur-[3px] select-none">
+                      Remediation steps and fix guidance locked on Free plan
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-lg border border-gray-700/60 bg-gray-800/40 px-2 py-1 text-[10px] font-medium text-gray-500">
+                    Remediation assistant — Pro
+                  </span>
+                  <span className="rounded-lg border border-gray-700/60 bg-gray-800/40 px-2 py-1 text-[10px] font-medium text-gray-500">
+                    Send to developer — Pro
+                  </span>
+                  <span className="rounded-lg border border-gray-700/60 bg-gray-800/40 px-2 py-1 text-[10px] font-medium text-gray-500">
+                    Generate ticket — Pro
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
@@ -266,10 +296,12 @@ export default function ScanResultPaywall({
       {scoreAtRisk && paywallVisible && (
         <div className="mt-8 rounded-lg border border-red-500/30 bg-red-500/10 p-5">
           <p className="text-sm font-semibold text-red-200">
-            Your site scored below 70 — vulnerabilities need attention
+            Your site scored below 70 — issues may affect trust and conversions
           </p>
           <p className="mt-1 text-xs text-red-200/80">
-            Attackers scan for exactly these gaps. Pro unlocks the full report, monitoring, and step-by-step fix guidance.
+            Missing security headers and SSL gaps can trigger browser warnings, reduce visitor
+            trust, and expose customer data. Pro unlocks full reports, continuous monitoring, and
+            step-by-step remediation with send-to-developer and ticket generation.
           </p>
           <button
             type="button"
