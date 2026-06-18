@@ -3,7 +3,19 @@
 import { useMemo, useState } from 'react';
 import EmptyState from './EmptyState';
 import ProspectCard from './ProspectCard';
-import { prospectsForTab, PIPELINE_TABS, type ProspectTabId } from '@/lib/owner/pipeline';
+import {
+  prospectsForTab,
+  PIPELINE_TABS,
+  countByStage,
+  hasActiveProspects,
+  stageEmptyMessage,
+  type ProspectTabId,
+} from '@/lib/owner/pipeline';
+import {
+  applyProspectFilter,
+  PROSPECT_FILTERS,
+  type ProspectFilterId,
+} from '@/lib/owner/prospectFilters';
 import type { OwnerProspect } from '@/lib/owner/types';
 
 export default function ProspectPipeline({
@@ -13,13 +25,23 @@ export default function ProspectPipeline({
   prospects: OwnerProspect[];
   onProspectsChange: (next: OwnerProspect[]) => void;
 }) {
-  const [tab, setTab] = useState<ProspectTabId>('new_discovery');
+  const [tab, setTab] = useState<ProspectTabId>('outreach_ready');
+  const [filter, setFilter] = useState<ProspectFilterId>('highest_opportunity');
+  const [filterValue, setFilterValue] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scanning, setScanning] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const filtered = useMemo(() => prospectsForTab(prospects, tab), [prospects, tab]);
+  const globalHasProspects = hasActiveProspects(prospects);
+  const stageCounts = useMemo(() => countByStage(prospects), [prospects]);
+
+  const filtered = useMemo(() => {
+    const inTab = prospectsForTab(prospects, tab, tab === 'archived');
+    return applyProspectFilter(inTab, filter, filterValue || undefined);
+  }, [prospects, tab, filter, filterValue]);
+
   const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+  const empty = stageEmptyMessage(tab, globalHasProspects);
 
   function toggleAll() {
     if (allSelected) setSelected(new Set());
@@ -142,6 +164,10 @@ export default function ProspectPipeline({
     }
   }
 
+  if (!globalHasProspects) {
+    return null;
+  }
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-2">
@@ -153,13 +179,52 @@ export default function ProspectPipeline({
               setTab(id);
               setSelected(new Set());
             }}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-              tab === id ? 'bg-violet-600 text-white' : 'text-gray-400 hover:text-white'
+            className={`rounded-lg px-3 py-2 text-xs font-medium ${
+              tab === id ? 'bg-violet-600 text-white' : 'bg-white/[0.03] text-gray-400 hover:text-white'
             }`}
           >
             {PIPELINE_TABS[id].label}
+            <span className="ml-1.5 opacity-70">({stageCounts[id]})</span>
           </button>
         ))}
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-500">Filter:</span>
+        {PROSPECT_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`rounded-full px-2.5 py-1 text-xs ${
+              filter === f.id
+                ? 'bg-white/10 text-white'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        {(filter === 'by_industry' || filter === 'by_location') && (
+          <input
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            placeholder={filter === 'by_industry' ? 'Industry…' : 'City or state…'}
+            className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-1 text-xs text-white"
+          />
+        )}
+        {filter === 'by_plan_fit' && (
+          <select
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-1 text-xs text-white"
+          >
+            <option value="">All plans</option>
+            <option value="79">Starter ($79)</option>
+            <option value="149">Growth ($149)</option>
+            <option value="299">Agency ($299)</option>
+          </select>
+        )}
       </div>
 
       {filtered.length > 0 && (
@@ -172,55 +237,13 @@ export default function ProspectPipeline({
       {selected.size > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2">
           <span className="text-xs text-violet-300">{selected.size} selected</span>
-          <button
-            type="button"
-            disabled={bulkBusy}
-            onClick={() => bulkAction('archive')}
-            className="text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            Archive
-          </button>
-          <button
-            type="button"
-            disabled={bulkBusy}
-            onClick={() => bulkAction('ignore_forever')}
-            className="text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            Ignore forever
-          </button>
-          <button
-            type="button"
-            disabled={bulkBusy}
-            onClick={() => bulkAction('mark_contacted')}
-            className="text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            Mark contacted
-          </button>
-          <button
-            type="button"
-            disabled={bulkBusy}
-            onClick={() => bulkAction('mark_customer')}
-            className="text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            Mark customer
-          </button>
-          <button
-            type="button"
-            disabled={bulkBusy}
-            onClick={() => bulkAction('generate_outreach')}
-            className="text-xs text-gray-300 hover:text-white disabled:opacity-50"
-          >
-            Generate outreach
-          </button>
+          <button type="button" disabled={bulkBusy} onClick={() => bulkAction('archive')} className="text-xs text-gray-300 hover:text-white disabled:opacity-50">Archive</button>
+          <button type="button" disabled={bulkBusy} onClick={() => bulkAction('ignore_forever')} className="text-xs text-gray-300 hover:text-white disabled:opacity-50">Ignore forever</button>
+          <button type="button" disabled={bulkBusy} onClick={() => bulkAction('mark_contacted')} className="text-xs text-gray-300 hover:text-white disabled:opacity-50">Mark contacted</button>
+          <button type="button" disabled={bulkBusy} onClick={() => bulkAction('mark_customer')} className="text-xs text-gray-300 hover:text-white disabled:opacity-50">Mark customer</button>
+          <button type="button" disabled={bulkBusy} onClick={() => bulkAction('generate_outreach')} className="text-xs text-gray-300 hover:text-white disabled:opacity-50">Generate outreach</button>
           {tab === 'archived' && (
-            <button
-              type="button"
-              disabled={bulkBusy}
-              onClick={() => bulkAction('unarchive', 'new_discovery')}
-              className="text-xs text-gray-300 hover:text-white disabled:opacity-50"
-            >
-              Unarchive
-            </button>
+            <button type="button" disabled={bulkBusy} onClick={() => bulkAction('unarchive', 'new_discovery')} className="text-xs text-gray-300 hover:text-white disabled:opacity-50">Unarchive</button>
           )}
           <button
             type="button"
@@ -238,12 +261,9 @@ export default function ProspectPipeline({
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState
-          title="No prospects in this stage."
-          description="Run discovery to find qualified businesses. Archived and ignored prospects are hidden from active pipeline tabs."
-        />
+        <EmptyState title={empty.title} description={empty.description} />
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-5">
           {filtered.map((p) => (
             <li key={p.id}>
               <ProspectCard

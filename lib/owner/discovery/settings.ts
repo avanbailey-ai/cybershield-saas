@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type DiscoveryScope = 'local' | 'regional' | 'statewide' | 'nationwide' | 'custom';
 
+const METERS_PER_MILE = 1609.344;
+
 export interface DiscoveryProviderToggles {
   openstreetmap: boolean;
   nominatim_search: boolean;
@@ -12,44 +14,51 @@ export interface DiscoveryProviderToggles {
 export interface DiscoverySettings {
   location: string;
   industry: string;
-  /** @deprecated use discoveryScope */
+  /** Internal — derived from scope */
   radiusMeters: number;
   discoveryScope: DiscoveryScope;
-  customRadiusMeters: number;
+  /** User-facing custom radius in miles (only when scope is custom) */
+  customRadiusMiles: number;
   maxProspectsPerRun: number;
   maxAutoScansPerRun: number;
   providers: DiscoveryProviderToggles;
   seedDirectoryUrl: string | null;
 }
 
-export const SCOPE_RADIUS_METERS: Record<Exclude<DiscoveryScope, 'custom'>, number> = {
-  local: 5_000,
-  regional: 25_000,
-  statewide: 200_000,
-  nationwide: 500_000,
+/** Preset search areas in miles → meters for geospatial providers */
+export const SCOPE_RADIUS_MILES: Record<Exclude<DiscoveryScope, 'custom'>, number> = {
+  local: 25,
+  regional: 100,
+  statewide: 250,
+  nationwide: 500,
 };
+
+export function milesToMeters(miles: number): number {
+  return Math.round(miles * METERS_PER_MILE);
+}
 
 export function radiusForScope(settings: DiscoverySettings): number {
   if (settings.discoveryScope === 'custom') {
-    return Math.min(Math.max(settings.customRadiusMeters || 15_000, 1_000), 500_000);
+    const miles = Math.min(Math.max(settings.customRadiusMiles || 25, 1), 500);
+    return milesToMeters(miles);
   }
-  return SCOPE_RADIUS_METERS[settings.discoveryScope];
+  return milesToMeters(SCOPE_RADIUS_MILES[settings.discoveryScope]);
 }
 
 export const DISCOVERY_SCOPE_OPTIONS: { id: DiscoveryScope; label: string; hint: string }[] = [
-  { id: 'local', label: 'Local', hint: '~5 km' },
-  { id: 'regional', label: 'Regional', hint: '~25 km' },
-  { id: 'statewide', label: 'Statewide', hint: '~200 km' },
+  { id: 'local', label: 'Local', hint: '25 miles' },
+  { id: 'regional', label: 'Regional', hint: '100 miles' },
+  { id: 'statewide', label: 'Statewide', hint: 'State-wide search' },
   { id: 'nationwide', label: 'Nationwide', hint: 'Broad US search' },
-  { id: 'custom', label: 'Custom', hint: 'Set radius manually' },
+  { id: 'custom', label: 'Custom', hint: 'Advanced area' },
 ];
 
 export const DEFAULT_DISCOVERY_SETTINGS: DiscoverySettings = {
   location: 'Medford, OR',
   industry: 'healthcare',
-  radiusMeters: 15_000,
+  radiusMeters: milesToMeters(100),
   discoveryScope: 'regional',
-  customRadiusMeters: 15_000,
+  customRadiusMiles: 25,
   maxProspectsPerRun: 25,
   maxAutoScansPerRun: 10,
   providers: {
@@ -74,14 +83,19 @@ export async function getDiscoverySettings(
     return { ...DEFAULT_DISCOVERY_SETTINGS };
   }
 
-  const raw = data.value as Partial<DiscoverySettings>;
-  const merged = {
+  const raw = data.value as Partial<DiscoverySettings> & { customRadiusMeters?: number };
+  const merged: DiscoverySettings = {
     ...DEFAULT_DISCOVERY_SETTINGS,
     ...raw,
     providers: {
       ...DEFAULT_DISCOVERY_SETTINGS.providers,
       ...(raw.providers ?? {}),
     },
+    customRadiusMiles:
+      raw.customRadiusMiles ??
+      (raw.customRadiusMeters
+        ? Math.round(raw.customRadiusMeters / METERS_PER_MILE)
+        : DEFAULT_DISCOVERY_SETTINGS.customRadiusMiles),
   };
   merged.radiusMeters = radiusForScope(merged);
   return merged;

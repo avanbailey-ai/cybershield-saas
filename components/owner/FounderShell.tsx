@@ -4,7 +4,7 @@ import Link from 'next/link';
 import LogoutButton from '@/components/dashboard/LogoutButton';
 import { FOUNDER_SECTIONS, useFounderNav } from './FounderNavContext';
 
-export default function FounderShell() {
+export default function FounderShell({ inboxCount = 0 }: { inboxCount?: number }) {
   const { section, setSection, email } = useFounderNav();
 
   return (
@@ -28,6 +28,11 @@ export default function FounderShell() {
                 }`}
               >
                 {m.label}
+                {m.id === 'inbox' && inboxCount > 0 && (
+                  <span className="ml-2 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
+                    {inboxCount}
+                  </span>
+                )}
               </button>
             </li>
           ))}

@@ -7,6 +7,9 @@ import {
   planFitLabel,
   prospectNextStep,
   securityScoreLabel,
+  recommendedAction,
+  confidenceLabel,
+  contactStatusLabel,
 } from '@/lib/owner/pipeline';
 import type { OwnerProspect } from '@/lib/owner/types';
 
@@ -27,18 +30,6 @@ function locationLabel(p: OwnerProspect): string {
   return [p.city, p.state, p.country].filter(Boolean).join(', ') || '—';
 }
 
-function ContactBadge({ ok, label }: { ok: boolean | null; label: string }) {
-  return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-[10px] ${
-        ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-gray-800 text-gray-600'
-      }`}
-    >
-      {label}
-    </span>
-  );
-}
-
 export default function ProspectCard({
   prospect: p,
   selected,
@@ -54,76 +45,81 @@ export default function ProspectCard({
   const [showContact, setShowContact] = useState(false);
   const nextStep = prospectNextStep(p);
   const planFit = planFitLabel(p);
+  const action = recommendedAction(p);
   const reasons = Array.isArray(p.qualification_reasons) ? p.qualification_reasons : [];
+  const contact = contactStatusLabel(p);
+  const confidence = confidenceLabel(p.conversion_likelihood, p.opportunity_score);
 
   return (
-    <article className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
+    <article className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-6 shadow-sm">
       <div className="flex items-start gap-3">
-        <input type="checkbox" checked={selected} onChange={onToggle} className="mt-1" />
+        <input type="checkbox" checked={selected} onChange={onToggle} className="mt-1.5" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-medium text-white">{p.business_name}</h3>
-              <p className="text-sm text-gray-500">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="text-xl font-semibold tracking-tight text-white">{p.business_name}</h3>
+              <p className="mt-1 text-sm text-gray-400">
                 {p.industry ?? 'Business'} · {locationLabel(p)}
               </p>
               <a
                 href={p.website.startsWith('http') ? p.website : `https://${p.website}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 inline-block text-sm text-violet-400 hover:text-violet-300"
+                className="mt-1 inline-block truncate text-sm text-violet-400 hover:text-violet-300"
               >
                 {p.website}
               </a>
             </div>
-            <div className="flex flex-wrap gap-2 text-right">
-              <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2">
-                <p className="text-[10px] uppercase text-gray-500">Opportunity</p>
-                <p className="text-lg font-semibold text-violet-300">{opportunityScoreLabel(p)}</p>
-              </div>
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-                <p className="text-[10px] uppercase text-gray-500">Security</p>
-                <p className="text-lg font-semibold text-amber-200">{securityScoreLabel(p)}</p>
-              </div>
-              {planFit && (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
-                  <p className="text-[10px] uppercase text-gray-500">Plan fit</p>
-                  <p className="text-lg font-semibold text-emerald-300">{planFit}</p>
-                </div>
-              )}
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <ScorePill label="Opportunity" value={opportunityScoreLabel(p)} accent="violet" />
+              <ScorePill label="Security" value={securityScoreLabel(p)} accent="amber" />
             </div>
           </div>
 
-          {p.selection_reason && (
-            <p className="mt-3 text-sm leading-relaxed text-gray-300">
-              <span className="font-medium text-gray-400">Why selected: </span>
-              {p.selection_reason}
-            </p>
-          )}
-
-          {reasons.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {reasons.map((r) => (
-                <li
-                  key={r}
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-xs text-gray-400"
-                >
-                  {r}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <ContactBadge ok={p.contact_page_found} label="Contact page" />
-            <ContactBadge ok={p.contact_email_found} label="Email" />
-            <ContactBadge ok={p.contact_phone_found} label="Phone" />
-            <ContactBadge ok={p.contact_linkedin_found} label="LinkedIn" />
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {planFit && (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                <p className="text-[10px] uppercase text-gray-500">Recommended plan</p>
+                <p className="text-sm font-medium text-emerald-300">{planFit}</p>
+              </div>
+            )}
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Confidence</p>
+              <p className="text-sm font-medium text-white">{confidence}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Contact</p>
+              <p
+                className={`text-sm font-medium ${contact.available ? 'text-emerald-300' : 'text-gray-500'}`}
+              >
+                {contact.label}
+              </p>
+            </div>
           </div>
 
-          <p className="mt-3 text-sm text-gray-500">
-            <span className="text-gray-400">Next step:</span> {nextStep}
-          </p>
+          {reasons.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+                Why this business matters
+              </p>
+              <ul className="mt-2 space-y-1">
+                {reasons.map((r) => (
+                  <li key={r} className="flex items-start gap-2 text-sm text-gray-300">
+                    <span className="text-emerald-400">✓</span>
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-4 rounded-lg border border-violet-500/20 bg-violet-500/5 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-violet-300/80">
+              Recommended next action
+            </p>
+            <p className="mt-1 text-sm font-medium text-white">{action.label}</p>
+            <p className="mt-0.5 text-xs text-gray-500">{nextStep}</p>
+          </div>
 
           {showContact && (
             <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-gray-300">
@@ -143,29 +139,31 @@ export default function ProspectCard({
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={onGenerateOutreach}
-              className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500"
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
             >
               Generate outreach
             </button>
             <button
               type="button"
               onClick={() => setShowContact((v) => !v)}
-              className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-violet-500/50"
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-violet-500/50"
             >
               Contact info
             </button>
-            <button
-              type="button"
-              onClick={onScan}
-              disabled={scanning}
-              className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-violet-500/50 disabled:opacity-50"
-            >
-              {scanning ? 'Scanning…' : p.scan_status === 'completed' ? 'Re-scan' : 'Run scan'}
-            </button>
+            {action.action === 'scan' && (
+              <button
+                type="button"
+                onClick={onScan}
+                disabled={scanning}
+                className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-violet-500/50 disabled:opacity-50"
+              >
+                {scanning ? 'Scanning…' : p.scan_status === 'completed' ? 'Re-scan' : 'Run scan'}
+              </button>
+            )}
             <HygieneControls
               compact
               archived={p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever'}
@@ -177,7 +175,7 @@ export default function ProspectCard({
               <button
                 type="button"
                 onClick={onIgnoreForever}
-                className="text-xs text-gray-500 hover:text-gray-300"
+                className="text-sm text-gray-500 hover:text-gray-300"
               >
                 Ignore forever
               </button>
@@ -186,5 +184,26 @@ export default function ProspectCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function ScorePill({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent: 'violet' | 'amber';
+}) {
+  const colors =
+    accent === 'violet'
+      ? 'border-violet-500/30 bg-violet-500/5 text-violet-300'
+      : 'border-amber-500/30 bg-amber-500/5 text-amber-200';
+  return (
+    <div className={`rounded-xl border px-4 py-2 text-center ${colors}`}>
+      <p className="text-[10px] uppercase opacity-70">{label}</p>
+      <p className="text-lg font-bold">{value}</p>
+    </div>
   );
 }

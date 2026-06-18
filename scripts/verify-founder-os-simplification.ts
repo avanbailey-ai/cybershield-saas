@@ -39,36 +39,37 @@ function readAllOwnerSources(): string {
   return parts.join('\n');
 }
 
-assert(FOUNDER_SECTIONS.length === 7, `Expected 7 nav sections, got ${FOUNDER_SECTIONS.length}`);
+assert(FOUNDER_SECTIONS.length === 5, `Expected 5 nav sections, got ${FOUNDER_SECTIONS.length}`);
 
 const shell = readFile('components/owner/FounderShell.tsx');
 assert(shell.includes('FOUNDER_SECTIONS'), 'FounderShell uses FOUNDER_SECTIONS');
 
 const founderOs = readFile('components/owner/FounderOs.tsx');
-assert(founderOs.includes('OverviewView'), 'FounderOs uses OverviewView');
+assert(founderOs.includes('FounderHomeView'), 'FounderOs uses FounderHomeView');
+assert(founderOs.includes('FounderInboxView'), 'FounderOs uses FounderInboxView');
 assert(founderOs.includes('ProspectsView'), 'FounderOs uses ProspectsView');
 assert(!founderOs.includes('OpportunityCenter'), 'Duplicate OpportunityCenter removed');
 assert(!founderOs.includes('RevenueOpportunityPanel'), 'Duplicate RevenueOpportunityPanel removed');
-assert(!founderOs.includes('DailyBriefing'), 'DailyBriefing merged into Overview');
+assert(!founderOs.includes('DailyBriefing'), 'DailyBriefing merged into home');
 
-const overview = readFile('components/owner/views/OverviewView.tsx');
-assert(overview.includes('Next actions'), 'Overview has priority actions');
-assert(overview.includes('topActions'), 'Overview uses topActions');
+const home = readFile('components/owner/views/FounderHomeView.tsx');
+assert(home.includes('Business status') || home.includes('businessStatus'), 'Home has business status');
+assert(home.includes('AiChiefOfStaff') || home.includes('chiefOfStaff'), 'Home has AI Chief of Staff');
 
 const prospects = readFile('components/owner/views/ProspectsView.tsx');
 assert(prospects.includes('LeadDiscovery'), 'Prospects uses single discovery source');
 assert(
-  readFile('components/owner/LeadDiscovery.tsx').includes('Next step') ||
-    readFile('components/owner/ProspectPipeline.tsx').includes('Next step'),
-  'Prospects has next step column',
+  readFile('components/owner/ProspectCard.tsx').includes('Recommended next action') ||
+    readFile('components/owner/ProspectPipeline.tsx').includes('Recommended next action'),
+  'Prospects has recommended next action',
 );
 assert(
-  readFile('components/owner/LeadDiscovery.tsx').includes('No prospects discovered yet') ||
-    readFile('components/owner/ProspectPipeline.tsx').includes('No prospects discovered yet'),
+  readFile('components/owner/LeadDiscovery.tsx').includes('No qualified prospects yet') ||
+    readFile('lib/owner/pipeline.ts').includes('No qualified prospects yet'),
   'Prospects empty state',
 );
 
-assert(readFile('components/owner/views/OutreachView.tsx').includes('No HOT prospects yet'), 'Outreach empty state');
+assert(readFile('components/owner/views/FounderInboxView.tsx').includes('inbox'), 'Inbox view exists');
 assert(readFile('components/owner/views/CustomersView.tsx').includes('No customer data yet'), 'Customers empty state');
 
 const sources = readAllOwnerSources();

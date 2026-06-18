@@ -1,5 +1,9 @@
 import type { LeadScore, OwnerProspect } from './types';
 import type { ProspectPipelineState } from './discovery/types';
+import { planFitDisplayName, confidenceLabel, contactStatusLabel } from './salesIntelligence';
+import { activeProspects } from './prospectFilters';
+
+export { planFitDisplayName, confidenceLabel, contactStatusLabel };
 
 export function pipelineStateFromScan(input: {
   scanStatus: string;
@@ -38,7 +42,7 @@ export function topIssueFromFindings(findings: { issues?: string[] } | null): st
 }
 
 export const PIPELINE_TABS = {
-  new_discovery: { id: 'new_discovery', label: 'New Discovery' },
+  new_discovery: { id: 'new_discovery', label: 'New Discoveries' },
   qualified: { id: 'qualified', label: 'Qualified' },
   outreach_ready: { id: 'outreach_ready', label: 'Outreach Ready' },
   contacted: { id: 'contacted', label: 'Contacted' },
@@ -76,6 +80,41 @@ export function prospectsForTab(
     .sort((a, b) => (b.opportunity_score ?? b.opportunity_priority ?? 0) - (a.opportunity_score ?? a.opportunity_priority ?? 0));
 }
 
+export function countByStage(prospects: OwnerProspect[]): Record<ProspectTabId, number> {
+  const counts = {} as Record<ProspectTabId, number>;
+  for (const id of Object.keys(PIPELINE_TABS) as ProspectTabId[]) {
+    counts[id] = prospectsForTab(prospects, id, id === 'archived').length;
+  }
+  return counts;
+}
+
+export function hasActiveProspects(prospects: OwnerProspect[]): boolean {
+  return activeProspects(prospects).length > 0;
+}
+
+export function recommendedAction(p: OwnerProspect): { label: string; action: string } {
+  if (p.pipeline_state === 'outreach_ready' || p.lead_score === 'HOT') {
+    return { label: 'Generate outreach', action: 'outreach' };
+  }
+  if (!p.contact_email_found && !p.contact_phone_found && p.scan_status === 'completed') {
+    return { label: 'Find contact', action: 'contact' };
+  }
+  if (p.scan_status === 'completed') {
+    return { label: 'Review scan findings', action: 'review' };
+  }
+  if (p.scan_status === 'failed') {
+    return { label: 'Retry scan', action: 'scan' };
+  }
+  if (isDeprioritized(p)) {
+    return { label: 'Archive', action: 'archive' };
+  }
+  return { label: 'Run security scan', action: 'scan' };
+}
+
+function isDeprioritized(p: OwnerProspect): boolean {
+  return (p.opportunity_score ?? 100) < 25;
+}
+
 export function prospectNextStep(p: OwnerProspect): string {
   if (p.pipeline_state === 'ignore_forever') return 'Permanently ignored';
   if (p.pipeline_state === 'archived') return 'Unarchive or delete';
@@ -101,6 +140,23 @@ export function opportunityScoreLabel(p: OwnerProspect): string {
 }
 
 export function planFitLabel(p: OwnerProspect): string | null {
-  if (!p.estimated_plan_fit) return null;
-  return `$${p.estimated_plan_fit}/mo`;
+  return planFitDisplayName(p.estimated_plan_fit);
+}
+
+export function stageEmptyMessage(tab: ProspectTabId, hasGlobalProspects: boolean): {
+  title: string;
+  description: string;
+} {
+  if (!hasGlobalProspects) {
+    return {
+      title: 'No qualified prospects yet',
+      description:
+        'Run discovery to identify businesses that may benefit from CyberShield monitoring.',
+    };
+  }
+  const stage = PIPELINE_TABS[tab].label;
+  return {
+    title: `No prospects in ${stage}`,
+    description: `Prospects move here as they qualify. Check other pipeline stages or run discovery for new opportunities.`,
+  };
 }

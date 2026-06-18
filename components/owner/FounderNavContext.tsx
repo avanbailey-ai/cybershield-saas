@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import {
   FOUNDER_SECTIONS,
   type FounderSectionId,
-  isFounderSectionId,
+  resolveFounderSection,
 } from '@/lib/owner/founderNav';
 
 interface FounderNavContextValue {
@@ -23,7 +23,7 @@ export function FounderNavProvider({
   email: string;
   children: ReactNode;
 }) {
-  const [section, setSectionState] = useState<FounderSectionId>('overview');
+  const [section, setSectionState] = useState<FounderSectionId>('home');
 
   const setSection = useCallback((id: FounderSectionId) => {
     setSectionState(id);
@@ -32,9 +32,8 @@ export function FounderNavProvider({
 
   useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if (isFounderSectionId(hash)) {
-      setSectionState(hash);
-    }
+    const resolved = resolveFounderSection(hash);
+    if (resolved) setSectionState(resolved);
   }, []);
 
   return (

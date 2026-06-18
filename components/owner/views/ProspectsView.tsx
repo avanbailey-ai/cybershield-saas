@@ -9,22 +9,15 @@ interface Props {
   revenue: RevenueOpportunitySummary;
 }
 
-export default function ProspectsView({ prospects, revenue }: Props) {
-  const hot = prospects.filter((p) => p.lead_score === 'HOT').length;
-  const scanned = prospects.filter((p) => p.scan_status === 'completed').length;
-
+export default function ProspectsView({ prospects }: Props) {
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="mx-auto max-w-6xl space-y-6">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Prospects</h1>
-        <p className="mt-2 text-gray-500">Discover → scan → score → outreach</p>
-        {prospects.length > 0 && (
-          <p className="mt-4 text-sm text-gray-400">
-            {prospects.length} prospects · {scanned} scanned · {hot} HOT
-            {revenue.crmPipelineMrr > 0 &&
-              ` · $${revenue.crmPipelineMrr.toLocaleString()}/mo CRM pipeline`}
-          </p>
-        )}
+        <p className="text-sm font-medium uppercase tracking-wider text-violet-400">Founder OS</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Prospects</h1>
+        <p className="mt-2 text-gray-500">
+          Revenue intelligence — find businesses most likely to become customers
+        </p>
       </header>
       <LeadDiscovery initialProspects={prospects} embedded />
     </div>

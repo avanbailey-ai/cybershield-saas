@@ -61,6 +61,7 @@ export async function enrichProspect(
     dnsValid: input.dns_valid,
     signals,
     issueCount,
+    scanIssues: input.scan_findings?.issues,
   };
 
   const opportunity_score = computeOpportunityScore(scoreInput);

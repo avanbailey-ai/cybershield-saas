@@ -211,14 +211,18 @@ export async function runProspectDiscovery(options?: {
 
   let qualifiedCount = 0;
   let outreachReadyCount = 0;
+  let estimatedOpportunityMrr = 0;
   if (pendingScanIds.length > 0) {
     const { data: fresh } = await admin
       .from('owner_prospects')
-      .select('pipeline_state')
+      .select('pipeline_state, estimated_plan_fit')
       .in('id', pendingScanIds);
     for (const row of fresh ?? []) {
       if (row.pipeline_state === 'qualified') qualifiedCount++;
-      if (row.pipeline_state === 'outreach_ready') outreachReadyCount++;
+      if (row.pipeline_state === 'outreach_ready') {
+        outreachReadyCount++;
+        estimatedOpportunityMrr += (row.estimated_plan_fit as number) ?? 0;
+      }
     }
   }
 
@@ -244,6 +248,7 @@ export async function runProspectDiscovery(options?: {
     validated,
     qualified: qualifiedCount,
     outreachReady: outreachReadyCount,
+    estimatedOpportunityMrr,
     errors,
     providerDiagnostics,
   };

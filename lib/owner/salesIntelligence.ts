@@ -35,7 +35,10 @@ const DEPRIORITIZE_KEYWORDS = [
   'wiki',
   'nonprofit',
   'church',
+  'school',
   'school district',
+  'university',
+  'college',
 ];
 
 export function normalizeIndustryKey(industry: string | null, businessName?: string | null): string {
@@ -100,6 +103,7 @@ export interface OpportunityScoreInput {
   dnsValid?: boolean | null;
   signals: ContactSignals;
   issueCount?: number;
+  scanIssues?: string[];
 }
 
 export function computeOpportunityScore(input: OpportunityScoreInput): number {
@@ -140,13 +144,48 @@ export function computePlanFit(
   return null;
 }
 
-export function buildQualificationReasons(input: OpportunityScoreInput & { opportunityScore: number }): string[] {
+export function planFitDisplayName(planFit: number | null): string | null {
+  if (!planFit) return null;
+  if (planFit === 79) return 'Starter ($79)';
+  if (planFit === 149) return 'Growth ($149)';
+  if (planFit === 299) return 'Agency ($299)';
+  return `$${planFit}/mo`;
+}
+
+export function confidenceLabel(conversionLikelihood: number | null, opportunityScore: number | null): string {
+  const score = conversionLikelihood ?? opportunityScore ?? 0;
+  if (score >= 70) return 'High';
+  if (score >= 45) return 'Medium';
+  return 'Low';
+}
+
+export function contactStatusLabel(p: {
+  contact_email_found: boolean | null;
+  contact_phone_found: boolean | null;
+  contact_page_found: boolean | null;
+}): { label: string; available: boolean } {
+  if (p.contact_email_found || p.contact_phone_found) {
+    return { label: 'Contact available', available: true };
+  }
+  if (p.contact_page_found) {
+    return { label: 'Limited contact data', available: false };
+  }
+  return { label: 'No contact found', available: false };
+}
+
+export function buildQualificationReasons(
+  input: OpportunityScoreInput & { opportunityScore: number },
+): string[] {
   const reasons: string[] = [];
   const key = normalizeIndustryKey(input.industry, input.businessName);
 
   if (isDeprioritizedIndustry(input.industry, input.businessName)) {
-    reasons.push('Low-fit category for CyberShield (government, directory, or non-business site)');
+    reasons.push('Low-fit category — unlikely CyberShield customer');
     return reasons;
+  }
+
+  for (const issue of (input.scanIssues ?? []).slice(0, 3)) {
+    reasons.push(issue);
   }
 
   for (const word of PRIORITY_INDUSTRY_KEYWORDS) {
@@ -156,22 +195,20 @@ export function buildQualificationReasons(input: OpportunityScoreInput & { oppor
     }
   }
 
-  if (input.signals.contact_email_found) reasons.push('Business email found on website');
-  if (input.signals.contact_phone_found) reasons.push('Phone number found on website');
-  if (input.signals.contact_page_found) reasons.push('Contact page detected');
+  if (input.signals.contact_email_found) reasons.push('Business email found');
+  if (input.signals.contact_phone_found) reasons.push('Phone number found');
+  if (input.signals.contact_page_found) reasons.push('Contact page found');
   if (input.signals.contact_linkedin_found) reasons.push('LinkedIn profile found');
-
-  if (input.scanCompleted) {
-    if (input.leadScore === 'HOT') reasons.push('Security scan shows elevated website risk');
-    else if (input.leadScore === 'WARM') reasons.push('Security scan found moderate gaps');
-    if (input.scanScore !== null && input.scanScore < 60) {
-      reasons.push(`Security score ${input.scanScore}/100 — remediation opportunity`);
-    }
-  } else if (input.dnsValid && input.httpValid) {
-    reasons.push('Live business website validated');
+  if (input.dnsValid && input.httpValid) reasons.push('Professional business website');
+  if (!input.signals.contact_email_found && !input.signals.contact_phone_found) {
+    reasons.push('Reachable contact not yet confirmed');
   }
 
-  return reasons.slice(0, 6);
+  if (input.scanCompleted && input.leadScore === 'HOT') {
+    reasons.push('Elevated security risk — strong CyberShield fit');
+  }
+
+  return [...new Set(reasons)].slice(0, 8);
 }
 
 export function buildSelectionReason(input: OpportunityScoreInput & { opportunityScore: number }): string {

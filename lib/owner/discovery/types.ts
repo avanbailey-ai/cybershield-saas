@@ -47,6 +47,7 @@ export interface DiscoveryRunResult {
   validated: number;
   qualified: number;
   outreachReady: number;
+  estimatedOpportunityMrr: number;
   errors: string[];
   providerDiagnostics: ProviderDiagnostic[];
 }
