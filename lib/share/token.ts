@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 /** Short URL-safe slug for public share links (12 hex chars). */
 export function generateShareToken(): string {
@@ -6,10 +7,6 @@ export function generateShareToken(): string {
 }
 
 export function shareResultUrl(token: string, baseUrl?: string): string {
-  const origin =
-    baseUrl ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    '';
+  const origin = baseUrl ?? resolveSiteUrl();
   return `${origin}/scan-result/${token}`;
 }

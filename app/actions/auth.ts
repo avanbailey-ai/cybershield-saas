@@ -6,7 +6,7 @@ import type { SessionSupabaseClient } from "@/lib/auth/redirect";
 import { getRedirectPathForSession } from "@/lib/auth/redirectServer";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { PRODUCTION_SITE_URL } from "@/lib/site/getSiteUrl";
+import { resolveSiteUrl } from "@/lib/site/getSiteUrl";
 
 export async function signUp(formData: FormData) {
   try {
@@ -18,9 +18,7 @@ export async function signUp(formData: FormData) {
   // IMPORTANT: Also update Site URL in Supabase Dashboard:
   // Authentication → URL Configuration → Site URL → https://cybershieldcloud.com
   // Also add https://cybershieldcloud.com and https://www.cybershieldcloud.com to Redirect URLs
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (typeof window !== "undefined" ? window.location.origin : PRODUCTION_SITE_URL);
+  const siteUrl = resolveSiteUrl();
 
   const { error } = await supabase.auth.signUp({
     email,

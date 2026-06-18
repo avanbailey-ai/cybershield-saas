@@ -16,6 +16,7 @@ import { getOrgSubscription } from '@/lib/billing/orgSubscriptionService';
 
 import { isSubscriptionActive } from '@/lib/billing/subscriptionService';
 import { ensureUserOrg } from '@/lib/org/migrateExistingUsers';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 
 
@@ -109,13 +110,7 @@ export async function POST() {
 
 
 
-    const baseUrl =
-
-      process.env.NEXT_PUBLIC_SITE_URL ||
-
-      process.env.NEXT_PUBLIC_APP_URL ||
-
-      'https://example.com';
+    const baseUrl = resolveSiteUrl();
 
 
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { getOrCreateReferralCode, maskUserId } from '@/lib/referrals/code';
 import ReferralsDashboardClient from '@/components/referrals/ReferralsDashboardClient';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 export const metadata = {
   title: 'Referrals — CyberShield',
@@ -37,10 +38,7 @@ export default async function ReferralsPage() {
     conversions: referrals?.filter((r) => r.status === 'converted').length ?? 0,
   };
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    '';
+  const baseUrl = resolveSiteUrl();
 
   return (
     <div className="flex flex-1 flex-col overflow-auto">

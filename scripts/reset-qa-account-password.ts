@@ -11,6 +11,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { resolveSiteUrl } from '../lib/site/getSiteUrl';
 
 const email = (process.env.QA_ACCOUNT_EMAIL ?? 'test@gmail.com').trim().toLowerCase();
 const newPassword = process.env.QA_RESET_PASSWORD?.trim();
@@ -52,9 +53,7 @@ async function main() {
   }
 
   if (wantLink || !newPassword) {
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ??
-      'https://cybershieldcloud.com';
+    const siteUrl = resolveSiteUrl();
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email,

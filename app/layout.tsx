@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { resolveSiteUrl } from "@/lib/site/getSiteUrl";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(resolveSiteUrl()),
   title: {
     default: "CyberShield SaaS",
     template: "%s | CyberShield SaaS",

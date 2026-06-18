@@ -13,7 +13,7 @@ import SecurityReportEmptyState from '@/components/report/SecurityReportEmptySta
 import SecurityReportExperience from '@/components/report/SecurityReportExperience';
 import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
 import { buildExecutiveReportPresentation } from '@/lib/report/reportExecutiveCopy';
-import { getSiteUrl } from '@/lib/site/getSiteUrl';
+import { getSiteUrl, resolveSiteUrl } from '@/lib/site/getSiteUrl';
 import ReportProblemOnReport from '@/components/beta/ReportProblemOnReport';
 
 interface ScanRow {
@@ -160,7 +160,7 @@ export default async function ReportPage({ params }: PageProps) {
     ? new Date(scanRow.completed_at).toLocaleString()
     : new Date(scanRow.started_at).toLocaleString();
 
-  const siteBase = getSiteUrl();
+  const siteBase = getSiteUrl() || resolveSiteUrl();
   const reportUrl = siteBase ? `${siteBase}/report/${id}` : undefined;
   const findingActionContext = {
     siteUrl,

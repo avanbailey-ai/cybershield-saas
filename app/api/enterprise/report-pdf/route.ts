@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getPublicReportByToken } from '@/lib/share/reportShare';
 import { getUserOrgRole } from '@/lib/auth/rbac';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 function escapeHtml(str: string): string {
   return str
@@ -12,14 +13,17 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function buildExecutiveSummaryHtml(report: {
-  domain: string;
-  securityScore: number;
-  summary: string;
-  findingPreviews: Array<{ title: string; severity: string }>;
-  executiveSummary: string | null;
-  shareToken: string;
-}): string {
+function buildExecutiveSummaryHtml(
+  report: {
+    domain: string;
+    securityScore: number;
+    summary: string;
+    findingPreviews: Array<{ title: string; severity: string }>;
+    executiveSummary: string | null;
+    shareToken: string;
+  },
+  siteUrl: string,
+): string {
   const generated = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -67,7 +71,8 @@ function buildExecutiveSummaryHtml(report: {
   </ul>
   <div class="footer">
     <p>Prepared by CyberShield — Confidential</p>
-    <p>Share link: /scan-result/${escapeHtml(report.shareToken)}</p>
+    <p>Share link: ${escapeHtml(`${siteUrl}/scan-result/${report.shareToken}`)}</p>
+    <p>${escapeHtml(siteUrl)}</p>
   </div>
 </body>
 </html>`;
@@ -89,7 +94,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Report not found or not shared' }, { status: 404 });
   }
 
-  const html = buildExecutiveSummaryHtml(report);
+  const html = buildExecutiveSummaryHtml(report, resolveSiteUrl());
   const filename = `CyberShield-Executive-Summary-${report.domain.replace(/[^a-z0-9.-]/gi, '_')}.html`;
 
   return new NextResponse(html, {
@@ -163,8 +168,7 @@ export async function POST(req: NextRequest) {
       .eq('id', body.reportId);
   }
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || '';
+  const baseUrl = resolveSiteUrl();
 
   return NextResponse.json({
     shareUrl: `${baseUrl}/scan-result/${shareToken}`,

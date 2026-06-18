@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
 interface PageProps {
   searchParams: Promise<{ domain?: string; score?: string; token?: string }>;
@@ -53,6 +54,7 @@ export default async function ScanResultLegacyPage({ searchParams }: PageProps) 
     redirect('/scan');
   }
 
+  const shareBase = resolveSiteUrl();
   const shareUrl = `/scan-result?domain=${encodeURIComponent(domain)}&score=${score ?? ''}`;
   const tweetText = encodeURIComponent(
     `I scanned ${domain} with CyberShield${score !== null ? ` — score: ${score}/100` : ''}. Check yours:`,
@@ -101,7 +103,7 @@ export default async function ScanResultLegacyPage({ searchParams }: PageProps) 
           </Link>
           <a
             href={`https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(
-              `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}${shareUrl}`,
+              `${shareBase}${shareUrl}`,
             )}`}
             target="_blank"
             rel="noopener noreferrer"
