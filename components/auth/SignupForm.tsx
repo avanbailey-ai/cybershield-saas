@@ -31,6 +31,20 @@ export default function SignupForm() {
         body: JSON.stringify({ type: "click", code: ref }),
       });
     }
+
+    const refParam = searchParams.get("ref");
+    const refToken =
+      refParam?.startsWith("prospect_") ? refParam.slice("prospect_".length) : null;
+    const prospectToken = searchParams.get("prospect") ?? refToken;
+
+    if (prospectToken && prospectToken.length >= 8) {
+      sessionStorage.setItem("prospect_attribution_token", prospectToken);
+      void fetch("/api/attribution/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: prospectToken }),
+      });
+    }
   }, [searchParams]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -66,6 +80,21 @@ export default function SignupForm() {
       }
 
       if (data.user && data.session) {
+        try {
+          const attributionToken = sessionStorage.getItem("prospect_attribution_token");
+          if (attributionToken) {
+            await fetch("/api/attribution/signup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ token: attributionToken }),
+            });
+            sessionStorage.removeItem("prospect_attribution_token");
+          }
+        } catch {
+          // Non-blocking
+        }
+
         try {
           await fetch("/api/referrals/attach", {
             method: "POST",

@@ -52,6 +52,7 @@ export async function POST(
     currentState: prospect.pipeline_state as ProspectPipelineState,
     opportunityScore: enrichment.opportunity_score,
     hasContactEmail: Boolean(enrichment.contact_email),
+    scanIssues: (prospect.scan_findings as { issues?: string[] } | null)?.issues,
   });
 
   if (prospect.scan_status === 'completed' && !enrichment.contact_email) {

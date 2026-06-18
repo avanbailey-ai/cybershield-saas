@@ -13,7 +13,10 @@ export type ActivityFeedEventType =
   | 'email_sent'
   | 'email_approved'
   | 'follow_up_due'
-  | 'contact_found';
+  | 'contact_found'
+  | 'prospect_interested'
+  | 'prospect_signup'
+  | 'prospect_converted';
 
 export interface ActivityFeedEvent {
   id: string;
@@ -105,7 +108,14 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
       .from('owner_outreach_events')
       .select('id, event_type, recipient_email, subject, detail, created_at, prospect_id')
       .gte('created_at', since)
-      .in('event_type', ['email_sent', 'email_approved', 'follow_up_due'])
+      .in('event_type', [
+        'email_sent',
+        'email_approved',
+        'follow_up_due',
+        'prospect_interested',
+        'prospect_signup',
+        'prospect_converted',
+      ])
       .order('created_at', { ascending: false })
       .limit(15),
     admin
@@ -217,6 +227,9 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
       email_sent: 'Outreach email sent',
       email_approved: 'Outreach approved',
       follow_up_due: 'Follow-up due',
+      prospect_interested: 'Lead moved to Interested',
+      prospect_signup: 'Prospect signup attributed',
+      prospect_converted: 'Prospect converted to customer',
     };
     events.push({
       id: `outreach-ev-${ev.id}`,

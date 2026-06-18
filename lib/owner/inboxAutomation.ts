@@ -1,11 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { scheduleRetentionEmails } from '@/lib/brain/retention';
 import { sendApprovedOutreach } from '@/lib/owner/outreachExecution';
-import {
-  sendRetentionEmail,
+import { sendRetentionEmail,
   retentionTemplateForRisk,
   type RetentionTemplateType,
 } from '@/lib/owner/retentionOutreach';
+import { approveInterestedLead } from '@/lib/owner/interestedLeadApproval';
 import { getCustomerHealth } from '@/lib/owner/customerHealth';
 import { generateOutreach } from '@/lib/owner/generators/outreach';
 import { logOutreachEvent } from '@/lib/owner/outreachEvents';
@@ -254,8 +254,8 @@ export async function executeInboxApproval(
   }
 
   if (id.startsWith('interested-')) {
-    await queueAutopilotTask(admin, `Review interested prospect ${id.replace('interested-', '')}`, 0);
-    return { ok: true, action: 'interested_review', detail: 'Interested lead marked for review' };
+    const prospectId = id.replace('interested-', '');
+    return approveInterestedLead(admin, prospectId);
   }
 
   if (id.startsWith('signup-')) {

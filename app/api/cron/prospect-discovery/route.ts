@@ -4,6 +4,7 @@ import { runProspectDiscovery, scanPendingProspects } from '@/lib/owner/discover
 import { runAutoArchive } from '@/lib/owner/autoArchive';
 import { runStaleDataHygiene } from '@/lib/owner/staleDataHygiene';
 import { markDueFollowUps } from '@/lib/owner/followUpScheduler';
+import { reconcilePaidConversions } from '@/lib/owner/prospectAttribution';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
   const archived = await runAutoArchive(admin);
   const hygiene = await runStaleDataHygiene(admin);
   const followUpsDue = await markDueFollowUps(admin);
+  const conversions = await reconcilePaidConversions(admin);
 
   return NextResponse.json({
     ok: true,
@@ -27,6 +29,7 @@ export async function POST(request: Request) {
     archived,
     hygiene,
     followUpsDue,
+    conversions,
   });
 }
 

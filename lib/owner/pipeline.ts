@@ -12,6 +12,7 @@ export function pipelineStateFromScan(input: {
   currentState?: ProspectPipelineState | null;
   opportunityScore?: number | null;
   hasContactEmail?: boolean;
+  scanIssues?: string[];
 }): ProspectPipelineState {
   const terminal: ProspectPipelineState[] = [
     'contacted',
@@ -39,11 +40,25 @@ export function pipelineStateFromScan(input: {
     return 'needs_contact';
   }
 
-  if (input.leadScore === 'HOT' && (input.opportunityScore ?? 0) >= 25) {
+  const meaningfulFinding =
+    (input.opportunityScore ?? 0) >= 25 || (input.scanIssues?.length ?? 0) >= 1;
+
+  if (input.leadScore === 'HOT' && meaningfulFinding) {
     return 'outreach_ready';
   }
-  if (input.leadScore === 'HOT') return 'qualified';
-  if (input.leadScore === 'WARM') return 'qualified';
+
+  if (input.leadScore === 'WARM' && meaningfulFinding) {
+    return 'outreach_ready';
+  }
+
+  if (input.leadScore === 'LOW') {
+    return 'qualified';
+  }
+
+  if (input.leadScore === 'HOT' || input.leadScore === 'WARM') {
+    return 'qualified';
+  }
+
   if ((input.opportunityScore ?? 0) >= 50) return 'qualified';
   return 'needs_review';
 }

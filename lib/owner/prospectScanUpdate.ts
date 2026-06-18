@@ -39,6 +39,7 @@ export async function applyProspectScan(
       currentState: prospect.pipeline_state as never,
       opportunityScore: enrichment.opportunity_score,
       hasContactEmail: Boolean(enrichment.contact_email),
+      scanIssues: result.issues,
     });
 
     const resolvedPipeline =

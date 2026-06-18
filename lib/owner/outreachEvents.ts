@@ -9,7 +9,10 @@ export type OutreachEventType =
   | 'follow_up_sent'
   | 'contact_found'
   | 'retention_sent'
-  | 'customer_status_updated';
+  | 'customer_status_updated'
+  | 'prospect_interested'
+  | 'prospect_signup'
+  | 'prospect_converted';
 
 export async function logOutreachEvent(
   admin: SupabaseClient,

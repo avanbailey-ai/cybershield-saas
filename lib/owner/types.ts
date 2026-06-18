@@ -90,6 +90,9 @@ export interface OwnerCrmLead {
   lead_score: LeadScore | null;
   potential_revenue: number | null;
   last_contact_at: string | null;
+  prospect_id: string | null;
+  interest_at: string | null;
+  interest_source: string | null;
   archived_at: string | null;
   deleted_at: string | null;
   created_at: string;

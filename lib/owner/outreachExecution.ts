@@ -4,6 +4,11 @@ import { isInternalCustomerEmail } from './founderCustomerFilters';
 import { getOutreachSettings } from './outreachSettings';
 import { scheduleFollowUps } from './followUpScheduler';
 import { logOutreachEvent } from './outreachEvents';
+import {
+  appendAttributionLink,
+  buildAttributionSignupUrl,
+  getOrCreateAttributionToken,
+} from './prospectAttribution';
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const COOLDOWN_DAYS = 30;
@@ -171,7 +176,20 @@ export async function sendApprovedOutreach(
 
   const businessName =
     (draft.business_name as string) ?? (prospect?.business_name as string) ?? 'your business';
-  const { subject, body } = parseDraftContent(String(draft.content), businessName);
+  let { subject, body } = parseDraftContent(String(draft.content), businessName);
+
+  if (draft.prospect_id && draft.outreach_type !== 'follow_up') {
+    try {
+      const token = await getOrCreateAttributionToken(admin, {
+        prospectId: draft.prospect_id as string,
+        draftId: draftId,
+      });
+      body = appendAttributionLink(body, buildAttributionSignupUrl(token));
+    } catch {
+      /* attribution optional — still send */
+    }
+  }
+
   const html = toHtml(body);
 
   const result = await sendEmail({ to: toEmail, subject, html });
