@@ -21,10 +21,10 @@ import { resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
 import ReportProblemWidget from "@/components/beta/ReportProblemWidget";
 import { ensureUserOrg } from "@/lib/org/migrateExistingUsers";
 
-
+/** Auth + Supabase — must not prerender without runtime env/cookies */
+export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({
-
   children,
 
 }: {
