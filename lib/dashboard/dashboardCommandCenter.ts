@@ -1,5 +1,5 @@
 import { formatRelativeScanTime } from '@/lib/websiteHealth/healthCenterCopy';
-import { scoreToRiskBucket } from '@/lib/enterprise/enterpriseTypes';
+import { scoreToRiskBucket, type RiskBucket } from '@/lib/enterprise/enterpriseTypes';
 import type { SslDashboardSummary } from '@/lib/ssl/fetchSslDashboardSummary';
 import type { DomainDashboardSummary } from '@/lib/domain/fetchDomainDashboardSummary';
 
@@ -118,6 +118,95 @@ export function getWebsiteDisplayName(label: string | null | undefined, url: str
   }
 }
 
+/** Alias for customer-facing UI — prefer over raw IDs */
+export const websiteDisplayName = getWebsiteDisplayName;
+
+export function riskBucketLabel(bucket: RiskBucket): string {
+  switch (bucket) {
+    case 'critical':
+      return 'Critical';
+    case 'high':
+      return 'High';
+    case 'medium':
+      return 'Medium';
+    case 'low':
+      return 'Low';
+    default:
+      return 'Not scored';
+  }
+}
+
+export interface ValueSummaryMetrics {
+  checksCompleted: number;
+  changesDetected: number;
+  sslDomainIssues: number;
+  downtimeEvents: number;
+  sitesAllOnline: number;
+  websitesMonitored: number;
+}
+
+export const VALUE_SUMMARY_COPY = {
+  title: 'Past 7 Days',
+  subtitle: 'What CyberShield has done for you',
+} as const;
+
+export interface WebsiteActivityCard extends CommandCenterWebsite {
+  riskLabel: string;
+  topIssue: string;
+  recommendedAction: string;
+  actionHref: string;
+}
+
+export function buildWebsiteActivityCards(
+  websites: CommandCenterWebsite[],
+  needsAttention: NeedsAttentionItem[],
+): WebsiteActivityCard[] {
+  return websites.map((site) => {
+    const attention = needsAttention.find((item) => item.websiteName === site.displayName);
+    const bucket = scoreToRiskBucket(site.score);
+
+    if (attention) {
+      return {
+        ...site,
+        riskLabel: riskBucketLabel(bucket),
+        topIssue: attention.title,
+        recommendedAction: attention.actionLabel,
+        actionHref: attention.actionHref,
+      };
+    }
+
+    if (site.healthCategory === 'healthy') {
+      return {
+        ...site,
+        riskLabel: riskBucketLabel(bucket),
+        topIssue: 'No urgent issues detected',
+        recommendedAction: 'Review Health Center',
+        actionHref: `/app/websites/${site.id}/health`,
+      };
+    }
+
+    if (site.score === null) {
+      return {
+        ...site,
+        riskLabel: riskBucketLabel(bucket),
+        topIssue: 'Awaiting first security check',
+        recommendedAction: 'Run a security check',
+        actionHref: '/app/websites',
+      };
+    }
+
+    return {
+      ...site,
+      riskLabel: riskBucketLabel(bucket),
+      topIssue: `Security score ${site.score}/100 — review findings`,
+      recommendedAction: site.latestScanId ? 'View Report' : 'Open Health Center',
+      actionHref: site.latestScanId
+        ? `/report/${site.latestScanId}`
+        : `/app/websites/${site.id}/health`,
+    };
+  });
+}
+
 export type WebsiteHealthCategory = 'healthy' | 'needs_attention' | 'critical' | 'unknown';
 
 export function scoreToHealthCategory(score: number | null): WebsiteHealthCategory {
@@ -198,6 +287,7 @@ export interface CommandCenterData {
   orgHealth: OrgHealthSummary;
   websites: CommandCenterWebsite[];
   activeMonitoring: ActiveMonitoringSummary;
+  valueSummary: ValueSummaryMetrics;
   securityWins: SecurityWin[];
   needsAttention: NeedsAttentionItem[];
   activityFeed: ActivityFeedItem[];

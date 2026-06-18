@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { groupAlertsForDisplay } from "@/lib/alerts/groupAlertsForDisplay";
+import { getWebsiteDisplayName } from "@/lib/dashboard/dashboardCommandCenter";
 
 export interface AlertRow {
   id: string;
@@ -203,7 +204,7 @@ export default function AlertsList({ initialAlerts }: { initialAlerts: AlertRow[
                   )}
                   {siteInfo && (
                     <p className="mt-2 text-xs text-gray-600">
-                      {siteInfo.label ?? siteInfo.url}
+                      {getWebsiteDisplayName(siteInfo.label, siteInfo.url)}
                     </p>
                   )}
                 </div>

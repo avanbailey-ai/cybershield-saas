@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import CyberShieldValueSummary from '@/components/dashboard/CyberShieldValueSummary';
+import RecentActivityFeed from '@/components/dashboard/RecentActivityFeed';
+import RetentionBanner from '@/components/dashboard/RetentionBanner';
 import EnterpriseExportPdfButton from '@/components/enterprise/EnterpriseExportPdfButton';
 import ScanAllButton from '@/components/dashboard/ScanAllButton';
 import { CollapsiblePanel } from '@/components/enterprise/overview/EnterpriseOverviewPanels';
@@ -23,13 +26,6 @@ function orgStatusClass(status: EnterpriseCommandCenterData['orgSummary']['orgSt
     default:
       return 'bg-gray-500/15 text-gray-300 border-gray-500/30';
   }
-}
-
-function activityToneClass(tone: string): string {
-  if (tone === 'good') return 'border-green-500/20 bg-green-500/5';
-  if (tone === 'warn') return 'border-orange-500/20 bg-orange-500/5';
-  if (tone === 'bad') return 'border-red-500/20 bg-red-500/5';
-  return 'border-gray-800 bg-gray-800/40';
 }
 
 function insightToneClass(tone: OrgInsight['tone']): string {
@@ -164,8 +160,15 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
 
           {!data.isEmpty && (
             <>
+              {orgSummary.orgStatus === 'Protected' && (
+                <RetentionBanner
+                  variant="protection"
+                  detail="Client websites are under continuous monitoring. We will alert you when anything needs review."
+                />
+              )}
+
               {/* 2. What CyberShield Did For You */}
-              <section className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6">
+              <section className="min-w-0">
                 <AgencySectionHeader
                   title={ENTERPRISE_COMMAND_CENTER_COPY.valueDeliveredTitle}
                   subtitle="Past 7 days of protection value for your agency"
@@ -173,13 +176,11 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                   whyItMatters="Your clients stay protected without manual log reviews — issues surface before they become outages."
                   whatNext="Share wins in client QBRs or dive into sites that need review below."
                 />
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  <ValueMetric label="Security checks" value={valueMetrics.checksCompleted} />
-                  <ValueMetric label="Changes detected" value={valueMetrics.changesDetected} />
-                  <ValueMetric label="SSL / domain issues" value={valueMetrics.sslDomainIssues} />
-                  <ValueMetric label="Downtime events" value={valueMetrics.downtimeEvents} />
-                  <ValueMetric label="All online" value={valueMetrics.sitesAllOnline} suffix={` / ${valueMetrics.websitesMonitored}`} />
-                </div>
+                <CyberShieldValueSummary
+                  metrics={valueMetrics}
+                  title="Past 7 Days"
+                  subtitle="Protection value delivered across your client portfolio"
+                />
               </section>
 
               {/* 3. Needs Your Attention */}
@@ -225,34 +226,18 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
               </section>
 
               {/* 5. Recent Security Activity */}
-              <section className="min-w-0 rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6">
+              <section className="min-w-0">
                 <AgencySectionHeader
                   title={ENTERPRISE_COMMAND_CENTER_COPY.recentActivityTitle}
-                  subtitle="Business-friendly timeline — no raw monitoring jargon"
+                  subtitle="Business-friendly timeline for client updates"
                   whatHappened={`${data.activityFeed.length} recent event${data.activityFeed.length === 1 ? '' : 's'} across your portfolio.`}
                   whyItMatters="Gives you talking points for client updates without digging through logs."
                   whatNext="Click any item to open the related report or alert."
                 />
-                {data.activityFeed.length === 0 ? (
-                  <p className="text-sm text-gray-500">Activity will appear after your first scans complete.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {data.activityFeed.map((item) => (
-                      <li
-                        key={item.id}
-                        className={`rounded-lg border px-4 py-3 ${activityToneClass(item.tone)}`}
-                      >
-                        {item.href ? (
-                          <Link href={item.href} className="block hover:opacity-90">
-                            <ActivityRow item={item} />
-                          </Link>
-                        ) : (
-                          <ActivityRow item={item} />
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <RecentActivityFeed
+                  items={data.activityFeed}
+                  emptyMessage="Activity will appear after your first monitoring checks complete."
+                />
               </section>
 
               {/* 7. Organization Insights */}
@@ -330,11 +315,11 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                       : '—'
                   }
                 />
-                <DiagnosticRow label="Scans completed (24h)" value={String(advancedDiagnostics.scansLast24h)} />
-                <DiagnosticRow label="Failed scans (24h)" value={String(advancedDiagnostics.failedLast24h)} />
-                <DiagnosticRow label="Queued scans" value={String(advancedDiagnostics.queuedScans)} />
+                <DiagnosticRow label="Monitoring checks (24h)" value={String(advancedDiagnostics.scansLast24h)} />
+                <DiagnosticRow label="Check failures (24h)" value={String(advancedDiagnostics.failedLast24h)} />
+                <DiagnosticRow label="Pending checks" value={String(advancedDiagnostics.queuedScans)} />
                 <DiagnosticRow
-                  label="Intelligence signal groups"
+                  label="Recent change groups"
                   value={String(advancedDiagnostics.intelligenceSignalCount)}
                 />
                 {advancedDiagnostics.prioritySlotsLimit !== null && (
@@ -357,26 +342,6 @@ function MetricPill({ label, value, tone = 'text-white' }: { label: string; valu
     <div className="min-w-0 rounded-xl border border-gray-800 bg-gray-950/40 p-3">
       <p className="truncate text-xs font-medium uppercase tracking-wider text-gray-500">{label}</p>
       <p className={`mt-1 text-xl font-bold ${tone}`}>{value}</p>
-    </div>
-  );
-}
-
-function ValueMetric({
-  label,
-  value,
-  suffix = '',
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/30 p-4">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-white">
-        {value}
-        {suffix && <span className="text-sm font-normal text-gray-500">{suffix}</span>}
-      </p>
     </div>
   );
 }
@@ -454,20 +419,6 @@ function ProtectedWebsiteCard({ site }: { site: EnterpriseWebsiteRow }) {
         </Link>
       )}
     </li>
-  );
-}
-
-function ActivityRow({
-  item,
-}: {
-  item: { title: string; detail: string; timeLabel: string };
-}) {
-  return (
-    <>
-      <p className="text-sm font-medium text-gray-200">{item.title}</p>
-      <p className="mt-0.5 text-sm text-gray-400">{item.detail}</p>
-      <p className="mt-1 text-xs text-gray-600">{item.timeLabel}</p>
-    </>
   );
 }
 

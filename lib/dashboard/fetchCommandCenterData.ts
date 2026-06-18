@@ -22,6 +22,7 @@ import {
   shouldShowRetentionBanner,
   type CommandCenterData,
   type CommandCenterWebsite,
+  type ValueSummaryMetrics,
 } from './dashboardCommandCenter';
 
 type HeaderChecks = {
@@ -57,6 +58,74 @@ function userDisplayNameFromEmail(email: string | null | undefined): string {
 function startOfMonthIso(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
+function sevenDaysAgoIso(): string {
+  return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+async function fetchChangesCountSince(
+  supabase: SupabaseClient,
+  websiteIds: string[],
+  sinceIso: string,
+): Promise<number> {
+  if (websiteIds.length === 0) return 0;
+
+  const { count } = await supabase
+    .from('scan_changes')
+    .select('id', { count: 'exact', head: true })
+    .in('website_id', websiteIds)
+    .gte('detected_at', sinceIso);
+
+  return count ?? 0;
+}
+
+async function fetchValueSummary7d(
+  supabase: SupabaseClient,
+  websiteIds: string[],
+  orgId: string | null,
+  userId: string,
+  sslSummary: Awaited<ReturnType<typeof fetchSslDashboardSummary>>,
+  domainSummary: Awaited<ReturnType<typeof fetchDomainDashboardSummary>>,
+  sitesAllOnline: number,
+): Promise<ValueSummaryMetrics> {
+  const since7d = sevenDaysAgoIso();
+
+  let checksQuery = supabase
+    .from('scans')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'completed')
+    .gte('completed_at', since7d);
+
+  let failedQuery = supabase
+    .from('scans')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'failed')
+    .gte('completed_at', since7d);
+
+  if (orgId) {
+    checksQuery = checksQuery.eq('org_id', orgId);
+    failedQuery = failedQuery.eq('org_id', orgId);
+  } else {
+    checksQuery = checksQuery.eq('user_id', userId);
+    failedQuery = failedQuery.eq('user_id', userId);
+  }
+
+  const [checksRes, failedRes, changesDetected] = await Promise.all([
+    checksQuery,
+    failedQuery,
+    fetchChangesCountSince(supabase, websiteIds, since7d),
+  ]);
+
+  return {
+    checksCompleted: checksRes.count ?? 0,
+    changesDetected,
+    sslDomainIssues:
+      sslSummary.warning + sslSummary.critical + domainSummary.warning + domainSummary.critical,
+    downtimeEvents: failedRes.count ?? 0,
+    sitesAllOnline,
+    websitesMonitored: websiteIds.length,
+  };
 }
 
 async function fetchMonthlyScoreTrend(
@@ -275,6 +344,16 @@ export async function fetchCommandCenterData(
     monthlyTrend,
   );
 
+  const valueSummary = await fetchValueSummary7d(
+    supabase,
+    websiteIds,
+    orgId,
+    userId,
+    sslSummary,
+    domainSummary,
+    orgHealth.healthy,
+  );
+
   const checksCompleted = (allScans ?? []).filter((s) => s.status === 'completed').length;
   const totalChanges = [...changesByWebsite.values()].reduce((a, b) => a + b, 0);
   const lastActivityScan = allScans?.[0] ?? null;
@@ -371,6 +450,7 @@ export async function fetchCommandCenterData(
     orgHealth,
     websites,
     activeMonitoring,
+    valueSummary,
     securityWins,
     needsAttention,
     activityFeed,

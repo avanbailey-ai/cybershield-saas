@@ -1,66 +1,32 @@
-import type { Metadata } from "next";
-
-import { createClient } from "@/lib/supabase/server";
-
-import { redirect } from "next/navigation";
-
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-
-import ScanQueueList from "@/components/dashboard/ScanQueueList";
-
-
+import type { Metadata } from 'next';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import { getActiveOrgId } from '@/lib/org/context';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import ScansActivityDashboard from '@/components/dashboard/ScansActivityDashboard';
+import { fetchCommandCenterData } from '@/lib/dashboard/fetchCommandCenterData';
 
 export const metadata: Metadata = {
-
-  title: "Scans — CyberShield",
-
+  title: 'Monitoring Activity — CyberShield',
 };
 
-
-
 export default async function ScansPage() {
-
   const supabase = await createClient();
-
   const {
-
     data: { user },
-
   } = await supabase.auth.getUser();
 
+  if (!user) redirect('/login');
 
-
-  if (!user) redirect("/login");
-
-
+  const orgId = await getActiveOrgId(user.id);
+  const data = await fetchCommandCenterData(supabase, user.id, user.email, orgId);
 
   return (
-
     <div className="flex flex-1 flex-col overflow-auto">
-
-      <DashboardHeader email={user.email ?? "User"} />
-
-      <main className="flex-1 overflow-auto p-6">
-
-        <div className="mb-6">
-
-          <h2 className="text-xl font-bold text-white">Scans</h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-
-            Live scan queue — status updates instantly without refresh.
-
-          </p>
-
-        </div>
-
-        <ScanQueueList />
-
+      <DashboardHeader email={user.email ?? 'User'} title="Monitoring Activity" />
+      <main className="flex-1 overflow-auto p-4 sm:p-6">
+        <ScansActivityDashboard data={data} />
       </main>
-
     </div>
-
   );
-
 }
-

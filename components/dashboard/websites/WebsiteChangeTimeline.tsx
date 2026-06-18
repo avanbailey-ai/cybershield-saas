@@ -139,7 +139,7 @@ function TechnicalDetailRow({
         </p>
       )}
       <p className="mt-1 text-[10px] text-gray-600">
-        Scan {item.scanId.slice(0, 8)}… · {formatTimelineTimestamp(item.detectedAt)}
+        Detected · {formatTimelineTimestamp(item.detectedAt)}
       </p>
     </div>
   );

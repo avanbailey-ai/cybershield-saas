@@ -2,9 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { getActiveOrgId } from '@/lib/org/context';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import CyberShieldValueSummary from '@/components/dashboard/CyberShieldValueSummary';
+import RetentionBanner from '@/components/dashboard/RetentionBanner';
 import { canAccessFeature } from '@/lib/auth/featureGate';
 import { getSubscriptionAccessFromSession, type SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
+import { getWebsiteDisplayName } from '@/lib/dashboard/dashboardCommandCenter';
+import { fetchCommandCenterData } from '@/lib/dashboard/fetchCommandCenterData';
 import type { HeaderChecks, RiskLevel } from '@/types';
 import SecurityFindingCard from '@/components/report/SecurityFindingCard';
 import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
@@ -65,6 +70,9 @@ export default async function ReportsPage() {
     redirect('/app/settings?upgrade=reports');
   }
 
+  const orgId = await getActiveOrgId(user.id);
+  const commandCenter = await fetchCommandCenterData(supabase, user.id, user.email, orgId);
+
   const { data: rawScans } = await supabase
     .from('scans')
     .select(
@@ -81,12 +89,18 @@ export default async function ReportsPage() {
     <div className="flex flex-1 flex-col overflow-auto">
       <DashboardHeader email={user.email ?? ''} title="Reports" />
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-white">Security Reports</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Security reports from your website scans with scores, findings, and fix guidance.
-          </p>
+      <main className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="mb-6 space-y-6">
+          <div>
+            <h2 className="text-xl font-bold text-white">Security Reports</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Executive-ready security reports with scores, findings, and fix guidance.
+            </p>
+          </div>
+
+          {commandCenter.showRetentionBanner && <RetentionBanner variant="protection" />}
+
+          <CyberShieldValueSummary metrics={commandCenter.valueSummary} compact />
         </div>
 
         {scans.length === 0 ? (
@@ -135,16 +149,7 @@ export default async function ReportsPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-medium text-white">
-                        {site?.label ??
-                          (site?.url
-                            ? (() => {
-                                try {
-                                  return new URL(site.url).hostname;
-                                } catch {
-                                  return site.url;
-                                }
-                              })()
-                            : 'Unknown')}
+                        {getWebsiteDisplayName(site?.label, site?.url ?? '')}
                       </p>
                       {site?.label && site?.url && (
                         <p className="mt-0.5 truncate text-xs text-gray-500">{site.url}</p>
@@ -209,6 +214,29 @@ export default async function ReportsPage() {
               );
             })}
           </div>
+        )}
+
+        {scans.length > 0 && (
+          <section className="mt-8 rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+            <h3 className="text-sm font-semibold text-white">Next step</h3>
+            <p className="mt-1 text-sm text-gray-400">
+              Share reports with stakeholders or open Health Center for ongoing monitoring.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href="/app/scans"
+                className="inline-flex min-h-[40px] items-center rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-2 text-xs font-medium text-gray-200 hover:border-gray-600 hover:text-white"
+              >
+                View Monitoring Activity
+              </Link>
+              <Link
+                href="/app/websites"
+                className="inline-flex min-h-[40px] items-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500"
+              >
+                Manage Websites
+              </Link>
+            </div>
+          </section>
         )}
       </main>
     </div>

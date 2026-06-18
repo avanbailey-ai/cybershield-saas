@@ -56,7 +56,7 @@ function JobRow({ job }: { job: ScanQueueJob }) {
   const status = effectiveJobStatus(job);
   const score = job.result?.score;
   const errorMsg = job.result?.error ?? job.error;
-  const label = job.domain ?? `Website ${job.website_id.slice(0, 8)}`;
+  const label = job.domain ?? 'Monitored website';
   const startedAt = job.started_at ?? job.created_at;
   const timedOut =
     status === 'failed' && isActiveScanStatus(job.scanStatus) && isScanStale(startedAt, SCAN_UI_TIMEOUT_MS);

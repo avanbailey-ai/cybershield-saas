@@ -7,6 +7,9 @@ import {
   type CommandCenterWebsite,
 } from '@/lib/dashboard/dashboardCommandCenter';
 import CommandCenterQuickActions from './CommandCenterQuickActions';
+import RetentionBanner from './RetentionBanner';
+import CyberShieldValueSummary from './CyberShieldValueSummary';
+import RecentActivityFeed from './RecentActivityFeed';
 
 function accountStatusClass(status: CommandCenterData['accountStatus']): string {
   switch (status) {
@@ -152,12 +155,9 @@ export default function CommandCenterDashboard({ data }: { data: CommandCenterDa
     <div className="space-y-6">
       <CommandCenterHeader data={data} />
 
-      {data.showRetentionBanner && (
-        <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3 sm:px-5">
-          <p className="text-sm font-medium text-green-300">{COMMAND_CENTER_COPY.monitoringActive}</p>
-          <p className="mt-1 text-xs text-green-400/80">{COMMAND_CENTER_COPY.monitoringActiveDetail}</p>
-        </div>
-      )}
+      {data.showRetentionBanner && <RetentionBanner />}
+
+      <CyberShieldValueSummary metrics={data.valueSummary} />
 
       <OrgHealthCard data={data} />
       <QuickActionsSection />
@@ -185,7 +185,7 @@ export default function CommandCenterDashboard({ data }: { data: CommandCenterDa
         <NeedsAttentionCard items={data.needsAttention} />
       </div>
 
-      <RecentActivityCard items={data.activityFeed} />
+      <RecentActivityFeed items={data.activityFeed} viewAllHref="/app/scans" />
     </div>
   );
 }
@@ -413,50 +413,6 @@ function NeedsAttentionCard({ items }: { items: CommandCenterData['needsAttentio
                 >
                   {item.actionLabel} →
                 </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function RecentActivityCard({ items }: { items: CommandCenterData['activityFeed'] }) {
-  return (
-    <Card className="bg-gray-900/50">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">{COMMAND_CENTER_COPY.recentActivityTitle}</CardTitle>
-        {items.length > 0 && (
-          <Link href="/app/scans" className="text-xs text-blue-400 hover:text-blue-300">
-            View all
-          </Link>
-        )}
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="text-sm text-gray-400">Activity will appear here after your first scan.</p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className={`rounded-lg border px-4 py-3 ${activityToneClass(item.tone)}`}
-              >
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white">{item.title}</p>
-                    <p className="text-xs text-gray-400">{item.detail}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-xs text-gray-500">{item.timeLabel}</span>
-                    {item.href && (
-                      <Link href={item.href} className="text-xs text-blue-400 hover:text-blue-300">
-                        Details →
-                      </Link>
-                    )}
-                  </div>
-                </div>
               </li>
             ))}
           </ul>

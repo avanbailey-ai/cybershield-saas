@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { getOrCreateReferralCode, maskUserId } from '@/lib/referrals/code';
 import ReferralsDashboardClient from '@/components/referrals/ReferralsDashboardClient';
 
@@ -42,14 +43,17 @@ export default async function ReferralsPage() {
     '';
 
   return (
-    <ReferralsDashboardClient
-      referralCode={referralCode}
-      referralLink={`${baseUrl}/signup?ref=${referralCode}`}
-      maskedName={maskUserId(user.id)}
-      viralScore={profile?.viral_score ?? 0}
-      bonusScans={profile?.bonus_scans ?? 0}
-      proUnlockUntil={profile?.pro_unlock_until ?? null}
-      stats={stats}
-    />
+    <div className="flex flex-1 flex-col overflow-auto">
+      <DashboardHeader email={user.email ?? 'User'} title="Referrals" />
+      <ReferralsDashboardClient
+        referralCode={referralCode}
+        referralLink={`${baseUrl}/signup?ref=${referralCode}`}
+        maskedName={maskUserId(user.id)}
+        viralScore={profile?.viral_score ?? 0}
+        bonusScans={profile?.bonus_scans ?? 0}
+        proUnlockUntil={profile?.pro_unlock_until ?? null}
+        stats={stats}
+      />
+    </div>
   );
 }
