@@ -40,6 +40,8 @@ import { finalizeScanQueueJob, type ScanQueueFinalizeResult } from './finalizeSc
 import { updateOrgIntelligence } from '@/lib/enterprise/updateOrgIntelligence';
 import { LIGHTWEIGHT_CHANGE_TYPES } from './scanTypes';
 import type { LightweightMonitorMeta } from './runLightweightMonitor';
+import { handleSslCertificateAfterScan } from '@/lib/ssl/handleSslAfterScan';
+import type { SslCertificateInfo } from '@/lib/ssl/types';
 
 type PreviousScanRow = {
   id: string;
@@ -503,6 +505,7 @@ async function postProcessScanCore(params: {
     vulnerabilities_count: scanResult.issues.length,
     error_message: scanResult.error ?? null,
     scan_snapshot: currentSnapshot,
+    ssl_expiry_days: scanResult.sslCertificate?.daysUntilExpiry ?? null,
   }).eq('id', scanId);
 
   if (scanUpdateErr) {
@@ -599,8 +602,15 @@ export async function postProcessScan(params: {
       pageSnapshot: scanResult.pageSnapshot,
     });
     const monitoringMeta = (scanResult as { monitoringMeta?: LightweightMonitorMeta }).monitoringMeta;
+    const sslCertificate = (scanResult as { sslCertificate?: SslCertificateInfo | null }).sslCertificate;
     const snapshotForStorage =
-      monitoringMeta != null ? { ...currentSnapshot, monitoringMeta } : currentSnapshot;
+      monitoringMeta != null || sslCertificate != null
+        ? {
+            ...currentSnapshot,
+            ...(monitoringMeta != null ? { monitoringMeta } : {}),
+            ...(sslCertificate != null ? { sslCertificate } : {}),
+          }
+        : currentSnapshot;
 
     const { data: scanRow } = await supabase
       .from('scans')
@@ -621,6 +631,21 @@ export async function postProcessScan(params: {
       currentSnapshot: snapshotForStorage,
       scanKind,
     });
+
+    if (sslCertificate && !scanResult.error) {
+      try {
+        await handleSslCertificateAfterScan({
+          websiteId,
+          websiteUrl: url,
+          userId,
+          orgId,
+          scanId,
+          certificate: sslCertificate,
+        });
+      } catch (sslErr) {
+        console.error('[POST-PROCESS] SSL monitoring failed (non-fatal):', sslErr);
+      }
+    }
 
     if (orgId && !scanResult.error) {
       try {

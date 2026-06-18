@@ -1,5 +1,6 @@
 import dns from 'node:dns/promises';
 import { applyIntelligenceToScanResult } from '@/lib/securityIntelligence/engine';
+import { probeSslCertificateForUrl } from '@/lib/ssl/handleSslAfterScan';
 import type { ScanResult } from './runScan';
 import { EMPTY_PAGE_SNAPSHOT } from './scanTypes';
 
@@ -30,6 +31,17 @@ function hostnameFromUrl(url: string): string | null {
     return new URL(url).hostname;
   } catch {
     return null;
+  }
+}
+
+function appendSslExpiryIssues(issues: string[], cert: { daysUntilExpiry: number } | null | undefined): void {
+  if (!cert) return;
+  if (cert.daysUntilExpiry <= 0) {
+    issues.push('SSL certificate has expired');
+  } else if (cert.daysUntilExpiry <= 3) {
+    issues.push(`SSL certificate expires in ${cert.daysUntilExpiry} day(s)`);
+  } else if (cert.daysUntilExpiry <= 30) {
+    issues.push(`SSL certificate expires in ${cert.daysUntilExpiry} days`);
   }
 }
 
@@ -134,6 +146,12 @@ export async function runLightweightMonitor(url: string): Promise<LightweightSca
     issues.push(`Client error HTTP ${httpStatus}`);
   }
 
+  let sslCertificate = null;
+  if (ssl && host) {
+    sslCertificate = await probeSslCertificateForUrl(url);
+    appendSslExpiryIssues(issues, sslCertificate);
+  }
+
   const rawResult: LightweightScanResult = {
     url,
     ssl: ssl && httpStatus !== null && httpStatus < 500,
@@ -152,6 +170,7 @@ export async function runLightweightMonitor(url: string): Promise<LightweightSca
     issues,
     passed: [],
     explanation: '',
+    sslCertificate,
     monitoringMeta: {
       httpStatus,
       dnsResolved: true,
@@ -161,5 +180,5 @@ export async function runLightweightMonitor(url: string): Promise<LightweightSca
   };
 
   const scored = applyIntelligenceToScanResult(rawResult) as LightweightScanResult;
-  return { ...scored, monitoringMeta: rawResult.monitoringMeta };
+  return { ...scored, monitoringMeta: rawResult.monitoringMeta, sslCertificate };
 }

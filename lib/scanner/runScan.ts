@@ -1,5 +1,7 @@
 import { parseHtmlSnapshot, type PageSnapshotPartial } from './pageSnapshot';
 import { applyIntelligenceToScanResult } from '@/lib/securityIntelligence/engine';
+import { probeSslCertificateForUrl } from '@/lib/ssl/handleSslAfterScan';
+import type { SslCertificateInfo } from '@/lib/ssl/types';
 import { EMPTY_PAGE_SNAPSHOT } from './scanTypes';
 
 export interface HeaderChecks {
@@ -23,6 +25,7 @@ export interface ScanResult {
   passed: string[];
   explanation: string;
   error?: string;
+  sslCertificate?: SslCertificateInfo | null;
 }
 
 /** Full deep scan — HEAD + GET HTML parse + intelligence. Used for weekly/manual/onboarding scans. */
@@ -124,5 +127,18 @@ export async function runScan(url: string): Promise<ScanResult> {
     explanation: '',
   };
 
-  return applyIntelligenceToScanResult(rawResult);
+  let sslCertificate: SslCertificateInfo | null = null;
+  if (ssl) {
+    sslCertificate = await probeSslCertificateForUrl(url);
+    if (sslCertificate) {
+      if (sslCertificate.daysUntilExpiry <= 0) {
+        rawResult.issues.push('SSL certificate has expired');
+      } else if (sslCertificate.daysUntilExpiry <= 30) {
+        rawResult.issues.push(`SSL certificate expires in ${sslCertificate.daysUntilExpiry} days`);
+      }
+    }
+  }
+
+  const scored = applyIntelligenceToScanResult(rawResult);
+  return { ...scored, sslCertificate };
 }

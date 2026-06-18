@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import StatCard from "@/components/dashboard/StatCard";
+import SslStatusWidget from "@/components/dashboard/SslStatusWidget";
+import { fetchSslDashboardSummary } from "@/lib/ssl/fetchSslDashboardSummary";
 import type { DashboardStats, HeaderChecks, RiskLevel } from "@/types";
 
 export const metadata: Metadata = {
@@ -84,6 +86,8 @@ export default async function DashboardPage() {
 
     const websiteCount = metrics.totalSitesMonitored;
     const allScans = scansRes.data ?? [];
+    const websiteIds = (websitesRes.data ?? []).map((w) => w.id);
+    const sslSummary = await fetchSslDashboardSummary(supabase, websiteIds);
     const avgScore = metrics.avgScore;
     const criticalAlertCount = metrics.criticalAlertsCount;
     const activeAlertCount = metrics.openAlertsCount;
@@ -185,6 +189,12 @@ export default async function DashboardPage() {
             </div>
           )}
 
+          {websiteCount > 0 && (
+            <div className="mb-8">
+              <SslStatusWidget summary={sslSummary} />
+            </div>
+          )}
+
           {/* Bottom panels — org-scoped canonical metrics */}
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-6">
@@ -267,6 +277,8 @@ export default async function DashboardPage() {
   ]);
 
   const websiteCount = websitesRes.data?.length ?? 0;
+  const websiteIds = (websitesRes.data ?? []).map((w) => w.id);
+  const sslSummary = await fetchSslDashboardSummary(supabase, websiteIds);
   const allScans = scansRes.data ?? [];
 
   // Additional metrics queries
@@ -398,6 +410,12 @@ export default async function DashboardPage() {
                 </svg>
               }
             />
+          </div>
+        )}
+
+        {websiteCount > 0 && (
+          <div className="mb-8">
+            <SslStatusWidget summary={sslSummary} />
           </div>
         )}
 
