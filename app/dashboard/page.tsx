@@ -8,7 +8,9 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
 import StatCard from "@/components/dashboard/StatCard";
 import SslStatusWidget from "@/components/dashboard/SslStatusWidget";
+import DomainHealthWidget from "@/components/dashboard/DomainHealthWidget";
 import { fetchSslDashboardSummary } from "@/lib/ssl/fetchSslDashboardSummary";
+import { fetchDomainDashboardSummary } from "@/lib/domain/fetchDomainDashboardSummary";
 import type { DashboardStats, HeaderChecks, RiskLevel } from "@/types";
 
 export const metadata: Metadata = {
@@ -87,7 +89,10 @@ export default async function DashboardPage() {
     const websiteCount = metrics.totalSitesMonitored;
     const allScans = scansRes.data ?? [];
     const websiteIds = (websitesRes.data ?? []).map((w) => w.id);
-    const sslSummary = await fetchSslDashboardSummary(supabase, websiteIds);
+    const [sslSummary, domainSummary] = await Promise.all([
+      fetchSslDashboardSummary(supabase, websiteIds),
+      fetchDomainDashboardSummary(supabase, websiteIds),
+    ]);
     const avgScore = metrics.avgScore;
     const criticalAlertCount = metrics.criticalAlertsCount;
     const activeAlertCount = metrics.openAlertsCount;
@@ -190,8 +195,9 @@ export default async function DashboardPage() {
           )}
 
           {websiteCount > 0 && (
-            <div className="mb-8">
+            <div className="mb-8 grid gap-6 lg:grid-cols-2">
               <SslStatusWidget summary={sslSummary} />
+              <DomainHealthWidget summary={domainSummary} />
             </div>
           )}
 
@@ -278,7 +284,10 @@ export default async function DashboardPage() {
 
   const websiteCount = websitesRes.data?.length ?? 0;
   const websiteIds = (websitesRes.data ?? []).map((w) => w.id);
-  const sslSummary = await fetchSslDashboardSummary(supabase, websiteIds);
+  const [sslSummary, domainSummary] = await Promise.all([
+    fetchSslDashboardSummary(supabase, websiteIds),
+    fetchDomainDashboardSummary(supabase, websiteIds),
+  ]);
   const allScans = scansRes.data ?? [];
 
   // Additional metrics queries
@@ -414,8 +423,9 @@ export default async function DashboardPage() {
         )}
 
         {websiteCount > 0 && (
-          <div className="mb-8">
+          <div className="mb-8 grid gap-6 lg:grid-cols-2">
             <SslStatusWidget summary={sslSummary} />
+            <DomainHealthWidget summary={domainSummary} />
           </div>
         )}
 

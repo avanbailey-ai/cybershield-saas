@@ -42,6 +42,7 @@ import { LIGHTWEIGHT_CHANGE_TYPES } from './scanTypes';
 import type { LightweightMonitorMeta } from './runLightweightMonitor';
 import { handleSslCertificateAfterScan } from '@/lib/ssl/handleSslAfterScan';
 import type { SslCertificateInfo } from '@/lib/ssl/types';
+import { monitorDomainForWebsite } from '@/lib/domain/handleDomainAfterScan';
 
 type PreviousScanRow = {
   id: string;
@@ -644,6 +645,20 @@ export async function postProcessScan(params: {
         });
       } catch (sslErr) {
         console.error('[POST-PROCESS] SSL monitoring failed (non-fatal):', sslErr);
+      }
+    }
+
+    if (!scanResult.error) {
+      try {
+        await monitorDomainForWebsite({
+          websiteId,
+          websiteUrl: url,
+          userId,
+          orgId,
+          scanId,
+        });
+      } catch (domainErr) {
+        console.error('[POST-PROCESS] Domain monitoring failed (non-fatal):', domainErr);
       }
     }
 

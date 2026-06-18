@@ -4,6 +4,8 @@ import { fetchWebsiteChangeTimeline } from '@/lib/scanChanges/fetchWebsiteChange
 import type { ChangeTimelineItem } from '@/lib/scanChanges/changeTimeline';
 import { sslHealthFromDays } from '@/lib/ssl/sslStatus';
 import type { SslHealthStatus } from '@/lib/ssl/types';
+import { domainHealthFromDays } from '@/lib/domain/domainStatus';
+import type { DomainHealthStatus } from '@/lib/domain/types';
 import {
   type DomainStatus,
   type UptimeStatus,
@@ -45,6 +47,11 @@ export interface WebsiteHealthCenterData {
   };
   domain: {
     status: DomainStatus;
+    domain: string | null;
+    daysUntilExpiry: number | null;
+    expiresAt: string | null;
+    registrar: string | null;
+    checkedAt: string | null;
     message: string;
   };
   uptime: {
@@ -98,6 +105,7 @@ export async function fetchWebsiteHealthCenter(
   const [
     latestScanRes,
     sslCertRes,
+    domainSnapRes,
     unreadAlertsRes,
     recentUnreadAlertsRes,
     changeTimeline,
@@ -120,6 +128,13 @@ export async function fetchWebsiteHealthCenter(
       .limit(1)
       .maybeSingle(),
     supabase
+      .from('domain_snapshots')
+      .select('domain, registrar, expires_at, days_until_expiry, checked_at')
+      .eq('website_id', websiteId)
+      .order('checked_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
       .from('alerts')
       .select('id', { count: 'exact', head: true })
       .eq('website_id', websiteId)
@@ -136,8 +151,20 @@ export async function fetchWebsiteHealthCenter(
 
   const latestScan = latestScanRes.data;
   const sslCert = sslCertRes.data;
+  const domainSnap = domainSnapRes.data;
   const sslDays = sslCert?.days_until_expiry ?? latestScan?.ssl_expiry_days ?? null;
   const sslStatus = sslHealthFromDays(sslDays);
+
+  const domainDays = domainSnap?.days_until_expiry ?? null;
+  const domainStatus: DomainHealthStatus = domainHealthFromDays(domainDays);
+  const domainMessage =
+    domainStatus === 'unknown'
+      ? 'Domain registration has not been checked yet. CyberShield runs weekly domain checks automatically.'
+      : domainDays !== null && domainDays <= 0
+        ? 'Domain registration has expired — renew with your registrar immediately.'
+        : domainDays !== null && domainDays <= 60
+          ? `Registration expires in ${domainDays} day${domainDays === 1 ? '' : 's'}. Plan renewal to avoid downtime.`
+          : 'Domain registration looks healthy.';
 
   const monitoringMeta = extractMonitoringMeta(latestScan?.scan_snapshot);
   const uptimeStatus =
@@ -183,8 +210,13 @@ export async function fetchWebsiteHealthCenter(
       checkedAt: sslCert?.checked_at ?? null,
     },
     domain: {
-      status: 'unknown',
-      message: 'Domain expiry monitoring is coming soon. SSL and uptime checks are active today.',
+      status: domainStatus,
+      domain: domainSnap?.domain ?? null,
+      daysUntilExpiry: domainDays,
+      expiresAt: domainSnap?.expires_at ?? null,
+      registrar: domainSnap?.registrar ?? null,
+      checkedAt: domainSnap?.checked_at ?? null,
+      message: domainMessage,
     },
     uptime: {
       status: uptimeStatus,

@@ -11,9 +11,11 @@ import {
   scanKindLabel,
   monitoringEnabledLabel,
   domainStatusLabel,
+  domainExpirySummary,
   sslExpirySummary,
 } from '../lib/websiteHealth/healthStatus';
 import { sslHealthFromDays } from '../lib/ssl/sslStatus';
+import { domainHealthFromDays } from '../lib/domain/domainStatus';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -32,7 +34,10 @@ assert(securityScoreBadgeClass(95).includes('green'), '95 green badge');
 assert(scanKindLabel('monitoring_check') === 'Lightweight check', 'monitoring label');
 assert(scanKindLabel('deep_scan') === 'Full security scan', 'deep scan label');
 assert(monitoringEnabledLabel(true) === 'Active', 'active monitoring');
-assert(domainStatusLabel('unknown') === 'Not monitored', 'domain placeholder');
+assert(domainStatusLabel('healthy') === 'Healthy', 'domain healthy label');
+assert(domainStatusLabel('unknown') === 'Unknown', 'domain unknown label');
+assert(domainExpirySummary(45, domainHealthFromDays(45)) === '45 days until domain expiry', '45 days domain summary');
+assert(domainExpirySummary(null, 'unknown') === 'Not checked yet', 'domain unknown summary');
 
 assert(sslExpirySummary(14, sslHealthFromDays(14)) === '14 days until expiry', '14 days summary');
 assert(sslExpirySummary(null, 'unknown') === 'Not checked yet', 'ssl unknown');

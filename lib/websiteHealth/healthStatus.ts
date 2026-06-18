@@ -1,7 +1,8 @@
+import type { DomainHealthStatus } from '@/lib/domain/types';
 import type { SslHealthStatus } from '@/lib/ssl/types';
 
 export type UptimeStatus = 'online' | 'degraded' | 'offline' | 'unknown';
-export type DomainStatus = 'unknown';
+export type DomainStatus = DomainHealthStatus;
 
 export function uptimeStatusFromHttp(
   httpStatus: number | null,
@@ -41,13 +42,11 @@ export function uptimeStatusBadgeClass(status: UptimeStatus): string {
   }
 }
 
-export function domainStatusLabel(_status: DomainStatus): string {
-  return 'Not monitored';
-}
-
-export function domainStatusBadgeClass(_status: DomainStatus): string {
-  return 'bg-gray-500/15 text-gray-300 border-gray-500/30';
-}
+export {
+  domainStatusLabel,
+  domainStatusBadgeClass,
+  domainExpirySummary,
+} from '@/lib/domain/domainStatus';
 
 export function securityScoreBadgeClass(score: number | null): string {
   if (score === null) return 'bg-gray-500/15 text-gray-300 border-gray-500/30';

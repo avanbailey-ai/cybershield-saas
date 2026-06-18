@@ -11,8 +11,9 @@ import {
 } from '@/lib/ssl/sslStatus';
 import type { WebsiteHealthCenterData } from '@/lib/websiteHealth/fetchWebsiteHealthCenter';
 import {
-  domainStatusBadgeClass,
   domainStatusLabel,
+  domainStatusBadgeClass,
+  domainExpirySummary,
   monitoringEnabledBadgeClass,
   monitoringEnabledLabel,
   riskLevelLabel,
@@ -151,9 +152,13 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
         <StatusCard
           title="Domain Status"
           subtitle={domainStatusLabel(domain.status)}
-          badge="Coming soon"
+          badge={domain.status === 'healthy' ? 'OK' : domainStatusLabel(domain.status)}
           badgeClass={domainStatusBadgeClass(domain.status)}
-          detail={domain.message}
+          detail={
+            domain.domain
+              ? `${domain.domain}${domain.registrar ? ` · ${domain.registrar}` : ''} · ${domainExpirySummary(domain.daysUntilExpiry, domain.status)}`
+              : domain.message
+          }
         />
 
         <StatusCard
