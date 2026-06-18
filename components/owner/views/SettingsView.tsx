@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useFounderNav } from '../FounderNavContext';
 import type { AutoArchiveSettings } from '@/lib/owner/autoArchive';
+import type { OutreachExecutionSettings } from '@/lib/owner/outreachSettings';
 
 export default function SettingsView() {
   const { email } = useFounderNav();
   const [settings, setSettings] = useState<AutoArchiveSettings | null>(null);
+  const [outreach, setOutreach] = useState<OutreachExecutionSettings | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -15,20 +17,22 @@ export default function SettingsView() {
       .then((r) => r.json())
       .then((d) => {
         if (d.settings) setSettings(d.settings);
+        if (d.outreach) setOutreach(d.outreach);
       });
   }, []);
 
-  async function saveSettings() {
-    if (!settings) return;
+  async function saveAll() {
+    if (!settings || !outreach) return;
     setSaving(true);
     try {
       const res = await fetch('/api/owner/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ settings, outreach }),
       });
       const data = await res.json();
       if (data.settings) setSettings(data.settings);
+      if (data.outreach) setOutreach(data.outreach);
     } finally {
       setSaving(false);
     }
@@ -54,15 +58,77 @@ export default function SettingsView() {
             Account & password →
           </Link>
         </div>
-        <div className="border-t border-white/10 pt-4">
-          <Link
-            href="/dashboard/admin"
-            className="text-sm font-medium text-gray-400 hover:text-gray-300"
-          >
-            Platform admin hub →
-          </Link>
-        </div>
       </div>
+
+      {outreach && (
+        <div className="space-y-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
+          <h2 className="text-lg font-medium text-white">Outreach automation</h2>
+          <p className="text-sm text-gray-500">
+            Control Resend delivery, limits, and follow-up schedule. Approval is required by default.
+          </p>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={outreach.enable_outreach_sending}
+              onChange={(e) =>
+                setOutreach({ ...outreach, enable_outreach_sending: e.target.checked })
+              }
+            />
+            Enable outreach sending
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={outreach.require_approval}
+              onChange={(e) =>
+                setOutreach({ ...outreach, require_approval: e.target.checked })
+              }
+            />
+            Require founder approval before send
+          </label>
+          <label className="block text-sm">
+            <span className="text-gray-400">Daily outreach limit</span>
+            <input
+              type="number"
+              min={1}
+              value={outreach.daily_outreach_limit}
+              onChange={(e) =>
+                setOutreach({
+                  ...outreach,
+                  daily_outreach_limit: Number(e.target.value) || 1,
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-gray-400">Sender email (Resend verified)</span>
+            <input
+              type="text"
+              value={outreach.sender_email}
+              onChange={(e) => setOutreach({ ...outreach, sender_email: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-gray-400">Follow-up schedule (days, comma-separated)</span>
+            <input
+              type="text"
+              value={outreach.follow_up_schedule.join(', ')}
+              onChange={(e) =>
+                setOutreach({
+                  ...outreach,
+                  follow_up_schedule: e.target.value
+                    .split(',')
+                    .map((s) => Number(s.trim()))
+                    .filter((n) => n > 0),
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
+            />
+          </label>
+        </div>
+      )}
 
       {settings && (
         <div className="space-y-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
@@ -93,15 +159,18 @@ export default function SettingsView() {
               </label>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={saveSettings}
-            disabled={saving}
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
-          >
-            {saving ? 'Saving…' : 'Save auto-archive settings'}
-          </button>
         </div>
+      )}
+
+      {(settings || outreach) && (
+        <button
+          type="button"
+          onClick={saveAll}
+          disabled={saving}
+          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Save settings'}
+        </button>
       )}
     </div>
   );

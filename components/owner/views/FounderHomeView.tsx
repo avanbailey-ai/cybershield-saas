@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useFounderNav } from '../FounderNavContext';
 import AiChiefOfStaff from '../AiChiefOfStaff';
-import AutopilotCommandCenter from '../AutopilotCommandCenter';
 import ActivityFeed from '../ActivityFeed';
+import { FounderInboxList } from '../AutopilotCommandCenter';
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
@@ -19,6 +19,8 @@ export default function FounderHomeView() {
   const { founderData: data, refreshFounderData, setSection } = useFounderNav();
   const [busy, setBusy] = useState(false);
   const summary = data.v6.homeSummary;
+  const inboxPreview = data.inbox.slice(0, 3);
+  const customerRisks = data.inbox.filter((i) => i.type === 'customer_risk').slice(0, 3);
 
   async function approveInbox(ids: string[]) {
     setBusy(true);
@@ -38,12 +40,17 @@ export default function FounderHomeView() {
     <div className="mx-auto max-w-5xl space-y-8">
       <AiChiefOfStaff chief={data.chiefOfStaff} />
 
-      <section>
+      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
         <h2 className="text-sm font-medium uppercase tracking-wider text-gray-500">
-          At a glance
+          Revenue movement
         </h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Current MRR" value={`$${summary.mrr.toLocaleString()}`} />
+          <Metric
+            label="Revenue at risk"
+            value={summary.mrrAtRisk > 0 ? `$${summary.mrrAtRisk}` : 'None'}
+            tone={summary.mrrAtRisk > 0 ? 'text-amber-400' : 'text-emerald-400'}
+          />
           <Metric
             label="Events (24h)"
             value={String(summary.changesCount)}
@@ -54,55 +61,44 @@ export default function FounderHomeView() {
             value={String(summary.needsAttention)}
             tone={summary.needsAttention > 0 ? 'text-amber-400' : 'text-white'}
           />
-          <Metric
-            label="Revenue at risk"
-            value={summary.mrrAtRisk > 0 ? `$${summary.mrrAtRisk}` : 'None'}
-            tone={summary.mrrAtRisk > 0 ? 'text-amber-400' : 'text-emerald-400'}
-          />
         </div>
       </section>
 
       <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
         <h2 className="text-sm font-medium uppercase tracking-wider text-gray-500">
-          While you were away
+          Activity feed
         </h2>
-        <p className="mt-1 text-xs text-gray-600">Last 24 hours — real system events</p>
+        <p className="mt-1 text-xs text-gray-600">Last 24 hours — real execution events</p>
         <div className="mt-4">
           {data.v6.activityFeed.events.length === 0 ? (
-            <p className="text-sm text-gray-500">Quiet period — no major automated activity yet.</p>
+            <p className="text-sm text-gray-500">Quiet period — no major activity yet.</p>
           ) : (
             <ActivityFeed events={data.v6.activityFeed.events} compact />
           )}
         </div>
       </section>
 
-      {data.v6.attention.length > 0 && (
-        <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-amber-400/80">
-            Needs your attention
+      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-gray-500">
+            Inbox preview
           </h2>
-          <ul className="mt-4 space-y-2">
-            {data.v6.attention.map((a) => (
-              <li
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-black/20 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-white">{a.title}</p>
-                  <p className="text-xs text-gray-500">{a.description}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSection(a.section)}
-                  className="text-xs text-violet-400 hover:text-violet-300"
-                >
-                  Review →
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+          <button
+            type="button"
+            onClick={() => setSection('inbox')}
+            className="text-xs text-violet-400 hover:text-violet-300"
+          >
+            View all ({data.inbox.length}) →
+          </button>
+        </div>
+        <div className="mt-4">
+          <FounderInboxList
+            items={inboxPreview}
+            onApprove={(id) => approveInbox([id])}
+            busy={busy}
+          />
+        </div>
+      </section>
 
       {data.biggestOpportunity && data.biggestOpportunity.opportunityScore >= 25 && (
         <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6">
@@ -121,19 +117,7 @@ export default function FounderHomeView() {
                 Est. ${data.biggestOpportunity.estimatedMrr}/mo
               </span>
             ) : null}
-            {data.biggestOpportunity.planFit ? (
-              <span className="text-gray-400">{data.biggestOpportunity.planFit}</span>
-            ) : null}
           </div>
-          {data.biggestOpportunity.reasons.length > 0 && (
-            <ul className="mt-3 space-y-1">
-              {data.biggestOpportunity.reasons.slice(0, 3).map((r) => (
-                <li key={r} className="text-sm text-gray-300">
-                  {r.startsWith('✗') || r.startsWith('✉') ? r : `✓ ${r}`}
-                </li>
-              ))}
-            </ul>
-          )}
           <button
             type="button"
             onClick={() => setSection('prospects')}
@@ -144,29 +128,37 @@ export default function FounderHomeView() {
         </section>
       )}
 
-      <AutopilotCommandCenter
-        autopilot={data.autopilot}
-        busy={busy}
-        onApproveAll={() => approveInbox(data.autopilot.items.map((i) => i.id))}
-        onApproveOne={(id) => approveInbox([id])}
-      />
-
-      <div className="flex flex-wrap gap-4 text-sm">
-        <button
-          type="button"
-          onClick={() => setSection('success')}
-          className="text-violet-400 hover:text-violet-300"
-        >
-          Customer success center →
-        </button>
-        <button
-          type="button"
-          onClick={() => setSection('inbox')}
-          className="text-violet-400 hover:text-violet-300"
-        >
-          Founder inbox ({data.inbox.length}) →
-        </button>
-      </div>
+      {customerRisks.length > 0 && (
+        <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-6">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-amber-400/80">
+            Customer risks
+          </h2>
+          <ul className="mt-4 space-y-2">
+            {customerRisks.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-black/20 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-white">{item.title}</p>
+                  <p className="text-xs text-gray-500">{item.description}</p>
+                  {item.revenueImpact != null && item.revenueImpact > 0 && (
+                    <p className="text-xs text-amber-300">${item.revenueImpact}/mo at stake</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => approveInbox([item.id])}
+                  className="text-xs font-medium text-violet-400 hover:text-violet-300 disabled:opacity-50"
+                >
+                  {item.action}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

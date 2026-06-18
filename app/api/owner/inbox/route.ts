@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { executeInboxApproval } from '@/lib/owner/inboxAutomation';
+import { executeInboxApproval, dismissInboxItem } from '@/lib/owner/inboxAutomation';
 
 export async function POST(req: NextRequest) {
   const auth = await requireOwner();
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { action, ids, meta } = body as {
-    action: 'approve' | 'reject';
+    action: 'approve' | 'reject' | 'dismiss';
     ids: string[];
     meta?: Record<string, unknown>;
   };
@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
     if (action === 'approve') {
       const result = await executeInboxApproval(admin, id, meta);
       results.push({ id, ...result });
+      if (result.ok) approved++;
+    } else if (action === 'dismiss') {
+      const result = await dismissInboxItem(admin, id);
+      results.push({ id, ok: result.ok, action: 'dismiss' });
       if (result.ok) approved++;
     } else if (id.startsWith('draft-')) {
       const draftId = id.replace('draft-', '');

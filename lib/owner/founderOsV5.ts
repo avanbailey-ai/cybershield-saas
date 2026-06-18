@@ -9,11 +9,20 @@ const DEFAULT_MRR_GOAL = 1000;
 
 export interface FounderInboxItem {
   id: string;
-  type: 'outreach' | 'customer_risk' | 'expansion' | 'signup' | 'follow_up';
+  type:
+    | 'outreach'
+    | 'customer_risk'
+    | 'expansion'
+    | 'signup'
+    | 'follow_up'
+    | 'interested'
+    | 'failed_email';
   title: string;
   description: string;
   action: string;
   module: 'inbox' | 'prospects' | 'customers' | 'success' | 'outreach';
+  whyItMatters?: string;
+  revenueImpact?: number | null;
   meta?: Record<string, unknown>;
 }
 
@@ -400,8 +409,10 @@ export async function getFounderOsV5(input?: {
       id: `draft-${d.id}`,
       type: 'outreach',
       title: `Approve outreach: ${d.business_name ?? 'Prospect'}`,
-      description: 'Autopilot generated a findings-based email draft.',
-      action: 'Approve',
+      description: 'Findings-based email draft ready to send via Resend.',
+      whyItMatters: 'Qualified prospect with contact — outreach converts pipeline to revenue.',
+      revenueImpact: null,
+      action: 'Approve & Send',
       module: 'inbox',
       meta: { draftId: d.id },
     });

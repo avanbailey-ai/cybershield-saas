@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import EmptyState from './EmptyState';
 import ProspectCard from './ProspectCard';
+import OutreachApprovalCard from './OutreachApprovalCard';
 import {
   prospectsForTab,
   PIPELINE_TABS,
@@ -16,7 +17,8 @@ import {
   PROSPECT_FILTERS,
   type ProspectFilterId,
 } from '@/lib/owner/prospectFilters';
-import type { OwnerProspect } from '@/lib/owner/types';
+import type { OwnerOutreachDraft, OwnerProspect } from '@/lib/owner/types';
+import { hasOutreachContact } from '@/lib/owner/prospectDisplay';
 
 export default function ProspectPipeline({
   prospects,
@@ -31,6 +33,78 @@ export default function ProspectPipeline({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scanning, setScanning] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [drafts, setDrafts] = useState<OwnerOutreachDraft[]>([]);
+
+  useEffect(() => {
+    if (tab !== 'outreach_ready') return;
+    let cancelled = false;
+    (async () => {
+      const res = await fetch('/api/owner/outreach/drafts?view=active');
+      const data = await res.json();
+      if (!cancelled && data.drafts) {
+        setDrafts(
+          (data.drafts as OwnerOutreachDraft[]).filter(
+            (d) => d.status === 'draft' || d.status === 'approved',
+          ),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, prospects]);
+
+  const draftByProspect = useMemo(() => {
+    const map = new Map<string, OwnerOutreachDraft>();
+    for (const d of drafts) {
+      if (d.prospect_id && !map.has(d.prospect_id)) map.set(d.prospect_id, d);
+    }
+    return map;
+  }, [drafts]);
+
+  async function refreshDrafts() {
+    const res = await fetch('/api/owner/outreach/drafts?view=active');
+    const data = await res.json();
+    if (data.drafts) {
+      setDrafts(
+        (data.drafts as OwnerOutreachDraft[]).filter(
+          (d) => d.status === 'draft' || d.status === 'approved',
+        ),
+      );
+    }
+  }
+
+  async function sendDraft(draftId: string, prospectId: string) {
+    const res = await fetch(`/api/owner/outreach/${draftId}/send`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      window.alert(data.error ?? 'Send failed');
+      return;
+    }
+    onProspectsChange(
+      prospects.map((p) => (p.id === prospectId ? { ...p, pipeline_state: 'contacted' } : p)),
+    );
+    await refreshDrafts();
+  }
+
+  async function editDraft(draftId: string, content: string) {
+    await fetch(`/api/owner/outreach/${draftId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    await refreshDrafts();
+  }
+
+  async function regenerateDraft(draftId: string) {
+    const res = await fetch(`/api/owner/outreach/${draftId}/regenerate`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      window.alert(data.error ?? 'Regenerate failed');
+      return;
+    }
+    await refreshDrafts();
+  }
 
   const globalHasProspects = hasActiveProspects(prospects);
   const stageCounts = useMemo(() => countByStage(prospects), [prospects]);
@@ -264,25 +338,42 @@ export default function ProspectPipeline({
         <EmptyState title={empty.title} description={empty.description} />
       ) : (
         <ul className="space-y-5">
-          {filtered.map((p) => (
-            <li key={p.id}>
-              <ProspectCard
-                prospect={p}
-                selected={selected.has(p.id)}
-                scanning={scanning === p.id}
-                onToggle={() => toggleOne(p.id)}
-                onScan={() => runScan(p.id)}
-                onGenerateOutreach={() => {
-                  setSelected(new Set([p.id]));
-                  void bulkAction('generate_outreach');
-                }}
-                onArchive={() => patchProspect(p.id, { archive: true })}
-                onIgnoreForever={() => patchProspect(p.id, { ignore_forever: true })}
-                onUnarchive={() => patchProspect(p.id, { unarchive: true })}
-                onDelete={() => deleteProspect(p.id)}
-              />
-            </li>
-          ))}
+          {filtered.map((p) => {
+            const draft = tab === 'outreach_ready' ? draftByProspect.get(p.id) : undefined;
+            const showApproval = tab === 'outreach_ready' && draft && hasOutreachContact(p);
+
+            return (
+              <li key={p.id}>
+                {showApproval ? (
+                  <OutreachApprovalCard
+                    prospect={p}
+                    draft={draft}
+                    onApproveSend={() => sendDraft(draft.id, p.id)}
+                    onEditDraft={(content) => editDraft(draft.id, content)}
+                    onRegenerate={() => regenerateDraft(draft.id)}
+                    onArchive={() => patchProspect(p.id, { archive: true })}
+                    onIgnoreForever={() => patchProspect(p.id, { ignore_forever: true })}
+                  />
+                ) : (
+                  <ProspectCard
+                    prospect={p}
+                    selected={selected.has(p.id)}
+                    scanning={scanning === p.id}
+                    onToggle={() => toggleOne(p.id)}
+                    onScan={() => runScan(p.id)}
+                    onGenerateOutreach={() => {
+                      setSelected(new Set([p.id]));
+                      void bulkAction('generate_outreach');
+                    }}
+                    onArchive={() => patchProspect(p.id, { archive: true })}
+                    onIgnoreForever={() => patchProspect(p.id, { ignore_forever: true })}
+                    onUnarchive={() => patchProspect(p.id, { unarchive: true })}
+                    onDelete={() => deleteProspect(p.id)}
+                  />
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

@@ -65,7 +65,13 @@ export interface OwnerOutreachDraft {
   outreach_type: string;
   business_name: string | null;
   content: string;
-  status: 'draft' | 'approved' | 'sent';
+  status: 'draft' | 'approved' | 'sent' | 'failed';
+  sent_at?: string | null;
+  resend_message_id?: string | null;
+  recipient_email?: string | null;
+  send_error?: string | null;
+  email_subject?: string | null;
+  email_body?: string | null;
   archived_at: string | null;
   deleted_at: string | null;
   created_at: string;

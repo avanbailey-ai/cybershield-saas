@@ -4,10 +4,12 @@ import {
   type FounderOsV5Data,
   type FounderInboxItem,
 } from './founderOsV5';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerHealth } from './customerHealth';
 import { getRevenueAtRisk } from './revenueAtRisk';
 import { getCustomerExpansion } from './customerExpansion';
 import { getActivityFeed } from './activityFeed';
+import { getDueFollowUps } from './followUpScheduler';
 import type { CustomerHealthSummary } from './customerHealth';
 import type { RevenueAtRiskSummary } from './revenueAtRisk';
 import type { CustomerExpansionSummary } from './customerExpansion';
@@ -76,31 +78,87 @@ export const EMPTY_FOUNDER_OS_V6: FounderOsV6Data = {
   },
 };
 
-function buildInbox(
+async function loadDismissedIds(): Promise<Set<string>> {
+  const admin = createAdminClient();
+  const { data } = await admin.from('owner_inbox_dismissals').select('inbox_item_id');
+  return new Set((data ?? []).map((d) => d.inbox_item_id as string));
+}
+
+function enrichOutreachItems(base: FounderOsV5Data): FounderInboxItem[] {
+  return base.inbox
+    .filter((i) => i.type === 'outreach')
+    .map((i) => ({
+      ...i,
+      whyItMatters: i.whyItMatters ?? 'Outreach-ready prospect — approval sends real email via Resend.',
+      revenueImpact: i.revenueImpact ?? null,
+      action: 'Approve & Send',
+    }));
+}
+
+async function buildInbox(
   base: FounderOsV5Data,
   health: CustomerHealthSummary,
   revenue: RevenueAtRiskSummary,
   expansion: CustomerExpansionSummary,
   signups24: number,
-): FounderInboxItem[] {
+  prospects: OwnerProspect[],
+): Promise<FounderInboxItem[]> {
+  const admin = createAdminClient();
+  const dismissed = await loadDismissedIds();
   const inbox: FounderInboxItem[] = [];
   const seen = new Set<string>();
 
-  for (const d of base.inbox.filter((i) => i.type === 'outreach')) {
-    if (seen.has(d.id)) continue;
-    seen.add(d.id);
-    inbox.push(d);
+  const push = (item: FounderInboxItem) => {
+    if (seen.has(item.id) || dismissed.has(item.id)) return;
+    seen.add(item.id);
+    inbox.push(item);
+  };
+
+  for (const d of enrichOutreachItems(base)) {
+    push(d);
+  }
+
+  const dueFollowUps = await getDueFollowUps(admin, 5);
+  for (const fu of dueFollowUps) {
+    const prospect = fu.owner_prospects as {
+      business_name?: string;
+      contact_email?: string;
+    } | null;
+    push({
+      id: `followup-${fu.prospect_id}:${fu.id}`,
+      type: 'follow_up',
+      title: `Follow-up due: ${prospect?.business_name ?? 'Prospect'}`,
+      description: `Follow-up #${fu.follow_up_number} — approve to send via Resend.`,
+      whyItMatters: 'Timely follow-up increases reply rate on contacted prospects.',
+      revenueImpact: null,
+      action: 'Approve follow-up',
+      module: 'inbox',
+      meta: { prospectId: fu.prospect_id, followUpId: fu.id },
+    });
+  }
+
+  for (const p of prospects.filter((x) => x.pipeline_state === 'interested').slice(0, 3)) {
+    push({
+      id: `interested-${p.id}`,
+      type: 'interested',
+      title: `Interested: ${p.business_name}`,
+      description: 'Prospect showed interest — review and move toward close.',
+      whyItMatters: 'Hot lead in pipeline — next step converts to paying customer.',
+      revenueImpact: p.estimated_plan_fit ?? null,
+      action: 'Review lead',
+      module: 'prospects',
+      meta: { prospectId: p.id },
+    });
   }
 
   for (const c of health.customers.filter((x) => x.status === 'Critical')) {
-    const id = `risk-${c.userId}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    inbox.push({
-      id,
+    push({
+      id: `risk-${c.userId}`,
       type: 'customer_risk',
       title: `Critical: ${c.email}`,
       description: c.recommendedActions[0] ?? 'Customer health critical',
+      whyItMatters: 'At-risk customer — retention protects recurring revenue.',
+      revenueImpact: c.mrr,
       action: 'Approve retention',
       module: 'success',
       meta: { userId: c.userId, mrr: c.mrr },
@@ -108,14 +166,13 @@ function buildInbox(
   }
 
   for (const item of revenue.affectedCustomers) {
-    const id = `churn-${item.userId}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    inbox.push({
-      id,
+    push({
+      id: `churn-${item.userId}`,
       type: 'customer_risk',
       title: `Revenue at risk: ${item.email}`,
       description: item.reasons.slice(0, 2).join(' · '),
+      whyItMatters: 'Churn signals detected — intervention prevents MRR loss.',
+      revenueImpact: item.mrr,
       action: 'Approve retention',
       module: 'success',
       meta: { userId: item.userId, mrr: item.mrr },
@@ -125,26 +182,49 @@ function buildInbox(
   for (const opp of expansion.opportunities
     .filter((o) => o.probability === 'High' || o.probability === 'Medium')
     .slice(0, 3)) {
-    const id = `exp-${opp.userId}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    inbox.push({
-      id,
+    push({
+      id: `exp-${opp.userId}`,
       type: 'expansion',
       title: `Upgrade: ${opp.email}`,
       description: `${opp.currentPlanLabel} → ${opp.recommendedPlanLabel} (+$${opp.mrrGain}/mo)`,
+      whyItMatters: 'Usage signals indicate readiness for a higher plan.',
+      revenueImpact: opp.mrrGain,
       action: 'Approve upgrade',
       module: 'success',
       meta: { userId: opp.userId, mrrGain: opp.mrrGain, toPlan: opp.recommendedPlan },
     });
   }
 
+  const { data: failedDrafts } = await admin
+    .from('owner_outreach_drafts')
+    .select('id, business_name, send_error, recipient_email, prospect_id')
+    .eq('status', 'failed')
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false })
+    .limit(3);
+
+  for (const f of failedDrafts ?? []) {
+    push({
+      id: `failed-${f.id}`,
+      type: 'failed_email',
+      title: `Failed send: ${f.business_name ?? 'Prospect'}`,
+      description: (f.send_error as string) ?? 'Resend delivery failed',
+      whyItMatters: 'Outreach did not deliver — fix and retry to keep pipeline moving.',
+      revenueImpact: null,
+      action: 'Retry send',
+      module: 'inbox',
+      meta: { draftId: f.id, prospectId: f.prospect_id },
+    });
+  }
+
   if (signups24 > 0) {
-    inbox.push({
+    push({
       id: 'signup-latest',
       type: 'signup',
       title: `${signups24} new signup${signups24 === 1 ? '' : 's'} in last 24h`,
       description: 'Review onboarding path for new users.',
+      whyItMatters: 'Early onboarding quality improves trial-to-paid conversion.',
+      revenueImpact: null,
       action: 'Review signups',
       module: 'customers',
     });
@@ -164,7 +244,7 @@ function buildChiefBullets(
   const bullets: string[] = [];
 
   const discoveries = activityFeed.events.filter((e) => e.label.includes('discovered')).length;
-  const drafts = activityFeed.events.filter((e) => e.type === 'outreach_draft').length;
+  const sent = activityFeed.events.filter((e) => e.type === 'email_sent').length;
 
   if (signups24 > 0) {
     bullets.push(
@@ -193,8 +273,8 @@ function buildChiefBullets(
       `${expansion.opportunities.length} expansion signal${expansion.opportunities.length === 1 ? '' : 's'} detected (+$${expansion.totalPotentialMrr}/mo potential).`,
     );
   }
-  if (drafts > 0) {
-    bullets.push(`${drafts} outreach draft${drafts === 1 ? '' : 's'} ready for your approval.`);
+  if (sent > 0) {
+    bullets.push(`${sent} outreach email${sent === 1 ? '' : 's'} sent in the last 24 hours.`);
   }
 
   if (bullets.length === 0) {
@@ -208,7 +288,7 @@ function buildAttention(
   health: CustomerHealthSummary,
   revenue: RevenueAtRiskSummary,
   expansion: CustomerExpansionSummary,
-  base: FounderOsV5Data,
+  inbox: FounderInboxItem[],
 ): FounderAttentionItem[] {
   const items: FounderAttentionItem[] = [];
 
@@ -234,13 +314,13 @@ function buildAttention(
     });
   }
 
-  const outreachPending = base.inbox.filter((i) => i.type === 'outreach').length;
+  const outreachPending = inbox.filter((i) => i.type === 'outreach').length;
   if (outreachPending > 0) {
     items.push({
       id: 'outreach-pending',
       severity: 'medium',
       title: `${outreachPending} outreach draft(s) awaiting approval`,
-      description: 'Approve to send findings-based outreach',
+      description: 'Approve to send findings-based outreach via Resend',
       section: 'inbox',
     });
   }
@@ -263,17 +343,37 @@ export async function getFounderOsV6(input?: {
   prospects?: OwnerProspect[];
   crmLeads?: OwnerCrmLead[];
 }): Promise<FounderOsV6Data> {
-  const [base, customerHealth, revenueAtRisk, expansion, activityFeed] = await Promise.all([
-    getFounderOsV5(input),
-    getCustomerHealth(),
-    getRevenueAtRisk(),
-    getCustomerExpansion(),
-    getActivityFeed(24),
-  ]);
+  const admin = createAdminClient();
+  const prospectsPromise = input?.prospects
+    ? Promise.resolve(input.prospects)
+    : admin
+        .from('owner_prospects')
+        .select('*')
+        .is('deleted_at', null)
+        .not('pipeline_state', 'eq', 'archived')
+        .not('pipeline_state', 'eq', 'ignore_forever')
+        .then((r) => (r.data ?? []) as OwnerProspect[]);
+
+  const [base, customerHealth, revenueAtRisk, expansion, activityFeed, prospects] =
+    await Promise.all([
+      getFounderOsV5(input),
+      getCustomerHealth(),
+      getRevenueAtRisk(),
+      getCustomerExpansion(),
+      getActivityFeed(24),
+      prospectsPromise,
+    ]);
 
   const signups24 = activityFeed.events.filter((e) => e.type === 'signup').length;
-  const inbox = buildInbox(base, customerHealth, revenueAtRisk, expansion, signups24);
-  const attention = buildAttention(customerHealth, revenueAtRisk, expansion, base);
+  const inbox = await buildInbox(
+    base,
+    customerHealth,
+    revenueAtRisk,
+    expansion,
+    signups24,
+    prospects,
+  );
+  const attention = buildAttention(customerHealth, revenueAtRisk, expansion, inbox);
   const outreachPending = inbox.filter((i) => i.type === 'outreach').length;
 
   const chiefBullets = buildChiefBullets(
@@ -309,6 +409,8 @@ export async function getFounderOsV6(input?: {
   const approvableItems = inbox.filter(
     (i) =>
       i.type === 'outreach' ||
+      i.type === 'follow_up' ||
+      i.type === 'failed_email' ||
       i.type === 'expansion' ||
       (i.type === 'customer_risk' && i.action.toLowerCase().includes('approve')),
   );

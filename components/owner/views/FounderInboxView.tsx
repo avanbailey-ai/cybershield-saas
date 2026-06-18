@@ -6,10 +6,10 @@ import { useFounderNav } from '../FounderNavContext';
 import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
 
 const INBOX_GROUPS: { id: string; label: string; types: FounderInboxItem['type'][] }[] = [
-  { id: 'outreach', label: 'Approve outreach', types: ['outreach', 'follow_up'] },
+  { id: 'outreach', label: 'Approve outreach', types: ['outreach', 'follow_up', 'failed_email'] },
   { id: 'risk', label: 'Customer risk', types: ['customer_risk'] },
   { id: 'expansion', label: 'Approve upgrades', types: ['expansion'] },
-  { id: 'signups', label: 'Review signups', types: ['signup'] },
+  { id: 'signups', label: 'Review signups', types: ['signup', 'interested'] },
 ];
 
 export default function FounderInboxView() {
@@ -17,13 +17,13 @@ export default function FounderInboxView() {
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<string>('all');
 
-  async function approve(id: string, meta?: Record<string, unknown>) {
+  async function postInbox(action: 'approve' | 'dismiss', id: string, meta?: Record<string, unknown>) {
     setBusy(true);
     try {
       await fetch('/api/owner/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve', ids: [id], meta }),
+        body: JSON.stringify({ action, ids: [id], meta }),
       });
       await refreshFounderData();
     } finally {
@@ -51,7 +51,8 @@ export default function FounderInboxView() {
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Founder inbox</h1>
         <p className="mt-2 text-gray-500">
-          Approve outreach, review risk, and act on upgrades — each action executes automation.
+          Real actions only — approve outreach, follow-ups, retention, and upgrades. Each approval
+          executes via Resend.
         </p>
       </header>
 
@@ -75,7 +76,7 @@ export default function FounderInboxView() {
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-200/90">
           ${data.v6.revenueAtRisk.totalMrrAtRisk}/mo at risk across{' '}
           {data.v6.revenueAtRisk.affectedCustomers.length} account(s). Approving retention items
-          queues outreach.
+          sends real retention email via Resend.
         </div>
       )}
 
@@ -83,8 +84,9 @@ export default function FounderInboxView() {
         items={filtered}
         onApprove={(id) => {
           const item = data.inbox.find((i) => i.id === id);
-          approve(id, item?.meta);
+          postInbox('approve', id, item?.meta);
         }}
+        onDismiss={(id) => postInbox('dismiss', id)}
         busy={busy}
       />
     </div>

@@ -71,7 +71,7 @@ export function resolveProspectList(prospects: OwnerProspect[]): OwnerProspect[]
 }
 
 export function hasOutreachContact(p: OwnerProspect): boolean {
-  return Boolean(p.contact_email_found || p.contact_phone_found || p.contact_email || p.contact_phone);
+  return Boolean(p.contact_email?.trim());
 }
 
 export function isTrulyOutreachReady(p: OwnerProspect): boolean {

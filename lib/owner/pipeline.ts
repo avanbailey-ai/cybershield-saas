@@ -11,6 +11,7 @@ export function pipelineStateFromScan(input: {
   leadScore?: LeadScore | null;
   currentState?: ProspectPipelineState | null;
   opportunityScore?: number | null;
+  hasContactEmail?: boolean;
 }): ProspectPipelineState {
   const terminal: ProspectPipelineState[] = [
     'contacted',
@@ -18,6 +19,9 @@ export function pipelineStateFromScan(input: {
     'customer',
     'archived',
     'ignore_forever',
+    'follow_up_scheduled',
+    'follow_up_due',
+    'bad_fit',
   ];
   if (input.currentState && terminal.includes(input.currentState)) {
     return input.currentState;
@@ -28,7 +32,11 @@ export function pipelineStateFromScan(input: {
   }
 
   if (input.opportunityScore !== null && input.opportunityScore !== undefined && input.opportunityScore < 25) {
-    return 'new_discovery';
+    return 'bad_fit';
+  }
+
+  if (!input.hasContactEmail) {
+    return 'needs_contact';
   }
 
   if (input.leadScore === 'HOT' && (input.opportunityScore ?? 0) >= 25) {
@@ -37,7 +45,7 @@ export function pipelineStateFromScan(input: {
   if (input.leadScore === 'HOT') return 'qualified';
   if (input.leadScore === 'WARM') return 'qualified';
   if ((input.opportunityScore ?? 0) >= 50) return 'qualified';
-  return 'new_discovery';
+  return 'needs_review';
 }
 
 export function topIssueFromFindings(findings: { issues?: string[] } | null): string | null {
@@ -58,14 +66,29 @@ export const PIPELINE_TABS = {
 export type ProspectTabId = keyof typeof PIPELINE_TABS;
 
 const TAB_STATES: Record<ProspectTabId, string[]> = {
-  new_discovery: ['new', 'new_discovery', 'scanned'],
+  new_discovery: ['new', 'new_discovery', 'scanned', 'needs_contact', 'needs_review'],
   qualified: ['qualified'],
   outreach_ready: ['outreach_ready'],
-  contacted: ['contacted'],
+  contacted: ['contacted', 'follow_up_scheduled', 'follow_up_due'],
   interested: ['interested'],
   customer: ['customer'],
-  archived: ['archived', 'ignore_forever'],
+  archived: ['archived', 'ignore_forever', 'bad_fit', 'no_contact_found'],
 };
+
+const HIDDEN_STATES = new Set(['archived', 'ignore_forever', 'bad_fit', 'no_contact_found']);
+const HIDE_AFTER_MS = 30 * 86400000;
+
+function shouldHideProspect(p: OwnerProspect, tab: ProspectTabId): boolean {
+  if (tab === 'archived') return false;
+  if (HIDDEN_STATES.has(p.pipeline_state ?? '')) {
+    if (p.pipeline_state === 'bad_fit' || p.pipeline_state === 'no_contact_found') {
+      const updated = new Date(p.updated_at).getTime();
+      if (Date.now() - updated > HIDE_AFTER_MS) return true;
+    }
+    return p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever';
+  }
+  return false;
+}
 
 export function prospectsForTab(
   prospects: OwnerProspect[],
@@ -77,6 +100,7 @@ export function prospectsForTab(
     .map(resolveProspectScores)
     .filter((p) => {
       if (p.deleted_at) return false;
+      if (!includeHidden && shouldHideProspect(p, tab)) return false;
       if (!includeHidden && tab !== 'archived') {
         if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
       }

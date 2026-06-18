@@ -9,7 +9,11 @@ export type ActivityFeedEventType =
   | 'signup'
   | 'mrr_change'
   | 'expansion'
-  | 'churn_alert';
+  | 'churn_alert'
+  | 'email_sent'
+  | 'email_approved'
+  | 'follow_up_due'
+  | 'contact_found';
 
 export interface ActivityFeedEvent {
   id: string;
@@ -47,6 +51,8 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
     signupsRes,
     expansionsRes,
     riskProfilesRes,
+    outreachEventsRes,
+    contactFoundRes,
   ] = await Promise.all([
     admin
       .from('owner_discovery_runs')
@@ -95,6 +101,20 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
       .gte('updated_at', since)
       .order('updated_at', { ascending: false })
       .limit(5),
+    admin
+      .from('owner_outreach_events')
+      .select('id, event_type, recipient_email, subject, detail, created_at, prospect_id')
+      .gte('created_at', since)
+      .in('event_type', ['email_sent', 'email_approved', 'follow_up_due'])
+      .order('created_at', { ascending: false })
+      .limit(15),
+    admin
+      .from('owner_outreach_events')
+      .select('id, recipient_email, detail, created_at, prospect_id')
+      .eq('event_type', 'contact_found')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   for (const run of discoveryRes.data ?? []) {
@@ -185,6 +205,36 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
       type: 'churn_alert',
       label: 'Churn risk elevated',
       detail: (r.email as string) ?? null,
+      timestamp: at,
+      timeLabel: formatTimeLabel(at),
+    });
+  }
+
+  for (const ev of outreachEventsRes.data ?? []) {
+    const at = ev.created_at as string;
+    const type = ev.event_type as ActivityFeedEventType;
+    const labels: Record<string, string> = {
+      email_sent: 'Outreach email sent',
+      email_approved: 'Outreach approved',
+      follow_up_due: 'Follow-up due',
+    };
+    events.push({
+      id: `outreach-ev-${ev.id}`,
+      type,
+      label: labels[type] ?? 'Outreach event',
+      detail: (ev.recipient_email as string) ?? (ev.detail as string) ?? null,
+      timestamp: at,
+      timeLabel: formatTimeLabel(at),
+    });
+  }
+
+  for (const c of contactFoundRes.data ?? []) {
+    const at = c.created_at as string;
+    events.push({
+      id: `contact-${c.id}`,
+      type: 'contact_found',
+      label: 'Contact email found',
+      detail: (c.recipient_email as string) ?? (c.detail as string) ?? null,
       timestamp: at,
       timeLabel: formatTimeLabel(at),
     });

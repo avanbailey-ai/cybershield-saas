@@ -11,6 +11,11 @@ import {
   getDiscoverySettings,
   type DiscoverySettings,
 } from '@/lib/owner/discovery/settings';
+import {
+  getOutreachSettings,
+  saveOutreachSettings,
+  type OutreachExecutionSettings,
+} from '@/lib/owner/outreachSettings';
 
 export async function GET() {
   const auth = await requireOwner();
@@ -19,15 +24,17 @@ export async function GET() {
   }
 
   const admin = createAdminClient();
-  const [autoArchive, discovery] = await Promise.all([
+  const [autoArchive, discovery, outreach] = await Promise.all([
     getAutoArchiveSettings(admin),
     getDiscoverySettings(admin),
+    getOutreachSettings(admin),
   ]);
 
   return NextResponse.json({
     ok: true,
     settings: autoArchive,
     discovery,
+    outreach,
   });
 }
 
@@ -40,6 +47,7 @@ export async function PUT(req: NextRequest) {
   const body = (await req.json()) as {
     settings?: Partial<AutoArchiveSettings>;
     discovery?: Partial<DiscoverySettings>;
+    outreach?: Partial<OutreachExecutionSettings>;
   };
 
   const admin = createAdminClient();
@@ -77,6 +85,11 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     results.discovery = discovery;
+  }
+
+  if (body.outreach) {
+    const outreach = await saveOutreachSettings(admin, body.outreach);
+    results.outreach = outreach;
   }
 
   return NextResponse.json(results);

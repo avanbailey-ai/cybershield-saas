@@ -92,10 +92,12 @@ function Stat({ label, value }: { label: string; value: number }) {
 export function FounderInboxList({
   items,
   onApprove,
+  onDismiss,
   busy,
 }: {
   items: FounderInboxItem[];
   onApprove: (id: string) => void;
+  onDismiss?: (id: string) => void;
   busy?: boolean;
 }) {
   const { setSection } = useFounderNav();
@@ -115,9 +117,15 @@ export function FounderInboxList({
           key={item.id}
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-5 py-4"
         >
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="font-medium text-white">{item.title}</p>
             <p className="mt-1 text-sm text-gray-500">{item.description}</p>
+            {item.whyItMatters && (
+              <p className="mt-1 text-xs text-violet-300/80">{item.whyItMatters}</p>
+            )}
+            {item.revenueImpact != null && item.revenueImpact > 0 && (
+              <p className="mt-1 text-xs text-emerald-400">${item.revenueImpact}/mo impact</p>
+            )}
           </div>
           <div className="flex gap-2">
             <button
@@ -128,6 +136,16 @@ export function FounderInboxList({
             >
               {item.action}
             </button>
+            {onDismiss && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onDismiss(item.id)}
+                className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 hover:border-gray-500"
+              >
+                Dismiss
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setSection(item.module as FounderSectionId)}

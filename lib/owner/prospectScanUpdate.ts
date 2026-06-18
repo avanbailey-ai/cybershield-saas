@@ -37,7 +37,15 @@ export async function applyProspectScan(
       leadScore,
       currentState: prospect.pipeline_state as never,
       opportunityScore: enrichment.opportunity_score,
+      hasContactEmail: Boolean(enrichment.contact_email),
     });
+
+    const resolvedPipeline =
+      !enrichment.contact_email && pipeline_state === 'needs_contact'
+        ? enrichment.contact_page_found
+          ? 'needs_contact'
+          : 'no_contact_found'
+        : pipeline_state;
 
     const { data: updated, error } = await admin
       .from('owner_prospects')
@@ -68,7 +76,7 @@ export async function applyProspectScan(
         contact_linkedin: enrichment.contact_linkedin,
         qualification_reasons: enrichment.qualification_reasons,
         selection_reason: enrichment.selection_reason,
-        pipeline_state,
+        pipeline_state: resolvedPipeline,
         top_issue: topIssueFromFindings({ issues: result.issues }),
       })
       .eq('id', id)
