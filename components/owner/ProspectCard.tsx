@@ -20,7 +20,9 @@ import {
   buyerFitLabel,
   securityFitLabel,
   shouldShowHotLabel,
+  icpStatusForProspect,
 } from '@/lib/owner/prospectVerdict';
+import { evaluateBuyerFit } from '@/lib/owner/icpGate';
 import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 import { agencyTypeLabel } from '@/lib/owner/agency/agencyTypes';
 import { AGENCY_PLAN_PRICE } from '@/lib/owner/agency/agencyScore';
@@ -128,6 +130,8 @@ export default function ProspectCard({
   const canGenerateOutreach = isTrulyOutreachReady(p);
   const isAgency = isAgencyKind(p);
   const verdict = prospectVerdict(p);
+  const icp = evaluateBuyerFit(p);
+  const icpLabel = icpStatusForProspect(p);
   const contactReadiness = contactReadinessLabel(resolveContactReadiness(p));
   const outreachReady = outreachReadinessLabel(p);
   const detectedServices = Array.isArray(p.detected_services) ? p.detected_services : [];
@@ -162,6 +166,9 @@ export default function ProspectCard({
               <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-violet-200">
                 {verdict}
               </span>
+              <span className="rounded-full border border-gray-600/40 bg-white/[0.03] px-2.5 py-0.5 text-[11px] font-semibold text-gray-300">
+                {icpLabel}
+              </span>
               {shouldShowHotLabel(p) && (
                 <span
                   className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${qualityLabelStyle(
@@ -185,6 +192,12 @@ export default function ProspectCard({
               <ScorePill label="Security" value={securityScoreLabel(p)} accent="amber" />
             </div>
           </div>
+
+          {icp.blockReason && (
+            <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              {icp.blockReason}
+            </p>
+          )}
 
           {sensitiveCaution && (
             <p className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">

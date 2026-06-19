@@ -310,41 +310,44 @@ const VARIANT_COPY: Record<OutreachVariant, VariantCopy> = {
   },
 };
 
+function hasEcommerceEvidence(input: OutreachInput): boolean {
+  const key = `${input.industry ?? ''} ${input.businessName ?? ''} ${input.website ?? ''}`.toLowerCase();
+  return /\b(e-?commerce|online store|online shop|online order|woocommerce|shopify)\b/i.test(key);
+}
+
+function businessImpactLine(input: OutreachInput): string {
+  if (selectOutreachVariant(input) === 'healthcare') {
+    return `For ${input.businessName}, website reliability affects patient trust and online scheduling — quiet configuration issues can surface before your team notices.`;
+  }
+  if (hasEcommerceEvidence(input)) {
+    return `For ${input.businessName}, these configuration gaps can affect customer trust, checkout reliability, and how smoothly online orders run.`;
+  }
+  if (selectOutreachVariant(input) === 'agency') {
+    return `For ${input.businessName}, issues like these can create client escalations or pull your team into unplanned fixes.`;
+  }
+  return `For ${input.businessName}, small website configuration gaps often go unnoticed until a certificate expires or a customer reports a problem.`;
+}
+
 function buildColdEmail(variant: OutreachVariant, input: OutreachInput): string {
-  const copy = VARIANT_COPY[variant];
   const greeting = `Hi${input.contactName ? ` ${input.contactName}` : ''},`;
-  const findingsBlock = translatedFindingsBlock(input);
-  const technicalBlock = variant === 'technical' ? buildTechnicalFindingsBlock(input) : '';
+  const findingsBlock = translatedFindingsBlock(input, 3);
+  const whyLine = `I'm reaching out because we reviewed ${input.website} and noticed ${businessFindingSummary(input)}.`;
 
   const body = [
     greeting,
     '',
-    // 1. Simple reason for reaching out
-    copy.whyReachingOut(input),
-    '',
-    // 2. Plain-English business impact
-    copy.whyItMatters(input),
-    '',
-    // 3. What CyberShield Cloud does
-    copy.whatCyberShieldDoes(input),
-    '',
-    // 4. Why continuous monitoring matters
-    copy.whyDifferent(input),
-    '',
-    // 5. Top findings translated into non-technical language
-    findingsBlock,
-    findingsBlock ? '' : null,
-    // Calm reassurance — always included
+    whyLine,
     SAFETY_DISCLAIMER,
     '',
-    // 6. Optional technical detail section (technical recipients only)
-    technicalBlock,
-    technicalBlock ? '' : null,
-    // 7. Low-pressure CTA
+    findingsBlock,
+    findingsBlock ? '' : null,
+    businessImpactLine(input),
+    '',
+    `${PRODUCT_EXPLANATION} Continuous monitoring helps catch certificate, settings, and uptime changes early — from $79/mo for one business site.`,
+    '',
     lowPressureCta(input),
     '',
     '— CyberShield Cloud',
-    'Website monitoring & security intelligence',
   ]
     .filter((section): section is string => section !== null && section !== undefined)
     .filter((section, idx, arr) => !(section === '' && arr[idx - 1] === ''))

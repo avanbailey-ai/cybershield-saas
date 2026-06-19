@@ -3,8 +3,9 @@ import {
   computePlanFit,
   conversionLikelihoodFromScore,
 } from './salesIntelligence';
-import { isOutreachReadyContact } from './prospectQualityBrain';
+import { isEmailSendEligible, evaluateBuyerFit } from './icpGate';
 import { AGENCY_PLAN_PRICE } from './agency/agencyScore';
+import { isOutreachReadyContact } from './prospectQualityBrain';
 import { filterBannedDemoProspects } from './demoPatternFilter';
 import { sanitizePhone } from './placeholderPhone';
 import { isRealAgencyLead } from './prospectVerdict';
@@ -56,14 +57,17 @@ export function resolveProspectScores(p: OwnerProspect): OwnerProspect {
       : computeOpportunityScore(scoreInput);
 
   const kind = p.prospect_kind === 'agency' && isRealAgencyLead(p) ? 'agency' : 'smb';
+  const icp = evaluateBuyerFit({ ...p, opportunity_score: computedScore });
 
   let computedPlanFit: number | null;
-  if (kind === 'agency') {
-    computedPlanFit = AGENCY_PLAN_PRICE;
+  if (icp.planFit != null) {
+    computedPlanFit = icp.planFit;
+  } else if (kind === 'agency') {
+    computedPlanFit = null;
   } else {
     const stored = p.estimated_plan_fit;
-    const useStored = stored != null && stored > 0 && stored !== AGENCY_PLAN_PRICE;
-    computedPlanFit = useStored ? stored : computePlanFit(scoreInput, computedScore, 'smb');
+    const useStored = stored != null && stored > 0 && stored !== AGENCY_PLAN_PRICE && icp.buyerFitPassed;
+    computedPlanFit = useStored ? stored : icp.buyerFitPassed ? computePlanFit(scoreInput, computedScore, 'smb') : null;
   }
 
   const conversion =
@@ -119,19 +123,19 @@ export function canFounderApproveOutreach(
       reason: 'Security scan must finish before outreach can send.',
     };
   }
+  if (!isEmailSendEligible(prospect)) {
+    const fit = evaluateBuyerFit(prospect);
+    return {
+      ok: false,
+      email,
+      reason: fit.blockReason ?? 'Buyer-fit gate blocked — not eligible for send queue.',
+    };
+  }
   return { ok: true, email, reason: null };
 }
 
 export function isTrulyOutreachReady(p: OwnerProspect): boolean {
-  const state = p.pipeline_state ?? 'new_discovery';
-  const label = p.quality_label;
-  const qualityOk = label === 'HOT' || label === 'WARM' || !label;
-  return (
-    state === 'outreach_ready' &&
-    hasOutreachContact(p) &&
-    qualityOk &&
-    p.scan_status === 'completed'
-  );
+  return isEmailSendEligible(p);
 }
 
 /** Founder OS prospect segmentation: SMB pipeline vs Agency pipeline. */

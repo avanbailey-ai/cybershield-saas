@@ -175,20 +175,20 @@ export default function FounderCommandCenterHome() {
           Revenue actions — not vanity metrics
         </h2>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Snap label="Drafts ready" value={String(acquisition.draftsReady)} tone="text-emerald-400" />
-          <Snap label="Weak + email" value={String(acquisition.weakWithEmail)} />
-          <Snap label="Contact forms" value={String(acquisition.weakWithContactForm)} />
-          <Snap label="Need contact" value={String(acquisition.needsContactEnrichment)} />
+          <Snap label="Send queue" value={String(acquisition.sendQueue)} tone="text-emerald-400" />
+          <Snap label="Form queue" value={String(acquisition.formQueue)} />
+          <Snap label="Drafts ready" value={String(acquisition.draftsReady)} />
+          <Snap label="Needs contact" value={String(acquisition.needsContactEnrichment)} />
+          <Snap label="Manual review" value={String(acquisition.manualReview)} />
+          <Snap label="Not ICP" value={String(acquisition.rejectedNotIcp)} />
+          <Snap label="Private + contact" value={String(acquisition.privateBusinessWithContact)} />
           <Snap label="Need rescan" value={String(acquisition.needsRescan)} />
-          <Snap label="Agency evidence" value={String(acquisition.agenciesWithEvidence)} />
-          <Snap label="Weak websites" value={String(acquisition.weakWebsitesTotal)} />
-          <Snap label="Contact paths" value={String(acquisition.contactPathsTotal)} />
         </div>
         <p className="mt-3 text-xs text-violet-300">{acquisition.nextRecommendedAction}</p>
-        {acquisition.draftsReady === 0 && acquisition.weakWebsitesTotal > 0 && (
+        {acquisition.sendQueue === 0 && acquisition.privateBusinessWithContact === 0 && acquisition.weakWebsitesTotal > 0 && (
           <p className="mt-2 text-xs text-amber-300/90">
-            No send-ready leads yet. You have {acquisition.weakWebsitesTotal} weak-score websites that
-            need contact enrichment.
+            Found weak websites, but most are not ideal buyers. Focus on private businesses with valid
+            contact paths.
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">

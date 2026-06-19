@@ -1,4 +1,5 @@
 import { isEnterpriseProspect } from './enterpriseFit';
+import { evaluateBuyerFit, isPublicInstitutionProspect } from './icpGate';
 import type { LeadScore } from './types';
 import type { ProspectPipelineState } from './discovery/types';
 import type { DiscoveryBreakdownResult } from './discovery/types';
@@ -69,7 +70,7 @@ const DIRECTORY_HOSTS = [
 ];
 
 const GOV_TLD = /\.(gov|edu|mil)(?:\/|$)/i;
-const GOV_KEYWORDS = /\b(city hall|county|school district|university|college|public school|government)\b/i;
+const GOV_KEYWORDS = /\b(city hall|county|city of|municipality|school district|university|college|public school|government|parks?\s*(?:&|and)\s*rec)\b/i;
 
 const SENSITIVE_SECTORS = /\b(dental|dentist|medical|healthcare|health care|clinic|hospital|legal|law firm|attorney|financial advisor|insurance|plexis)\b/i;
 
@@ -140,7 +141,7 @@ export function evaluateDiscoveryRejection(input: DiscoveryRejectInput): {
   const name = input.businessName.toLowerCase();
   const industry = (input.industry ?? '').toLowerCase();
 
-  if (GOV_TLD.test(website) || industry === 'government' || GOV_KEYWORDS.test(name)) {
+  if (GOV_TLD.test(website) || industry === 'government' || GOV_KEYWORDS.test(name) || GOV_KEYWORDS.test(website)) {
     return { reject: true, reason: 'public_institution' };
   }
 
@@ -228,6 +229,7 @@ export interface AssessProspectQualityInput {
   dnsValid?: boolean | null;
   scanIssues?: string[];
   scanRiskLevel?: string | null;
+  scanScore?: number | null;
   planFit?: number | null;
   rejectionReason?: RejectionReason;
   agencyDiscoveryMode?: boolean;
@@ -352,26 +354,69 @@ export function assessProspectQuality(input: AssessProspectQualityInput): Prospe
     pipelineState = 'qualified';
   }
 
-  const outreachReady =
-    pipelineState === 'outreach_ready' &&
-    scanDone &&
-    contactOk &&
-    (qualityLabel === 'HOT' || qualityLabel === 'WARM');
-
   const topIssue = input.scanIssues?.[0] ?? null;
   const buyingTrigger =
     topIssue ??
     (input.prospectKind === 'agency' ? 'Manages client websites' : 'Website security gaps found');
+
+  const icpInput = {
+    business_name: input.businessName,
+    website: input.website,
+    industry: input.industry,
+    prospect_kind: input.prospectKind,
+    scan_status: input.scanStatus,
+    scan_score: input.scanScore ?? null,
+    scan_risk_level: input.scanRiskLevel ?? null,
+    scan_findings: input.scanIssues?.length ? { issues: input.scanIssues } : null,
+    opportunity_score: score,
+    pipeline_state: pipelineState,
+    quality_label: qualityLabel,
+    rejection_reason: rejectionReason,
+    contact_email: input.signals.contact_email,
+    contact_confidence: input.signals.contact_confidence,
+    contact_page_found: input.signals.contact_page_found,
+    contact_phone_found: input.signals.contact_phone_found,
+    contact_phone: input.signals.contact_phone,
+    lead_score: input.leadScore,
+  };
+
+  const icp = evaluateBuyerFit(icpInput as never);
+
+  if (rejectionReason || discoveryReject.reject || isPublicInstitutionProspect(icpInput as never)) {
+    qualityLabel = icp.qualityLabel === 'NEEDS REVIEW' ? 'NEEDS REVIEW' : 'REJECTED';
+    pipelineState = qualityLabel === 'REJECTED' ? 'bad_fit' : 'needs_review';
+    if (!rejectionReason && isPublicInstitutionProspect(icpInput as never)) {
+      rejectionReason = 'public_institution';
+    }
+  } else {
+    qualityLabel = icp.qualityLabel;
+    if (icp.sendQueueEligible) {
+      pipelineState = 'outreach_ready';
+      qualityStage = 'outreach_ready';
+    } else if (icp.formQueueEligible) {
+      pipelineState = 'needs_contact';
+    } else if (icp.revenueQueue === 'manual_review') {
+      pipelineState = 'needs_review';
+    } else if (icp.revenueQueue === 'rejected_not_icp') {
+      pipelineState = 'bad_fit';
+    } else if (!hasContact) {
+      pipelineState = 'needs_contact';
+    }
+  }
+
+  const outreachReady = icp.emailDraftAllowed;
 
   return {
     qualityLabel,
     qualityStage,
     pipelineState,
     outreachReady,
-    rejectionReason,
+    rejectionReason: icp.icpStatus.startsWith('ICP_PUBLIC') ? 'public_institution' : rejectionReason,
     whySelected: outreachReady
-      ? `${input.businessName} — scan complete with public contact and ${qualityLabel} fit`
-      : `${input.businessName} — ${pipelineState.replace(/_/g, ' ')}`,
+      ? `${input.businessName} — ICP-ready private business with email and weak scan findings`
+      : icp.blockReason
+        ? `${input.businessName} — ${icp.blockReason}`
+        : `${input.businessName} — ${pipelineState.replace(/_/g, ' ')}`,
     buyingTrigger,
     whyNow: outreachReady ? 'Scan findings provide a concrete reason to reach out now' : null,
     contactConfidence: input.signals.contact_confidence,
@@ -402,11 +447,17 @@ export function canCreateOutreachDraft(prospect: {
   quality_label?: string | null;
   contact_confidence?: string | null;
   contact_email?: string | null;
+  business_name?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  opportunity_score?: number | null;
+  scan_score?: number | null;
+  scan_risk_level?: string | null;
+  scan_findings?: { issues?: string[] } | null;
+  rejection_reason?: string | null;
+  contact_page_found?: boolean | null;
+  prospect_kind?: string | null;
 }): boolean {
-  if (prospect.pipeline_state !== 'outreach_ready') return false;
-  if (prospect.scan_status !== 'completed') return false;
-  if (prospect.quality_label !== 'HOT' && prospect.quality_label !== 'WARM') return false;
-  if (!prospect.contact_email?.trim()) return false;
-  if (!isOutreachReadyContact(prospect.contact_confidence)) return false;
-  return true;
+  const { emailDraftAllowed } = evaluateBuyerFit(prospect as never);
+  return emailDraftAllowed;
 }

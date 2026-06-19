@@ -151,7 +151,10 @@ assert(
   plexisVerdict === 'Sensitive sector manual review' || plexisVerdict === 'Enterprise/manual review',
   'PLEXIS sensitive/enterprise manual review',
 );
-assert(recommendedOutreachAction(plexis).label === 'Manual review', 'PLEXIS primary action is manual review');
+assert(
+  ['Manual review', 'Review manually'].includes(recommendedOutreachAction(plexis).label),
+  'PLEXIS primary action is manual review',
+);
 assert(!isRealAgencyLead(plexis), 'PLEXIS not routine agency lead');
 
 // ── Fixture: DSV ──

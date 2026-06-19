@@ -124,7 +124,7 @@ const noOutreachWithoutContact = canCreateOutreachDraft({
 assert(noOutreachWithoutContact === false, 'no outreach-ready without contact path');
 
 const snap = computeCustomerAcquisitionSnapshot([], 0);
-assert(snap.summaryLine.includes('weak websites'), 'Home snapshot mentions revenue actions');
+assert(snap.summaryLine.includes('ideal buyers') || snap.summaryLine.includes('email-ready'), 'Home snapshot mentions ICP queues');
 
 const emptyResult = {
   websitesFound: 0,

@@ -4,7 +4,7 @@
 
 import type { OwnerProspect } from './types';
 import { isAgencyKind, hasOutreachContact, isTrulyOutreachReady, resolveProspectScores } from './prospectDisplay';
-import { isOutreachReadyContact } from './prospectQualityBrain';
+import { evaluateBuyerFit, icpStatusLabel, allowedActionsForIcp, isEmailSendEligible } from './icpGate';
 import { prospectNeedsSensitiveReview } from './sensitiveSectorCaution';
 import { isEnterpriseProspect } from './enterpriseFit';
 import type { AgencySignals } from './agency/agencyTypes';
@@ -66,7 +66,9 @@ export function resolveContactReadiness(p: OwnerProspect): ContactReadinessStatu
   const hasEmail = Boolean(p.contact_email?.trim());
 
   if (hasEmail && conf === 'verified_public_email') return 'verified_email';
-  if (hasEmail && isOutreachReadyContact(conf)) return 'public_email';
+  if (hasEmail && ['verified_public_email', 'likely_business_email', 'generic_public_inbox'].includes(conf)) {
+    return 'public_email';
+  }
   if (p.contact_page_found && !hasEmail) return 'contact_page_ready';
   if ((p.contact_phone_found || p.contact_phone) && !hasEmail) return 'phone_only';
   if (p.pipeline_state === 'needs_contact' || (!hasEmail && p.scan_status === 'completed')) {
@@ -116,7 +118,7 @@ export function prospectVerdict(p: OwnerProspect): ProspectVerdict {
   const contact = resolveContactReadiness(resolved);
   const realAgency = isRealAgencyLead(resolved);
 
-  if (isTrulyOutreachReady(resolved)) return 'Draft ready';
+  if (isTrulyOutreachReady(resolved) && evaluateBuyerFit(resolved).sendQueueEligible) return 'Draft ready';
 
   if (realAgency) {
     if (contact === 'contact_form_ready' || contact === 'contact_page_ready') return 'Contact form ready';
@@ -149,34 +151,22 @@ export function prospectVerdict(p: OwnerProspect): ProspectVerdict {
 
 export function recommendedOutreachAction(p: OwnerProspect): { label: string; action: string } {
   const resolved = resolveProspectScores(p);
-  const verdict = prospectVerdict(resolved);
-  const contact = resolveContactReadiness(resolved);
+  const fit = evaluateBuyerFit(resolved);
+  const allowed = allowedActionsForIcp(resolved);
 
-  if (verdict === 'Sensitive sector manual review') {
+  if (fit.revenueQueue === 'rejected_not_icp') {
+    return { label: allowed[0]?.label ?? 'Archive non-fit', action: allowed[0]?.action ?? 'archive' };
+  }
+  if (fit.revenueQueue === 'manual_review') {
     return { label: 'Manual review', action: 'review' };
   }
-  if (verdict === 'Enterprise/manual review') {
-    return { label: 'Review fit', action: 'review' };
-  }
-  if (verdict === 'Rejected non-fit') {
-    return { label: 'Archive non-fit', action: 'archive' };
-  }
-  if (verdict === 'Draft ready' || isTrulyOutreachReady(resolved)) {
+  if (fit.sendQueueEligible && isEmailSendEligible(resolved)) {
     return { label: 'Approve & send outreach', action: 'outreach' };
   }
-  if (contact === 'contact_form_ready' || contact === 'contact_page_ready') {
+  if (fit.formQueueEligible) {
     return { label: 'Open contact page + copy message', action: 'contact_page' };
   }
-  if (contact === 'phone_only') {
-    return { label: 'Find email/contact form', action: 'contact' };
-  }
-  if (contact === 'needs_contact' || contact === 'no_contact_found') {
-    return { label: 'Find contact on website', action: 'contact' };
-  }
-  if (resolved.scan_status !== 'completed') {
-    return { label: 'Run security scan', action: 'scan' };
-  }
-  return { label: 'Review scan findings', action: 'review' };
+  return { label: allowed[0]?.label ?? 'Review manually', action: allowed[0]?.action ?? 'review' };
 }
 
 export function prospectNextStepLabel(p: OwnerProspect): string {
@@ -222,11 +212,12 @@ export function agencySignalsFromProspect(p: OwnerProspect): AgencySignals {
 }
 
 export function shouldShowHotLabel(p: OwnerProspect): boolean {
-  if (!hasOutreachContact(p)) return false;
-  if (prospectNeedsSensitiveReview(p)) return false;
-  if (isEnterpriseProspect(p.business_name, p.industry)) return false;
-  if (isAgencyKind(p) && !isRealAgencyLead(p)) return false;
-  return p.quality_label === 'HOT';
+  const fit = evaluateBuyerFit(p);
+  return fit.sendQueueEligible && fit.qualityLabel === 'HOT';
+}
+
+export function icpStatusForProspect(p: OwnerProspect): string {
+  return icpStatusLabel(evaluateBuyerFit(p).icpStatus);
 }
 
 export function buyerFitLabel(p: OwnerProspect): string {

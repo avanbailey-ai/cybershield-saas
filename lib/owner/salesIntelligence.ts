@@ -178,14 +178,15 @@ export function computePlanFit(
 
   const opp = opportunityScore ?? computeOpportunityScore(input);
   if (!input.scanCompleted && opp < 25) return null;
+  if (opp < 45) return null;
 
   if (prospectKind === 'agency') return 299;
 
   const issues = input.issueCount ?? 0;
 
   if (prospectKind === 'smb' || !prospectKind) {
-    if (opp >= 50 || issues >= 3) return 149;
-    if (opp >= 25) return 79;
+    if (opp >= 55 || issues >= 3) return 149;
+    if (opp >= 45) return 79;
     return null;
   }
 

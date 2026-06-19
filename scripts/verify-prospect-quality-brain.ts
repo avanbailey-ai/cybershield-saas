@@ -173,8 +173,14 @@ assert(
     quality_label: 'HOT',
     contact_confidence: 'verified_public_email',
     contact_email: 'info@test.com',
+    business_name: 'Test SMB Co',
+    website: 'https://testsmb.com',
+    industry: 'local business',
+    opportunity_score: 55,
+    scan_score: 50,
+    scan_findings: { issues: ['Missing HSTS'] },
   }),
-  'Stage 5: HOT + verified contact + outreach_ready allows draft creation check',
+  'Stage 5: HOT + verified contact + buyer-fit allows draft creation check',
 );
 assert(
   !canCreateOutreachDraft({
@@ -190,9 +196,31 @@ assert(
   !canCreateOutreachDraft({
     pipeline_state: 'outreach_ready',
     scan_status: 'completed',
+    quality_label: 'HOT',
+    contact_confidence: 'verified_public_email',
+    contact_email: 'info@centennialco.gov',
+    business_name: 'Centennial',
+    website: 'https://centennialco.gov',
+    industry: 'government',
+    opportunity_score: 55,
+    scan_score: 50,
+    scan_findings: { issues: ['Missing HSTS'] },
+    rejection_reason: 'public_institution',
+  }),
+  'Public institution blocked from draft gate even with email',
+);
+assert(
+  !canCreateOutreachDraft({
+    pipeline_state: 'outreach_ready',
+    scan_status: 'completed',
     quality_label: 'WARM',
     contact_confidence: 'unverified_guess',
     contact_email: 'guess@test.com',
+    business_name: 'Test Co',
+    website: 'https://test.com',
+    opportunity_score: 55,
+    scan_score: 50,
+    scan_findings: { issues: ['Missing HSTS'] },
   }),
   'Unverified email blocked from outreach-ready draft gate',
 );
