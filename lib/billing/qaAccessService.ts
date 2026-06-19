@@ -8,18 +8,56 @@ import {
 import type { SubscriptionAccess } from '@/lib/billing/getSubscriptionAccess';
 import type { UserWithPlan } from '@/lib/auth/permissions';
 
-export async function fetchQaAccountFlags(userId: string): Promise<QaAccountFlags> {
+const QA_PROFILE_COLUMNS = 'is_qa_account, qa_simulated_plan, qa_enterprise_enabled';
+
+export type QaProfileReader = {
+  from: (relation: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => {
+        maybeSingle: () => PromiseLike<{ data: QaAccountProfileRow | null }>;
+      };
+    };
+  };
+};
+
+async function readQaFlagsFromClient(
+  client: QaProfileReader,
+  userId: string,
+): Promise<QaAccountFlags | null> {
   try {
-    const supabase = createAdminClient();
-    const { data } = await supabase
+    const { data } = await client
       .from('profiles')
-      .select('is_qa_account, qa_simulated_plan, qa_enterprise_enabled')
+      .select(QA_PROFILE_COLUMNS)
       .eq('id', userId)
       .maybeSingle();
-
     return qaAccountFlagsFromProfile(data as QaAccountProfileRow | null);
   } catch {
-    return { isQaAccount: false, qaSimulatedPlan: 'agency', qaEnterpriseEnabled: false };
+    return null;
+  }
+}
+
+/** Prefer session client (RLS) in middleware; admin fallback for server jobs. */
+export async function fetchQaAccountFlags(
+  userId: string,
+  sessionClient?: QaProfileReader,
+): Promise<QaAccountFlags> {
+  const empty: QaAccountFlags = {
+    isQaAccount: false,
+    qaSimulatedPlan: 'agency',
+    qaEnterpriseEnabled: false,
+  };
+
+  if (sessionClient) {
+    const fromSession = await readQaFlagsFromClient(sessionClient, userId);
+    if (fromSession) return fromSession;
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const fromAdmin = await readQaFlagsFromClient(supabase as unknown as QaProfileReader, userId);
+    return fromAdmin ?? empty;
+  } catch {
+    return empty;
   }
 }
 

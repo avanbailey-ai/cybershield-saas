@@ -12,7 +12,7 @@ import {
 } from '@/lib/billing/orgSubscriptionService';
 import { resolveSubscriptionAccess, type SubscriptionAccess } from '@/lib/billing/getSubscriptionAccess';
 import type { Plan } from '@/lib/billing/plans';
-import { applyQaSubscriptionAccess, fetchQaAccountFlags } from '@/lib/billing/qaAccessService';
+import { applyQaSubscriptionAccess, fetchQaAccountFlags, type QaProfileReader } from '@/lib/billing/qaAccessService';
 
 export const ORG_CONTEXT_COOKIE = 'cybershield_org_id';
 
@@ -114,7 +114,7 @@ export async function resolveOrgSessionContextFromSession(
       .maybeSingle();
 
     if (!membership) {
-      const qaFlags = await fetchQaAccountFlags(userId);
+      const qaFlags = await fetchQaAccountFlags(userId, supabase as unknown as QaProfileReader);
       return {
         orgId: null,
         role: null,
@@ -124,7 +124,7 @@ export async function resolveOrgSessionContextFromSession(
     }
 
     const sub = await getOrgSubscription(membership.org_id);
-    const qaFlags = await fetchQaAccountFlags(userId);
+    const qaFlags = await fetchQaAccountFlags(userId, supabase as unknown as QaProfileReader);
     return {
       orgId: membership.org_id,
       role: membership.role as OrgRole,
@@ -149,7 +149,7 @@ export async function resolveOrgSessionContextFromSession(
   }
 
   const sub = await getOrgSubscription(orgId);
-  const qaFlags = await fetchQaAccountFlags(userId);
+  const qaFlags = await fetchQaAccountFlags(userId, supabase as unknown as QaProfileReader);
   return {
     orgId,
     role: membership.role as OrgRole,
