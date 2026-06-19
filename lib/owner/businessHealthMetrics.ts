@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { isInternalCustomerProfile } from './internalAccountFilters';
+import { getFounderCustomerMetrics } from './founderCustomerMetrics';
 import { getRevenueAtRisk } from './revenueAtRisk';
 
 const DEFAULT_MRR_GOAL = 1000;
@@ -49,7 +49,7 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
   const thirtyDaysAgo = new Date(Date.now() - 30 * MS_DAY).toISOString();
   const sevenDaysAgo = new Date(Date.now() - 7 * MS_DAY).toISOString();
 
-  const [profilesRes, goalRes, displayAmounts, revenueAtRisk] = await Promise.all([
+  const [profilesRes, goalRes, founderCustomers, revenueAtRisk] = await Promise.all([
     admin.from('profiles').select(
       'id, email, plan, subscription_status, churn_risk_score, created_at, updated_at, is_qa_account',
     ),
@@ -58,7 +58,7 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
       .select('value')
       .eq('key', 'mrr_goal')
       .maybeSingle(),
-    getPlanDisplayAmounts(),
+    getFounderCustomerMetrics(),
     getRevenueAtRisk(),
   ]);
 
@@ -66,9 +66,9 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
   const excludedAccounts: string[] = [];
   const includedPlans = ['pro', 'growth', 'agency'];
 
-  let mrr = 0;
-  let payingCustomers = 0;
-  let activeTrials = 0;
+  const mrr = founderCustomers.mrr;
+  const payingCustomers = founderCustomers.payingCustomers;
+  const activeTrials = founderCustomers.activeTrials;
   let churnRiskCount = 0;
   let newSignups30d = 0;
   let upgradedInWindow = 0;
@@ -88,20 +88,6 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
 
     const status = p.subscription_status as string;
     const plan = (p.plan as string) ?? 'free';
-
-    if (status === 'trialing') activeTrials++;
-
-    if (
-      (status === 'active' || status === 'trialing') &&
-      plan !== 'free' &&
-      plan !== 'owner'
-    ) {
-      const price = displayAmounts[plan as keyof typeof displayAmounts] ?? 0;
-      if (status === 'active' && price > 0) {
-        mrr += price;
-        payingCustomers++;
-      }
-    }
 
     if ((p.churn_risk_score ?? 0) > 70) churnRiskCount++;
 
@@ -162,7 +148,7 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
         excludedAccounts: excludedAccounts.slice(0, 20),
         rules: [
           'Counts active paid subscriptions only (trialing excluded from MRR total).',
-          'Uses Stripe display prices from getPlanDisplayAmounts().',
+          'Uses shared founderCustomerMetrics (getFounderCustomerMetrics).',
           'Excludes owner plan, free plan, and internal/test emails via internalAccountFilters.',
           'Owner email, test@gmail.com, +test@, qa+, stripe-preview-test, disposable/example domains, and is_qa_account profiles excluded.',
         ],

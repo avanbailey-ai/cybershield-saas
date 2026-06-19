@@ -16,6 +16,7 @@ import { computeRevenueIntelligence, formatRevenue } from '@/lib/owner/revenueIn
 import { hasActiveProspects } from '@/lib/owner/pipeline';
 import {
   resolveProspectList,
+  filterProspectsByKind,
   countAgencyProspects,
   type ProspectKindView,
 } from '@/lib/owner/prospectDisplay';
@@ -84,8 +85,13 @@ export default function LeadDiscovery({
   const [agencyType, setAgencyType] = useState<AgencyType>('web_design');
 
   const agencyCount = useMemo(() => countAgencyProspects(prospects), [prospects]);
+  const scopedProspects = useMemo(
+    () => filterProspectsByKind(prospects, kindView),
+    [prospects, kindView],
+  );
+  const hasScopedProspects = hasActiveProspects(scopedProspects);
   const hasProspects = hasActiveProspects(prospects);
-  const revenue = useMemo(() => computeRevenueIntelligence(prospects), [prospects]);
+  const revenue = useMemo(() => computeRevenueIntelligence(prospects, kindView), [prospects, kindView]);
 
   const refreshProspects = useCallback(async () => {
     const res = await fetch('/api/owner/prospects');
@@ -300,7 +306,7 @@ export default function LeadDiscovery({
         ))}
       </div>
 
-      {hasProspects && <RevenueOpportunityBar summary={revenue} />}
+      {hasScopedProspects && <RevenueOpportunityBar summary={revenue} kindView={kindView} />}
 
       {showSettings && (
         <div className="mb-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
@@ -396,10 +402,22 @@ export default function LeadDiscovery({
           <p className="text-sm font-semibold text-white">Discovery run complete</p>
           {(() => {
             const o = runOutcomes(lastRun);
+            const inserted =
+              'inserted' in lastRun ? (lastRun.inserted ?? o.discovered) : o.discovered;
             return (
               <div className="mt-2 space-y-1 text-sm text-gray-300">
-                <p>{o.discovered} businesses found</p>
-                <p>{o.qualified} qualified · {o.outreachReady} outreach-ready · {o.skipped} skipped</p>
+                <p>
+                  {inserted} new prospect{inserted === 1 ? '' : 's'} found. Your existing pipeline
+                  still has {prospects.length} prospect{prospects.length === 1 ? '' : 's'}.
+                </p>
+                <p>
+                  {o.qualified} qualified · {o.outreachReady} outreach-ready · {o.skipped} skipped
+                  · {o.scanned} scanned
+                </p>
+                <p className="text-xs text-gray-500">
+                  Run type: {agencyMode ? `Agency (${agencyType.replace(/_/g, ' ')})` : 'SMB'} ·
+                  Location: {settings.location || 'default'}
+                </p>
                 {o.mrr > 0 && (
                   <p className="text-emerald-300">
                     Estimated opportunity: {formatRevenue(o.mrr)}/month
@@ -440,7 +458,16 @@ export default function LeadDiscovery({
         </details>
       )}
 
-      {!hasProspects ? discoveryEmpty : (
+      {!hasScopedProspects ? (
+        kindView === 'agency' ? (
+          <EmptyState
+            title="No agency prospects yet"
+            description="Run Agency Discovery for web design, SEO, WordPress, Shopify, or marketing agencies. SMB businesses won't appear in this tab."
+          />
+        ) : (
+          discoveryEmpty
+        )
+      ) : (
         <>
           <div className="mb-8">
             <ProspectsActionQueue

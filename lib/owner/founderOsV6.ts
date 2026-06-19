@@ -133,6 +133,8 @@ export const EMPTY_FOUNDER_OS_V6: FounderOsV6Data = {
       sentToday: 0,
       delivered: 0,
       opened: 0,
+      uniqueOpens: 0,
+      uniqueOpenRate: 0,
       clicked: 0,
       bounced: 0,
       conversions: 0,

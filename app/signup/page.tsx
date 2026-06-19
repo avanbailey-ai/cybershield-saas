@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import AuthCard from "@/components/auth/AuthCard";
 import SignupForm from "@/components/auth/SignupForm";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { parseSignupAttributionParams, signupPlanCopy } from "@/lib/conversion/signupPlanContext";
 
 export const dynamic = "force-dynamic";
 
@@ -10,14 +11,11 @@ export const metadata: Metadata = {
   title: "Create Account",
 };
 
-const bullets = [
-  "Health Center for every website",
-  "SSL & domain expiry monitoring",
-  "Change timeline & email alerts",
-  "Daily to hourly monitoring (by plan)",
-];
-
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!isSupabaseAuthConfigured()) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -28,19 +26,37 @@ export default function SignupPage() {
     );
   }
 
+  const raw = await searchParams;
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(raw)) {
+    if (Array.isArray(value)) {
+      for (const v of value) sp.append(key, v);
+    } else if (value != null) {
+      sp.set(key, value);
+    }
+  }
+
+  const attribution = parseSignupAttributionParams(sp);
+  const copy = signupPlanCopy(attribution.plan);
+
   return (
     <AuthCard
-      title="Create your account"
-      subtitle="Start with a free scan or set up continuous monitoring."
+      title={copy.title}
+      subtitle={copy.subtitle}
       footerText="Already have an account?"
       footerLinkText="Sign in"
       footerLinkHref="/login"
-      panelHeadline="Start Protecting Your Websites"
-      panelDescription="Create your account, then scan your first site in under 30 seconds."
-      panelBullets={bullets}
+      panelHeadline={copy.panelHeadline}
+      panelDescription={copy.panelDescription}
+      panelBullets={copy.panelBullets}
     >
       <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>
-        <SignupForm />
+        <SignupForm
+          initialPlan={attribution.plan}
+          planBadge={copy.planBadge}
+          planHighlight={copy.planHighlight}
+          hasValidProspect={attribution.hasValidProspect}
+        />
       </Suspense>
     </AuthCard>
   );

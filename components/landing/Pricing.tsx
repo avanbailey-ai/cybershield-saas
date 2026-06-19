@@ -84,7 +84,7 @@ function PricingInner() {
     setFunnelState(fromParams ?? readFunnelSession());
 
     const planParam = searchParams.get('plan');
-    if (planParam === 'pro' || planParam === 'growth') {
+    if (planParam === 'pro' || planParam === 'growth' || planParam === 'agency') {
       setHighlightedPlan(planParam);
     }
 
@@ -312,7 +312,7 @@ function PricingInner() {
 
         <PlanComparisonTable />
 
-        <div className="mt-16 rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-950/20 to-gray-950 p-8 sm:p-10">
+        <div className={`mt-16 rounded-2xl border bg-gradient-to-br from-purple-950/20 to-gray-950 p-8 sm:p-10 ${highlightedPlan === 'agency' ? 'border-purple-400 ring-2 ring-purple-500/40' : 'border-purple-500/20'}`}>
           <div className="mx-auto flex max-w-4xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-purple-400/80">Agency</p>

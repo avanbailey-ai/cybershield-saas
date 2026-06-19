@@ -172,19 +172,23 @@ export function computeOpportunityScore(input: OpportunityScoreInput): number {
 export function computePlanFit(
   input: OpportunityScoreInput,
   opportunityScore?: number,
+  prospectKind?: 'smb' | 'agency' | null,
 ): PlanFit | null {
   if (isDeprioritizedIndustry(input.industry, input.businessName)) return null;
 
   const opp = opportunityScore ?? computeOpportunityScore(input);
   if (!input.scanCompleted && opp < 25) return null;
 
-  const key = normalizeIndustryKey(input.industry, input.businessName);
-  const isAgency = key.includes('agency') || key.includes('agencies');
+  if (prospectKind === 'agency') return 299;
+
   const issues = input.issueCount ?? 0;
 
-  if (isAgency || opp >= 75 || issues >= 6) return 299;
-  if (opp >= 50 || issues >= 3) return 149;
-  if (opp >= 25) return 79;
+  if (prospectKind === 'smb' || !prospectKind) {
+    if (opp >= 50 || issues >= 3) return 149;
+    if (opp >= 25) return 79;
+    return null;
+  }
+
   return null;
 }
 

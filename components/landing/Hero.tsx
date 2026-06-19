@@ -23,9 +23,9 @@ export default function Hero() {
             </h1>
 
             <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              CyberShield Cloud continuously monitors website security scores, SSL certificates,
-              domain health, and unauthorized changes. Get website security alerts before customers
-              see browser warnings or downtime.
+              CyberShield Cloud monitors business websites for security settings, SSL certificate
+              issues, domain problems, uptime changes, and unexpected website changes — with alerts
+              before customers see browser warnings.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">

@@ -91,8 +91,7 @@ const agencyInput = {
   estimatedSiteCount: 40,
   managesClientSites: true,
   city: 'Medford',
-  signupUrl:
-    'https://cybershieldcloud.com/signup?plan=agency&source=agency_outreach&prospect=SAMPLETOKEN1234',
+  signupUrl: buildAgencyAttributionUrl('SAMPLETOKEN1234'),
 };
 
 // ── 1. Agency-specific classification ──
@@ -170,10 +169,11 @@ assert(
 const attUrl = buildAgencyAttributionUrl('TESTTOKEN12345');
 assert(
   agencyEmail.includes(agencyInput.signupUrl!) &&
+    /\/summary\?/.test(attUrl) &&
     /plan=agency/.test(attUrl) &&
     /source=agency_outreach/.test(attUrl) &&
     /prospect=/.test(attUrl),
-  'Agency email embeds a tracked CTA link and buildAgencyAttributionUrl encodes plan=agency + source=agency_outreach + prospect token',
+  'Agency email embeds a tracked CTA link and buildAgencyAttributionUrl encodes summary + plan=agency + source=agency_outreach + prospect token',
 );
 assert(
   agencyEmail.includes(AGENCY_PLAN_MENTION) && AGENCY_PLAN_PRICE === 299,

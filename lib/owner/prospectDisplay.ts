@@ -3,6 +3,7 @@ import {
   computePlanFit,
   conversionLikelihoodFromScore,
 } from './salesIntelligence';
+import { AGENCY_PLAN_PRICE } from './agency/agencyScore';
 import type { OwnerProspect } from './types';
 import type { ContactSignals } from './contactDiscovery';
 
@@ -48,10 +49,16 @@ export function resolveProspectScores(p: OwnerProspect): OwnerProspect {
       ? p.opportunity_score
       : computeOpportunityScore(scoreInput);
 
-  const computedPlanFit =
-    p.estimated_plan_fit != null && p.estimated_plan_fit > 0
-      ? p.estimated_plan_fit
-      : computePlanFit(scoreInput, computedScore);
+  const kind = p.prospect_kind === 'agency' ? 'agency' : 'smb';
+
+  let computedPlanFit: number | null;
+  if (kind === 'agency') {
+    computedPlanFit = AGENCY_PLAN_PRICE;
+  } else {
+    const stored = p.estimated_plan_fit;
+    const useStored = stored != null && stored > 0 && stored !== AGENCY_PLAN_PRICE;
+    computedPlanFit = useStored ? stored : computePlanFit(scoreInput, computedScore, 'smb');
+  }
 
   const conversion =
     p.conversion_likelihood != null && p.conversion_likelihood > 0

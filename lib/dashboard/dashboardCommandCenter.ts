@@ -26,7 +26,7 @@ export const DASHBOARD_V4_COPY = {
   websiteHealthTitle: 'Website Health',
   monitoringActiveTitle: 'Monitoring Active',
   monitoringActiveSubtitle: 'Continuous checks across SSL, domain, uptime, and configuration.',
-  immediateAttentionTitle: 'Immediate Attention',
+  immediateAttentionTitle: 'Fix this first',
   recentIntelligenceTitle: 'Recent Website Intelligence',
   valueDeliveredTitle: 'What CyberShield Did For You',
   valueDeliveredSubtitle: 'Past 30 days of protection and intelligence',

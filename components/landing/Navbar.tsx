@@ -19,7 +19,7 @@ export default function Navbar() {
           <Link href="/#health-center" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
             Health Center
           </Link>
-          <Link href="/#agencies" className="hidden text-sm text-gray-400 hover:text-white md:inline">
+          <Link href="/agency" className="hidden text-sm text-gray-400 hover:text-white md:inline">
             Agencies
           </Link>
           <Link href="/pricing" className="hidden text-sm text-gray-400 hover:text-white sm:inline">

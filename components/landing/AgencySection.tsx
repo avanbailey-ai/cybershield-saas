@@ -65,7 +65,7 @@ export default function AgencySection() {
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           <Link
-            href="/pricing"
+            href="/agency"
             className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
           >
             View Agency plans

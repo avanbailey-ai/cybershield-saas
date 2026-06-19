@@ -10,8 +10,24 @@ import Input from "@/components/ui/Input";
 import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 import AuthProviderDivider from "@/components/auth/AuthProviderDivider";
 import { isValidReferralCode } from "@/lib/referrals/codeFormat";
+import {
+  parseSignupAttributionParams,
+  type SignupPlanParam,
+} from "@/lib/conversion/signupPlanContext";
 
-export default function SignupForm() {
+interface SignupFormProps {
+  initialPlan?: SignupPlanParam;
+  planBadge?: string | null;
+  planHighlight?: string | null;
+  hasValidProspect?: boolean;
+}
+
+export default function SignupForm({
+  initialPlan = null,
+  planBadge = null,
+  planHighlight = null,
+  hasValidProspect = false,
+}: SignupFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo");
@@ -32,12 +48,10 @@ export default function SignupForm() {
       });
     }
 
-    const refParam = searchParams.get("ref");
-    const refToken =
-      refParam?.startsWith("prospect_") ? refParam.slice("prospect_".length) : null;
-    const prospectToken = searchParams.get("prospect") ?? refToken;
+    const attribution = parseSignupAttributionParams(searchParams);
+    const prospectToken = attribution.prospectToken;
 
-    if (prospectToken && prospectToken.length >= 8) {
+    if (prospectToken) {
       sessionStorage.setItem("prospect_attribution_token", prospectToken);
       void fetch("/api/attribution/click", {
         method: "POST",
@@ -45,7 +59,12 @@ export default function SignupForm() {
         body: JSON.stringify({ token: prospectToken }),
       });
     }
-  }, [searchParams]);
+
+    const plan = attribution.plan ?? initialPlan;
+    if (plan) {
+      sessionStorage.setItem("signup_intended_plan", plan);
+    }
+  }, [searchParams, initialPlan]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -133,6 +152,22 @@ export default function SignupForm() {
 
   return (
     <div className="space-y-5">
+      {(planBadge || planHighlight || hasValidProspect) && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-3 text-sm">
+          {planBadge && (
+            <p className="font-medium text-blue-300">{planBadge}</p>
+          )}
+          {planHighlight && (
+            <p className="mt-1 text-gray-400">{planHighlight}</p>
+          )}
+          {hasValidProspect && (
+            <p className="mt-1 text-xs text-gray-500">
+              Your review summary is linked to this signup — no action needed.
+            </p>
+          )}
+        </div>
+      )}
+
       <GoogleAuthButton label="Sign up with Google" />
 
       <AuthProviderDivider />

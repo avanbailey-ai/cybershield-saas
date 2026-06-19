@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCustomerHealth, type CustomerHealthRecord } from './customerHealth';
 import { getCustomerExpansion } from './customerExpansion';
 import { getRevenueAtRisk } from './revenueAtRisk';
+import { getFounderCustomerMetrics } from './founderCustomerMetrics';
 
 export interface CustomerDirectoryEntry {
   userId: string;
@@ -55,10 +56,11 @@ export async function getCustomerDirectory(): Promise<CustomerDirectorySummary> 
   const admin = createAdminClient();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
-  const [health, expansion, revenue, websitesRes, scansRes, alertsRes] = await Promise.all([
+  const [health, expansion, revenue, founderMetrics, websitesRes, scansRes, alertsRes] = await Promise.all([
     getCustomerHealth(),
     getCustomerExpansion(),
     getRevenueAtRisk(),
+    getFounderCustomerMetrics(),
     admin.from('websites').select('user_id, url, is_active'),
     admin
       .from('scans')
@@ -129,7 +131,7 @@ export async function getCustomerDirectory(): Promise<CustomerDirectorySummary> 
 
   return {
     generatedAt: new Date().toISOString(),
-    totalMrr: customers.reduce((s, c) => s + c.mrr, 0),
+    totalMrr: founderMetrics.mrr,
     customers,
   };
 }

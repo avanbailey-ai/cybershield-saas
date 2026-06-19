@@ -17,19 +17,46 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: s
 export default function CustomersView() {
   const { founderData, refreshFounderData, setSection } = useFounderNav();
   const [directory, setDirectory] = useState<CustomerDirectoryEntry[]>([]);
-  const [totalMrr, setTotalMrr] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+
+  const business = founderData.v6.businessHealth;
   const revenue = founderData.v6.revenueAtRisk;
   const expansion = founderData.v6.expansion;
+  const healthCustomers = founderData.v6.customerHealth.customers;
 
   useEffect(() => {
     fetch('/api/owner/customers')
       .then((r) => r.json())
       .then((d) => {
-        if (d.customers) setDirectory(d.customers);
-        if (d.totalMrr != null) setTotalMrr(d.totalMrr);
-      });
+        if (Array.isArray(d.customers) && d.customers.length > 0) {
+          setDirectory(d.customers);
+        }
+      })
+      .catch(() => {});
   }, [founderData.generatedAt]);
+
+  const displayDirectory: CustomerDirectoryEntry[] =
+    directory.length > 0
+      ? directory
+      : healthCustomers.map((c) => ({
+          userId: c.userId,
+          email: c.email,
+          plan: c.plan,
+          planLabel: c.plan,
+          mrr: c.mrr,
+          healthScore: c.score,
+          healthStatus: c.status,
+          lastLoginAt: c.lastActivityAt,
+          websites: [],
+          scansLast30Days: 0,
+          alertsLast30Days: 0,
+          risks: c.reasons.filter((r) => !r.ok).map((r) => r.label).slice(0, 4),
+          expansionOpportunity: null,
+          nextAction: c.recommendedActions[0] ?? 'Monitor — healthy',
+        }));
+
+  const displayMrr = business.mrr;
+  const payingCount = business.payingCustomers;
 
   async function sendRetention(userId: string) {
     setBusy(`ret-${userId}`);
@@ -73,14 +100,14 @@ export default function CustomersView() {
       });
       const res = await fetch('/api/owner/customers');
       const d = await res.json();
-      if (d.customers) setDirectory(d.customers);
+      if (d.customers?.length) setDirectory(d.customers);
       await refreshFounderData();
     } finally {
       setBusy(null);
     }
   }
 
-  if (directory.length === 0) {
+  if (payingCount === 0 && displayDirectory.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
         <header className="mb-8">
@@ -100,18 +127,19 @@ export default function CustomersView() {
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Revenue protection</h1>
         <p className="mt-2 text-gray-500">
-          {directory.length} paying customer{directory.length === 1 ? '' : 's'} · ${totalMrr}/mo MRR
+          {payingCount} paying customer{payingCount === 1 ? '' : 's'} · ${displayMrr}/mo MRR
+          <span className="text-gray-600"> · synced with Home metrics</span>
         </p>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Paying customers" value={String(directory.length)} />
-        <Metric label="Total MRR" value={`$${totalMrr}`} tone="text-emerald-400" />
+        <Metric label="Paying customers" value={String(payingCount)} />
+        <Metric label="Total MRR" value={`$${displayMrr}`} tone="text-emerald-400" />
         <Metric
           label="At risk"
-          value={String(directory.filter((c) => c.healthStatus !== 'Healthy').length)}
+          value={String(displayDirectory.filter((c) => c.healthStatus !== 'Healthy').length)}
           tone={
-            directory.some((c) => c.healthStatus !== 'Healthy')
+            displayDirectory.some((c) => c.healthStatus !== 'Healthy')
               ? 'text-amber-400'
               : 'text-emerald-400'
           }
@@ -137,7 +165,7 @@ export default function CustomersView() {
           </button>
         </div>
         <ul className="mt-4 divide-y divide-white/[0.06]">
-          {directory.map((c) => (
+          {displayDirectory.map((c) => (
             <li key={c.userId} className="py-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -183,7 +211,7 @@ export default function CustomersView() {
                     type="button"
                     disabled={busy === `ret-${c.userId}`}
                     onClick={() => sendRetention(c.userId)}
-                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs text-white hover:bg-violet-500 disabled:opacity-50"
+                    className="min-h-[40px] rounded-lg bg-violet-600 px-3 py-1.5 text-xs text-white hover:bg-violet-500 disabled:opacity-50"
                   >
                     {busy === `ret-${c.userId}` ? 'Sending…' : 'Send retention'}
                   </button>
@@ -199,7 +227,7 @@ export default function CustomersView() {
                         c.expansionOpportunity!.recommendedPlan,
                       )
                     }
-                    className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+                    className="min-h-[40px] rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
                   >
                     {busy === `up-${c.userId}` ? 'Sending…' : 'Send upgrade email'}
                   </button>
@@ -208,7 +236,7 @@ export default function CustomersView() {
                   type="button"
                   disabled={busy === `mark_healthy-${c.userId}`}
                   onClick={() => markStatus(c.userId, 'mark_healthy')}
-                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 disabled:opacity-50"
+                  className="min-h-[40px] rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 disabled:opacity-50"
                 >
                   Mark healthy
                 </button>
@@ -216,7 +244,7 @@ export default function CustomersView() {
                   type="button"
                   disabled={busy === `mark_at_risk-${c.userId}`}
                   onClick={() => markStatus(c.userId, 'mark_at_risk')}
-                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 disabled:opacity-50"
+                  className="min-h-[40px] rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-400 disabled:opacity-50"
                 >
                   Mark at risk
                 </button>

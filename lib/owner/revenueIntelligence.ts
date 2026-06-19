@@ -1,6 +1,11 @@
 import type { OwnerProspect } from './types';
 import { activeProspects } from './prospectFilters';
-import { hasOutreachContact, resolveProspectList } from './prospectDisplay';
+import {
+  filterProspectsByKind,
+  hasOutreachContact,
+  resolveProspectList,
+  type ProspectKindView,
+} from './prospectDisplay';
 
 export interface RevenueIntelligenceSummary {
   potentialOpportunities: number;
@@ -13,9 +18,12 @@ export interface RevenueIntelligenceSummary {
 
 export function computeRevenueIntelligence(
   prospects: OwnerProspect[],
+  kindView: ProspectKindView = 'all',
 ): RevenueIntelligenceSummary {
   const resolved = resolveProspectList(prospects);
-  const active = activeProspects(resolved);
+  const scoped =
+    kindView === 'all' ? activeProspects(resolved) : filterProspectsByKind(activeProspects(resolved), kindView);
+  const active = scoped;
   const qualified = active.filter((p) =>
     ['qualified', 'outreach_ready', 'contacted', 'interested'].includes(
       p.pipeline_state ?? '',

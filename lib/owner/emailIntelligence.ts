@@ -5,6 +5,8 @@ export interface EmailIntelligenceSummary {
   sentToday: number;
   delivered: number;
   opened: number;
+  uniqueOpens: number;
+  uniqueOpenRate: number;
   clicked: number;
   bounced: number;
   conversions: number;
@@ -37,6 +39,16 @@ export async function getEmailIntelligence(): Promise<EmailIntelligenceSummary> 
   const deliveries = deliveriesRes.data ?? [];
   const events = eventsRes.data ?? [];
 
+  const openEvents = events.filter((e) => e.event_type === 'opened');
+  const uniqueOpenIds = new Set<string>();
+  for (const e of openEvents) {
+    if (e.delivery_id) uniqueOpenIds.add(e.delivery_id as string);
+  }
+  const uniqueOpens = uniqueOpenIds.size;
+  const sentToday = deliveries.length;
+  const uniqueOpenRate =
+    sentToday > 0 ? Math.min(100, Math.round((uniqueOpens / sentToday) * 100)) : 0;
+
   const eventCounts = {
     delivered: 0,
     opened: 0,
@@ -49,14 +61,17 @@ export async function getEmailIntelligence(): Promise<EmailIntelligenceSummary> 
     if (t in eventCounts) eventCounts[t]++;
   }
 
-  const categoryStats = new Map<string, { sent: number; opened: number }>();
+  const categoryStats = new Map<string, { sent: number; openedIds: Set<string> }>();
   const templateStats = new Map<string, { sent: number; clicked: number }>();
+  const deliveryCategory = new Map<string, string>();
 
   for (const d of deliveries) {
     const cat = (d.category as string) ?? 'system';
-    const cur = categoryStats.get(cat) ?? { sent: 0, opened: 0 };
+    const id = d.id as string;
+    deliveryCategory.set(id, cat);
+    const cur = categoryStats.get(cat) ?? { sent: 0, openedIds: new Set<string>() };
     cur.sent++;
-    if (d.status === 'opened') cur.opened++;
+    if (d.status === 'opened') cur.openedIds.add(id);
     categoryStats.set(cat, cur);
 
     const tpl = (d.template as string) ?? cat;
@@ -66,11 +81,22 @@ export async function getEmailIntelligence(): Promise<EmailIntelligenceSummary> 
     templateStats.set(tpl, tcur);
   }
 
+  for (const e of events) {
+    if (e.event_type !== 'opened' || !e.delivery_id) continue;
+    const cat = deliveryCategory.get(e.delivery_id as string);
+    if (!cat) continue;
+    const cur = categoryStats.get(cat);
+    if (cur) cur.openedIds.add(e.delivery_id as string);
+  }
+
   const topCategories = [...categoryStats.entries()]
     .map(([category, s]) => ({
       category,
       sent: s.sent,
-      openRate: s.sent > 0 ? Math.round((s.opened / s.sent) * 100) : 0,
+      openRate:
+        s.sent > 0
+          ? Math.min(100, Math.round((Math.min(s.openedIds.size, s.sent) / s.sent) * 100))
+          : 0,
     }))
     .sort((a, b) => b.sent - a.sent)
     .slice(0, 5);
@@ -82,9 +108,11 @@ export async function getEmailIntelligence(): Promise<EmailIntelligenceSummary> 
 
   return {
     generatedAt: new Date().toISOString(),
-    sentToday: deliveries.length,
+    sentToday,
     delivered: eventCounts.delivered || deliveries.filter((d) => d.status === 'delivered').length,
     opened: eventCounts.opened,
+    uniqueOpens,
+    uniqueOpenRate,
     clicked: eventCounts.clicked,
     bounced: eventCounts.bounced,
     conversions: conversionsRes.count ?? 0,

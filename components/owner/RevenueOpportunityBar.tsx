@@ -3,11 +3,20 @@
 import type { RevenueIntelligenceSummary } from '@/lib/owner/revenueIntelligence';
 import { formatRevenue } from '@/lib/owner/revenueIntelligence';
 
-export default function RevenueOpportunityBar({ summary }: { summary: RevenueIntelligenceSummary }) {
+export default function RevenueOpportunityBar({
+  summary,
+  kindView = 'all',
+}: {
+  summary: RevenueIntelligenceSummary;
+  kindView?: 'smb' | 'agency' | 'all';
+}) {
+  const viewLabel =
+    kindView === 'agency' ? 'Agency pipeline' : kindView === 'smb' ? 'SMB pipeline' : 'All prospects';
+
   return (
     <section className="mb-8 rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-transparent to-violet-500/5 p-6">
       <p className="text-xs font-medium uppercase tracking-wider text-emerald-400/90">
-        Revenue intelligence
+        {viewLabel}
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Metric label="Potential opportunities" value={String(summary.potentialOpportunities)} />

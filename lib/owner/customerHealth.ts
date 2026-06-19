@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
 import { formatInactivityDays, isInternalCustomerProfile } from './internalAccountFilters';
+import { getFounderCustomerMetrics } from './founderCustomerMetrics';
 
 export type CustomerHealthStatus = 'Healthy' | 'At Risk' | 'Critical';
 
@@ -55,7 +56,7 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
   const thirtyDaysAgo = new Date(Date.now() - 30 * MS_DAY).toISOString();
   const sevenDaysAgo = new Date(Date.now() - 7 * MS_DAY).toISOString();
 
-  const [profilesRes, websitesRes, scansRes, subsRes, sslRes, reportsRes, displayAmounts] =
+  const [profilesRes, websitesRes, scansRes, subsRes, sslRes, reportsRes, displayAmounts, founderMetrics] =
     await Promise.all([
       admin
         .from('profiles')
@@ -78,6 +79,7 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
         .select('website_id, created_at, websites(user_id)')
         .gte('created_at', thirtyDaysAgo),
       getPlanDisplayAmounts(),
+      getFounderCustomerMetrics(),
     ]);
 
   const profiles = profilesRes.data ?? [];
@@ -122,6 +124,8 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
 
   const customers: CustomerHealthRecord[] = [];
 
+  const payingIds = new Set(founderMetrics.customers.map((c) => c.userId));
+
   for (const p of profiles) {
     const email = (p.email as string) ?? '';
     if (
@@ -135,7 +139,11 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
 
     const userId = p.id as string;
     const plan = (p.plan as string) ?? 'free';
-    if (plan === 'free' && p.subscription_status !== 'trialing') continue;
+    const subscriptionStatus = (p.subscription_status as string) ?? '';
+    const isTrialingPaid =
+      subscriptionStatus === 'trialing' && plan !== 'free' && plan !== 'owner';
+    if (!payingIds.has(userId) && !isTrialingPaid) continue;
+    if (plan === 'free' && !isTrialingPaid) continue;
 
     const siteInfo = websitesByUser.get(userId) ?? { count: 0, active: 0, ids: [] };
     const scanInfo = scansByUser.get(userId) ?? { recent: 0, lastAt: null };
@@ -252,7 +260,9 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
       userId,
       email,
       plan,
-      mrr: planMrr(plan, displayAmounts),
+      mrr: payingIds.has(userId)
+        ? (founderMetrics.customers.find((c) => c.userId === userId)?.mrr ?? planMrr(plan, displayAmounts))
+        : planMrr(plan, displayAmounts),
       score: finalScore,
       status,
       reasons: reasons.slice(0, 8),

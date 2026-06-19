@@ -20,17 +20,20 @@ export function isValidAttributionToken(token: string | null | undefined): boole
 }
 
 export function buildAttributionSignupUrl(token: string): string {
-  return `${APP_URL}/signup?source=outreach&prospect=${encodeURIComponent(token)}`;
+  return `${APP_URL}/summary?prospect=${encodeURIComponent(token)}&source=outreach`;
 }
 
 /**
- * Tracked CTA link for AGENCY outreach. Separate from the SMB signup link so SMB
- * behavior is unchanged: it lands on the Agency plan signup with an
- * agency-specific attribution source. There is no dedicated `/agency` route
- * today, so this points at `/signup?plan=agency`; the middleware still captures
- * the `?prospect=` token into the attribution cookie.
+ * Tracked CTA link for AGENCY outreach. Lands on the public prospect summary first
+ * so warm clicks see context before signup. Middleware captures `?prospect=` into
+ * the attribution cookie for OAuth and email confirmation flows.
  */
 export function buildAgencyAttributionUrl(token: string): string {
+  return `${APP_URL}/summary?prospect=${encodeURIComponent(token)}&plan=agency&source=agency_outreach`;
+}
+
+/** Direct agency signup link (fallback when summary is not used). */
+export function buildAgencySignupUrl(token: string): string {
   return `${APP_URL}/signup?plan=agency&source=agency_outreach&prospect=${encodeURIComponent(token)}`;
 }
 

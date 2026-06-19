@@ -2,6 +2,10 @@ import { promises as dns } from 'dns';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkEmailDnsHealth, type DnsRecordCheck } from '@/lib/email/dnsHealth';
 import {
+  computeEmailEngagementRates,
+  formatDeliveryEngagementDetail,
+} from './emailEngagementMetrics';
+import {
   EMAIL_LINKS_DOMAIN,
   EMAIL_ROOT_DOMAIN,
   EMAIL_SENDING_DOMAIN,
@@ -115,7 +119,7 @@ export async function getEmailHealth(): Promise<EmailHealthSummary> {
   const admin = createAdminClient();
   const dayAgo = new Date(Date.now() - 86400000).toISOString();
 
-  const [sentRes, bouncedRes, openedRes, clickedRes] = await Promise.all([
+  const [sentRes, bouncedRes, openEventsRes, clickEventsRes] = await Promise.all([
     admin
       .from('owner_email_deliveries')
       .select('id', { count: 'exact', head: true })
@@ -127,34 +131,39 @@ export async function getEmailHealth(): Promise<EmailHealthSummary> {
       .gte('created_at', dayAgo),
     admin
       .from('owner_email_engagement_events')
-      .select('id', { count: 'exact', head: true })
+      .select('delivery_id')
       .eq('event_type', 'opened')
       .gte('created_at', dayAgo),
     admin
       .from('owner_email_engagement_events')
-      .select('id', { count: 'exact', head: true })
+      .select('delivery_id')
       .eq('event_type', 'clicked')
       .gte('created_at', dayAgo),
   ]);
 
   const sent = sentRes.count ?? 0;
   const bounced = bouncedRes.count ?? 0;
-  const opened = openedRes.count ?? 0;
-  const clicked = clickedRes.count ?? 0;
-  const bounceRate = sent > 0 ? (bounced / sent) * 100 : 0;
-  const openRate = sent > 0 ? (opened / sent) * 100 : 0;
-  const clickRate = sent > 0 ? (clicked / sent) * 100 : 0;
+  const rates = computeEmailEngagementRates({
+    sent,
+    bounced,
+    openEvents: openEventsRes.data ?? [],
+    clickEvents: clickEventsRes.data ?? [],
+  });
 
   checks.push({
     id: 'delivery_rate',
     label: 'Delivery rate (24h)',
-    status: sent === 0 ? 'warning' : bounceRate > 5 ? 'critical' : bounceRate > 2 ? 'warning' : 'healthy',
-    detail:
+    status:
       sent === 0
-        ? 'No sends logged in 24h'
-        : `${sent} sent · ${bounceRate.toFixed(1)}% bounce · ${openRate.toFixed(1)}% open · ${clickRate.toFixed(1)}% click`,
+        ? 'warning'
+        : rates.bounceRate > 5
+          ? 'critical'
+          : rates.bounceRate > 2
+            ? 'warning'
+            : 'healthy',
+    detail: formatDeliveryEngagementDetail(rates),
     fixRecommendation:
-      bounceRate > 5
+      rates.bounceRate > 5
         ? 'High bounce rate — verify contact emails before outreach, check domain reputation.'
         : null,
   });
