@@ -82,8 +82,8 @@ export default async function ScanResultLegacyPage({ searchParams }: PageProps) 
         <h1 className="text-2xl font-bold text-white sm:text-3xl">Security Scan Results</h1>
         <p className="mt-2 text-gray-400">{domain}</p>
         <p className="mx-auto mt-3 max-w-lg text-sm text-gray-500">
-          A single scan shows your posture today. Enable monitoring to track SSL, uptime, and
-          changes before they affect customers.
+          A single scan shows your posture today. Compare monitoring plans when you want SSL,
+          uptime, and change alerts after the scan.
         </p>
 
         {score !== null && !Number.isNaN(score) && (

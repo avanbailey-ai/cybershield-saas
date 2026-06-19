@@ -82,10 +82,10 @@ export default function HealthCenterPreview() {
               </li>
             </ul>
             <Link
-              href="/signup"
+              href="/pricing"
               className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
             >
-              Start monitoring
+              Compare monitoring plans
               <ArrowIcon />
             </Link>
           </div>

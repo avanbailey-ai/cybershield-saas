@@ -124,7 +124,7 @@ export default function ScanResultPaywall({
     brainConfig.cta_placement === 'bottom' || brainConfig.cta_placement === 'both';
 
   const upgradeCtaLabel = scoreAtRisk
-    ? 'See Exact Fixes'
+    ? 'See fixes for these findings'
     : isSecondScan
       ? 'Start Monitoring This Website'
       : 'Unlock Full Security Report';
@@ -196,6 +196,10 @@ export default function ScanResultPaywall({
             <p className="mt-2 text-sm text-gray-300">{result.genericMessage}</p>
           )}
           <p className="mt-2 text-sm text-gray-400">{urgency.subtext}</p>
+          <p className="mt-2 text-xs text-gray-500">
+            Free preview: score, risk level, and top finding names. Pro adds full explanations,
+            remediation steps, alerts, and monitoring history.
+          </p>
         </div>
       </div>
 
@@ -245,8 +249,8 @@ export default function ScanResultPaywall({
             Top findings ({topIssues.length} of {result.vulnerabilitiesCount})
           </p>
           <p className="mb-4 text-sm text-gray-400">
-            Each finding includes what it is, why it matters, business impact, and how to fix it.
-            Upgrade to unlock remediation assistant, send-to-developer, and ticket generation.
+            Your free preview shows the issue names. Upgrade to see what each issue means, why it
+            matters, business impact, remediation steps, send-to-developer, and ticket generation.
           </p>
           <ul className="space-y-3">
             {topIssues.map((issue, i) => (
@@ -317,7 +321,8 @@ export default function ScanResultPaywall({
         <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-5">
           <p className="text-sm font-semibold text-amber-200">Security review recommended</p>
           <p className="mt-1 text-xs text-amber-200/80">
-            Critical exposure detected. Request an automated security review for your domain.
+            Critical exposure detected. This path is for regulated teams, SSO/audit-log needs, or
+            complex environments. Most small teams should start with Pro or Growth monitoring.
           </p>
           <Link
             href={funnel.enterpriseHref}
@@ -331,7 +336,7 @@ export default function ScanResultPaywall({
             }
             className="mt-4 inline-flex rounded-lg border border-amber-500/40 px-5 py-2.5 text-sm font-medium text-amber-100 transition-colors hover:border-amber-400 hover:text-white"
           >
-            Request Security Review
+            Request enterprise review
           </Link>
         </div>
       )}
@@ -350,7 +355,8 @@ export default function ScanResultPaywall({
       {requireExplicitClick && !showPaywall && lockedCount > 0 && (
         <div className="mt-8 rounded-lg border border-gray-700/50 bg-gray-800/30 p-5 text-center">
           <p className="mb-3 text-sm text-gray-400">
-            {lockedCount} hidden risk{lockedCount !== 1 ? 's' : ''} detected in your full report.
+            {lockedCount} additional report section{lockedCount !== 1 ? 's' : ''} available after
+            upgrade.
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button

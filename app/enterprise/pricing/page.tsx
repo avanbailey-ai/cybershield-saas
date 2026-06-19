@@ -20,7 +20,7 @@ export default function EnterprisePricingPage() {
   const offerings = [
     {
       name: 'Enterprise Protection',
-      subtitle: 'For security-conscious organizations',
+      subtitle: 'For regulated or SSO-enabled organizations',
       features: [
         'Unlimited websites & seats',
         'Multi-tenant org management',
@@ -29,13 +29,13 @@ export default function EnterprisePricingPage() {
         'Dedicated security review',
         'Custom SLA & support',
       ],
-      cta: 'Request security review',
+      cta: 'Request enterprise review',
       ctaHref: '/enterprise/review',
       highlighted: true,
     },
     {
       name: 'Security Audit',
-      subtitle: 'One-time comprehensive assessment',
+      subtitle: 'One-time assessment for complex environments',
       features: [
         'Full vulnerability assessment',
         'Executive summary report',
@@ -56,8 +56,16 @@ export default function EnterprisePricingPage() {
         <div className="mb-12 text-center">
           <h1 className="text-4xl font-bold text-white">Enterprise Security</h1>
           <p className="mt-3 text-lg text-gray-400">
-            Custom coverage for regulated teams — scoped by our security experts.
+            Custom coverage for regulated teams, SSO/audit-log requirements, and complex
+            multi-site environments.
           </p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-500">
+            If you need straightforward website monitoring, start with Pro, Growth, or Agency on
+            the standard pricing page.
+          </p>
+          <Link href="/pricing" className="mt-4 inline-flex text-sm font-medium text-blue-400 hover:text-blue-300">
+            Compare self-serve plans →
+          </Link>
         </div>
 
         <div className="mb-16 grid gap-6 lg:grid-cols-2">
@@ -113,7 +121,7 @@ export default function EnterprisePricingPage() {
             href="/enterprise/review"
             className="rounded-lg bg-blue-600 px-8 py-3 font-semibold text-white hover:bg-blue-500"
           >
-            Request security review
+            Request enterprise review
           </Link>
           <Link
             href="/scan"

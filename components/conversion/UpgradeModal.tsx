@@ -141,7 +141,7 @@ export default function UpgradeModal({
   }
 
   const triggerMessages: Record<PaywallTrigger, string | null> = {
-    full_report: 'Your full report includes hidden risks, remediation steps, and change detection — not enabled on the Free plan.',
+    full_report: 'Your full report includes deeper issue context, remediation steps, and monitoring options that are not enabled on the Free plan.',
     second_scan: 'One-time scans miss new threats. Enable continuous protection to stay covered.',
     add_website: 'Add more websites and enable continuous protection.',
     export: 'Export full reports with continuous protection enabled.',
@@ -162,7 +162,7 @@ export default function UpgradeModal({
       : trigger === 'second_scan' || trigger === 'scan_limit'
         ? 'Start continuous protection'
         : score < 60
-          ? 'Fix vulnerabilities automatically'
+          ? 'Get guided fixes for vulnerabilities'
           : adaptiveConfig.ctaStyle === 'educational'
             ? 'Enable the protection you\'re missing'
             : urgency.headline;
@@ -277,7 +277,7 @@ export default function UpgradeModal({
 
         <div className="border-t border-gray-800 px-5 py-4 text-center sm:px-6">
           <p className="text-xs text-gray-500">
-            Regulated team or need a security review?{' '}
+            Regulated team or need SSO, audit logs, or a custom SLA?{' '}
             <Link
               href={enterpriseHref}
               onClick={() =>
@@ -285,7 +285,7 @@ export default function UpgradeModal({
               }
               className="font-medium text-amber-400 hover:text-amber-300"
             >
-              Request Security Review
+              Request enterprise review
             </Link>
           </p>
         </div>

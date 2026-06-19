@@ -14,18 +14,17 @@ export default function Hero() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
               </span>
-              Continuous monitoring — free scan to start
+              Free scan first — monitoring when you&apos;re ready
             </div>
 
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:mb-6 sm:text-5xl lg:text-6xl">
-              Website Security Monitoring{" "}
-              <span className="text-blue-400">— SSL, Health & Change Detection</span>
+              Find website security issues{" "}
+              <span className="text-blue-400">before visitors do</span>
             </h1>
 
             <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              CyberShield Cloud continuously monitors website security scores, SSL certificates,
-              domain health, and unauthorized changes. Get website security alerts before customers
-              see browser warnings or downtime.
+              Run a free scan to see your security score and top findings. Upgrade only when you
+              want daily monitoring, SSL and domain alerts, change detection, and full fix guidance.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
@@ -47,15 +46,15 @@ export default function Hero() {
             <div className="flex flex-col gap-3 text-sm text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                SSL expiry alerts before browser warnings
+                No login required for your first scan
               </span>
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Uptime checks — catch downtime early
+                SSL expiry alerts before browser warnings
               </span>
               <span className="hidden items-center gap-2 sm:flex">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Change timeline — your website&apos;s memory
+                Change timeline when monitoring is enabled
               </span>
             </div>
           </div>

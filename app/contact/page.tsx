@@ -26,9 +26,9 @@ export default function ContactPage() {
         Business Profile and major citations when applicable.
       </p>
       <p>
-        Enterprise security reviews and agency onboarding: use the{' '}
+        Enterprise security reviews for SSO, audit-log, custom SLA, or regulated requirements: use the{' '}
         <a href="/enterprise/review" className="text-blue-400 hover:text-blue-300">
-          Request Security Review
+          Enterprise Review
         </a>{' '}
         form and our team will follow up.
       </p>

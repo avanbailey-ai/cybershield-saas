@@ -24,28 +24,28 @@ const smbPlans = [
   {
     id: 'pro' as const,
     name: 'Pro',
-    subtitle: 'Recommended after your scan',
-    badge: 'Best for your site',
+    subtitle: 'Best next step after a scan',
+    badge: 'Best for most sites',
     price: '',
     period: '/mo',
     description:
-      'Unlock the full report and start daily monitoring with fix guidance for the issues your scan revealed.',
+      'Unlock the full report, fix guidance, daily monitoring, SSL/domain alerts, and email alerts for your site.',
     roiLine: 'Pro unlocks full reports, monitoring, and step-by-step fix guidance.',
     features: getPlanMarketing('pro').bullets,
-    cta: 'Start Monitoring',
+    cta: 'Unlock report + daily monitoring',
     highlighted: true,
     stripePlan: 'pro' as const,
   },
   {
     id: 'growth' as const,
     name: 'Growth',
-    subtitle: 'For growing teams',
+    subtitle: 'For active teams and frequent changes',
     badge: null,
     price: '',
     period: '/mo',
     description:
-      'Continuous protection with hourly monitoring, change detection, and trend tracking.',
-    roiLine: 'Hourly monitoring catches new risks between deep scans.',
+      'Add hourly monitoring and change detection for teams that ship often or manage multiple live sites.',
+    roiLine: 'Hourly monitoring and change detection catch risks between deep scans.',
     features: getPlanMarketing('growth').bullets,
     cta: 'Enable Continuous Protection',
     highlighted: false,
@@ -56,14 +56,14 @@ const smbPlans = [
 const freePlan = {
   id: 'free' as const,
   name: 'Free Scan',
-  description: 'One-time preview only — top 3 findings shown, no continuous monitoring.',
+  description: 'One-time preview only — score, risk level, and top finding names shown.',
   features: [
-    'One-time risk score',
-    'Top 3 vulnerabilities shown',
+    'Visible security score and risk level',
+    'Top finding names shown',
     'No account required',
-    'Attack surface mapping not included',
-    'Change detection not included',
-    'Exploit modeling not included',
+    'Full explanations not included',
+    'Fix guidance not included',
+    'Continuous monitoring not included',
   ],
   cta: 'Scan your website for free',
   href: '/#scan',
@@ -205,8 +205,8 @@ function PricingInner() {
             </div>
           )}
           <p className="mx-auto mt-4 max-w-xl text-gray-400">
-            Your free scan showed the gaps. Pro unlocks full reports, daily monitoring, and step-by-step
-            fix guidance.
+            Start with a free scan. Upgrade when you want the full report, fix guidance, alerts, and
+            monitoring that keeps checking after today.
           </p>
           {trustSignals && (
             <p className="mx-auto mt-3 max-w-xl text-xs text-gray-500">
@@ -349,6 +349,10 @@ function PricingInner() {
             <h3 className="mt-3 text-2xl font-bold text-white">{ENTERPRISE_MARKETING.headline}</h3>
             <p className="mt-3 text-sm leading-relaxed text-gray-400">{ENTERPRISE_MARKETING.body}</p>
             <p className="mt-2 text-sm text-gray-500">{ENTERPRISE_MARKETING.pricingNote}</p>
+            <p className="mx-auto mt-3 max-w-xl text-xs text-amber-100/70">
+              Not sure if this is you? SMBs and agencies usually start with the plans above. Choose
+              enterprise when you need SSO/SAML, audit logs, custom SLA, or regulated review.
+            </p>
             <ul className="mt-6 inline-flex flex-col gap-2 text-left text-sm text-gray-400">
               {ENTERPRISE_MARKETING.bullets.map((item) => (
                 <li key={item} className="flex items-center gap-2">
@@ -366,7 +370,7 @@ function PricingInner() {
                 onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_review' })}
                 className="rounded-lg bg-amber-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
               >
-                {ENTERPRISE_MARKETING.cta}
+                Request enterprise review
               </Link>
               <Link
                 href="/enterprise/login"

@@ -30,7 +30,7 @@ export default function Navbar() {
           </Link>
           <Link href="/#scan">
             <Button variant="primary" size="sm">
-              Start monitoring
+              Run free scan
             </Button>
           </Link>
           <Link href="/login">

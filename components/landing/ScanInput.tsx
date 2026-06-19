@@ -289,10 +289,11 @@ function ScanInputInner(_props: ScanInputProps) {
     <section id="scan" className="relative scroll-mt-20 px-5 py-14 sm:px-4 sm:py-16">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="mb-3 text-2xl font-bold text-white sm:mb-2 sm:text-3xl">
-          Scan Your Website — Free
+          Run a Free Website Security Scan
         </h2>
         <p className="mb-8 text-base text-gray-400 sm:text-gray-400">
-          Instant security score. No login required.
+          Get a visible score and top findings in minutes. No login required; upgrade only if you
+          want the full report and continuous monitoring.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:flex-row sm:gap-3">
@@ -329,7 +330,7 @@ function ScanInputInner(_props: ScanInputProps) {
                 {loading ? 'Scanning…' : 'Analyzing…'}
               </>
             ) : (
-              'Scan your website for free'
+              'Run free scan'
             )}
           </button>
         </form>
