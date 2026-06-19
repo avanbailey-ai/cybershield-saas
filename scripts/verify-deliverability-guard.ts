@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { validateOutreachCopy } from '../lib/owner/outreachCopyGuard';
 import { generateOutreach } from '../lib/owner/generators/outreach';
+import { conversionBlockReason } from '../lib/owner/conversionPathGuard';
 
 function read(rel: string): string {
   return existsSync(join(process.cwd(), rel)) ? readFileSync(join(process.cwd(), rel), 'utf8') : '';
@@ -29,6 +30,9 @@ const exec = read('lib/owner/outreachExecution.ts');
 assert(exec.includes('assertCanSendOutreach'), 'outreachExecution uses deliverability guard');
 assert(exec.includes('validateOutreachCopy'), 'outreachExecution uses copy guard');
 assert(exec.includes('conversionBlockReason'), 'outreachExecution checks conversion paths');
+assert(conversionBlockReason(false) === null, 'SMB conversion path not blocked at runtime');
+assert(conversionBlockReason(true) === null, 'Agency conversion path not blocked at runtime');
+assert(read('lib/owner/conversionPathGuard.ts').includes('registry only'), 'runtime conversion guard avoids filesystem');
 assert(exec.includes('require_approval'), 'approval gate preserved');
 
 assert(read('lib/owner/deliverabilityGuard.ts').includes('WARMUP_DAILY_CAPS'), 'warmup caps in deliverability guard');
