@@ -24,7 +24,8 @@ export type DiscoverySource =
   | 'platform_website'
   | 'manual'
   | 'csv'
-  | 'url_batch';
+  | 'url_batch'
+  | 'revenue_engine';
 
 export interface RawDiscoveredBusiness {
   business_name: string;

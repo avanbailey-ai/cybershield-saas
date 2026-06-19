@@ -12,7 +12,7 @@ import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
 export interface FounderReviewTarget {
   prospectId?: string;
   draftId?: string;
-  focus?: 'send-queue' | 'prospect';
+  focus?: 'send-queue' | 'prospect' | 'find-customers';
 }
 
 interface FounderNavContextValue {
@@ -24,6 +24,7 @@ interface FounderNavContextValue {
   setFounderData: (data: FounderOsV6Data) => void;
   reviewTarget: FounderReviewTarget | null;
   openProspectsReview: (target: FounderReviewTarget) => void;
+  openFindCustomers: () => void;
   clearReviewTarget: () => void;
 }
 
@@ -53,6 +54,12 @@ export function FounderNavProvider({
     window.history.replaceState(null, '', '#prospects');
   }, []);
 
+  const openFindCustomers = useCallback(() => {
+    setReviewTarget({ focus: 'find-customers' });
+    setSectionState('prospects');
+    window.history.replaceState(null, '', '#prospects');
+  }, []);
+
   const clearReviewTarget = useCallback(() => setReviewTarget(null), []);
 
   const refreshFounderData = useCallback(async () => {
@@ -78,6 +85,7 @@ export function FounderNavProvider({
         setFounderData,
         reviewTarget,
         openProspectsReview,
+        openFindCustomers,
         clearReviewTarget,
       }}
     >

@@ -15,7 +15,8 @@ export default function ProspectsView({ prospects }: Props) {
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Prospects</h1>
         <p className="mt-2 max-w-2xl text-gray-500">
-          Discover businesses, approve outreach, and send through Resend — one queue, no dead ends.
+          Website-first revenue engine — find weak-score sites, enrich contacts, approve outreach. No
+          emails sent until you approve.
         </p>
       </header>
       <LeadDiscovery initialProspects={prospects} embedded />

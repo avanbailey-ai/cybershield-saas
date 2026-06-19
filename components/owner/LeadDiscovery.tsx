@@ -22,6 +22,7 @@ import {
 } from '@/lib/owner/prospectDisplay';
 import { AGENCY_TYPE_OPTIONS, type AgencyType } from '@/lib/owner/agency/agencyTypes';
 import { useFounderNav } from './FounderNavContext';
+import FindCustomers from './FindCustomers';
 
 interface ProviderDiagnostic {
   provider: string;
@@ -126,10 +127,15 @@ export default function LeadDiscovery({
   const [agencyMode, setAgencyMode] = useState(false);
   const [agencyType, setAgencyType] = useState<AgencyType>('web_design');
   const { reviewTarget, clearReviewTarget } = useFounderNav();
+  const [findCustomersOpen, setFindCustomersOpen] = useState(true);
 
   useEffect(() => {
     if (!reviewTarget) return;
     const timer = window.setTimeout(() => {
+      if (reviewTarget.focus === 'find-customers') {
+        setFindCustomersOpen(true);
+        document.getElementById('find-customers')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       if (reviewTarget.focus === 'send-queue') {
         document.getElementById('prospects-send-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -383,6 +389,18 @@ export default function LeadDiscovery({
 
   const body = (
     <>
+      <div id="find-customers" className="mb-8">
+        <FindCustomers
+          initialOpen={findCustomersOpen}
+          onComplete={() => {
+            void refreshProspects();
+            void refreshFeed();
+          }}
+        />
+      </div>
+      <p className="mb-4 text-xs text-gray-500">
+        Advanced: location-based discovery below (optional). Default path is website-first above.
+      </p>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <button

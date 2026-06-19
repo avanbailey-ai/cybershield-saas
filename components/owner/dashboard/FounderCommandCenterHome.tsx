@@ -18,6 +18,7 @@ import {
   countActiveProspectsByKind,
   resolveBestLeadForKind,
 } from '@/lib/owner/founderPipelineSignals';
+import { computeCustomerAcquisitionSnapshot } from '@/lib/owner/revenueActions';
 import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 import EmailHealthSection from './EmailHealthSection';
 import GrowthAutopilotHomePanel from './GrowthAutopilotHomePanel';
@@ -49,7 +50,7 @@ function bestLeadForView(
 }
 
 export default function FounderCommandCenterHome() {
-  const { founderData: data, setSection, refreshFounderData } = useFounderNav();
+  const { founderData: data, setSection, refreshFounderData, openFindCustomers } = useFounderNav();
   const v6 = data.v6;
   const [prospects, setProspects] = useState<OwnerProspect[]>([]);
 
@@ -145,16 +146,20 @@ export default function FounderCommandCenterHome() {
 
   const recentActivity = v6.activityFeed.events.slice(0, 5);
 
+  const acquisition = useMemo(
+    () =>
+      computeCustomerAcquisitionSnapshot(prospects, v6.executionStats.pendingApprovals),
+    [prospects, v6.executionStats.pendingApprovals],
+  );
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Today&apos;s command center
+            Today&apos;s customer acquisition work
           </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            What to do now to grow revenue — not dashboard noise.
-          </p>
+          <p className="mt-2 text-sm text-gray-500">{acquisition.summaryLine}</p>
         </div>
         <button
           type="button"
@@ -163,6 +168,53 @@ export default function FounderCommandCenterHome() {
         >
           Refresh
         </button>
+      </header>
+
+      <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5 sm:p-6">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+          Revenue actions — not vanity metrics
+        </h2>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Snap label="Drafts ready" value={String(acquisition.draftsReady)} tone="text-emerald-400" />
+          <Snap label="Weak + email" value={String(acquisition.weakWithEmail)} />
+          <Snap label="Contact forms" value={String(acquisition.weakWithContactForm)} />
+          <Snap label="Need contact" value={String(acquisition.needsContactEnrichment)} />
+          <Snap label="Need rescan" value={String(acquisition.needsRescan)} />
+          <Snap label="Agency evidence" value={String(acquisition.agenciesWithEvidence)} />
+          <Snap label="Weak websites" value={String(acquisition.weakWebsitesTotal)} />
+          <Snap label="Contact paths" value={String(acquisition.contactPathsTotal)} />
+        </div>
+        <p className="mt-3 text-xs text-violet-300">{acquisition.nextRecommendedAction}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={openFindCustomers}
+            className="min-h-[44px] rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Find customers
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection('inbox')}
+            className="min-h-[44px] rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-violet-500/50"
+          >
+            Review drafts
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection('prospects')}
+            className="min-h-[44px] rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-violet-500/50"
+          >
+            Enrich contacts
+          </button>
+        </div>
+      </section>
+
+      <header className="flex flex-wrap items-end justify-between gap-4 pt-2">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Command priorities</h2>
+          <p className="mt-1 text-sm text-gray-500">What to do now to grow revenue.</p>
+        </div>
       </header>
 
       <section className="rounded-2xl border border-violet-500/25 bg-violet-500/5 p-5 sm:p-6">
