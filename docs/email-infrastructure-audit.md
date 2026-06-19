@@ -2,6 +2,69 @@
 
 Generated: 2026-06-20 · Branch: `checkpoint/email-infrastructure`
 
+---
+
+## ✅ FINAL SENDER STATUS (2026-06-18)
+
+**Production sends from the verified root domain. The unverified mail subdomain is not used.**
+
+| Item | Value | Verified? |
+|------|-------|-----------|
+| Active sender (`EMAIL_FROM`) | `CyberShield <outreach@cybershieldcloud.com>` | ✅ Root domain verified in Resend |
+| Sending domain | `cybershieldcloud.com` | ✅ DKIM published (`resend._domainkey.cybershieldcloud.com` resolves) |
+| `mail.cybershieldcloud.com` | **NOT verified** | ❌ `resend._domainkey.mail.cybershieldcloud.com` → NXDOMAIN |
+| `EMAIL_SENDING_DOMAIN` (Vercel Prod) | **REMOVED** | n/a — was forcing the unverified subdomain |
+| `RESEND_API_KEY` (Vercel Prod) | present | ✅ |
+| `OWNER_EMAIL` (Vercel Prod) | present (`Production, Preview`) | ✅ |
+
+### What was changed
+
+- **Removed `EMAIL_SENDING_DOMAIN`** from Vercel Production. With it unset,
+  `isMailSubdomainConfigured()` returns `false`, so `getResendFromAddress()`
+  resolves **every** category to the verified root `EMAIL_FROM` instead of the
+  unverified `*@mail.cybershieldcloud.com`. `getReplyToAddress()` likewise
+  derives its domain from the resolved root sender.
+- **Redeployed production** (`vercel --prod`, deployment `dpl_AXSoR4tMmJEJgXPtZjxcbvkmMgrX`,
+  aliased to `www.cybershieldcloud.com`).
+
+### Resolution logic (`lib/email/config.ts`)
+
+```
+getResendFromAddress(category):
+  1. EMAIL_FROM_<CATEGORY> override → use it
+  2. EMAIL_SENDING_DOMAIN set?      → <local>@mail.cybershieldcloud.com   (SKIPPED — env removed)
+  3. EMAIL_FROM set (non-sandbox)?  → EMAIL_FROM  ✅ ACTIVE PATH
+  4. else                           → resend.dev sandbox
+```
+
+### Re-enabling the mail subdomain later (optional)
+
+Only after `mail.cybershieldcloud.com` is verified in Resend (DKIM + SPF
+published and showing "Verified"):
+
+1. Confirm `resend._domainkey.mail.cybershieldcloud.com` resolves.
+2. `vercel env add EMAIL_SENDING_DOMAIN production` → `mail.cybershieldcloud.com`.
+3. Redeploy and run the owner test send below to confirm before relying on it.
+
+### Live owner test (requires owner session — run by Avan)
+
+The test endpoint is owner-gated (`requireOwner`), so it can't be triggered from
+CI/terminal. While signed in to production as the owner, run in the browser console:
+
+```js
+await fetch('/api/owner/test-email', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ to: 'avanbailey@gmail.com' }),
+}).then(r => r.json())
+```
+
+Expected: `ok: true`, `from: "CyberShield <outreach@cybershieldcloud.com>"`,
+`sandbox: false`, a `messageId`, and `error: null`. Use `{ dryRun: true }` to
+preview the resolved config without sending.
+
+---
+
 ## Executive summary
 
 CyberShield sends email via **Resend**. Before this sprint, delivery worked but infrastructure was immature: single root-domain sender, no DMARC, no plain-text, no engagement tracking, inconsistent footers, and AI-sounding outreach copy.
@@ -42,7 +105,13 @@ This sprint adds code infrastructure for professional deliverability. **DNS reco
 
 ## Email categories & senders
 
-| Category | Sender (production default) | Use |
+**Current production default (`EMAIL_SENDING_DOMAIN` unset):** every category sends
+from the verified root `EMAIL_FROM` → `CyberShield <outreach@cybershieldcloud.com>`.
+
+The per-category subdomain addresses below only activate **after**
+`mail.cybershieldcloud.com` is verified and `EMAIL_SENDING_DOMAIN` is set:
+
+| Category | Sender (only when subdomain verified) | Use |
 |----------|----------------------------|-----|
 | outreach / follow_up | `outreach@mail.cybershieldcloud.com` | Founder OS prospect emails |
 | onboarding / retention / upgrade | `success@mail.cybershieldcloud.com` | Customer lifecycle |
