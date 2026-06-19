@@ -74,6 +74,13 @@ export function hasOutreachContact(p: OwnerProspect): boolean {
   return Boolean(p.contact_email?.trim());
 }
 
+export function effectiveOutreachEmail(
+  prospect: OwnerProspect,
+  draftEmail?: string | null,
+): string | null {
+  return prospect.contact_email?.trim() || draftEmail?.trim() || null;
+}
+
 export function isTrulyOutreachReady(p: OwnerProspect): boolean {
   const state = p.pipeline_state ?? 'new_discovery';
   return state === 'outreach_ready' && hasOutreachContact(p);

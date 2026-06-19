@@ -13,10 +13,9 @@ export default function ProspectsView({ prospects }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header>
-        <p className="text-sm font-medium uppercase tracking-wider text-emerald-400">Send queue</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Prospects</h1>
-        <p className="mt-2 text-gray-500">
-          Approve outreach, send via Resend, and track pipeline — discovery feeds the queue
+        <h1 className="text-3xl font-semibold tracking-tight text-white">Prospects</h1>
+        <p className="mt-2 max-w-2xl text-gray-500">
+          Discover businesses, approve outreach, and send through Resend — one queue, no dead ends.
         </p>
       </header>
       <LeadDiscovery initialProspects={prospects} embedded />

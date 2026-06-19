@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import OutreachApprovalCard from './OutreachApprovalCard';
 import type { OwnerOutreachDraft, OwnerProspect } from '@/lib/owner/types';
-import { hasOutreachContact, resolveProspectList } from '@/lib/owner/prospectDisplay';
+import { effectiveOutreachEmail, resolveProspectList } from '@/lib/owner/prospectDisplay';
 
 export default function ProspectsActionQueue({
   prospects,
@@ -14,6 +14,8 @@ export default function ProspectsActionQueue({
 }) {
   const [drafts, setDrafts] = useState<OwnerOutreachDraft[]>([]);
   const [loading, setLoading] = useState(true);
+  const [findingContact, setFindingContact] = useState<string | null>(null);
+  const autoContactRan = useRef(false);
 
   const refreshDrafts = useCallback(async () => {
     const res = await fetch('/api/owner/outreach/drafts?view=active');
@@ -46,6 +48,36 @@ export default function ProspectsActionQueue({
       })
       .filter((x): x is { draft: OwnerOutreachDraft; prospect: OwnerProspect } => x !== null);
   }, [drafts, prospectMap]);
+
+  const runContactDiscovery = useCallback(
+    async (prospectId: string) => {
+      setFindingContact(prospectId);
+      try {
+        await fetch(`/api/owner/prospects/${prospectId}/contact`, { method: 'POST' });
+        const res = await fetch('/api/owner/prospects');
+        const data = await res.json();
+        if (data.prospects) onProspectsChange(resolveProspectList(data.prospects));
+        await refreshDrafts();
+      } finally {
+        setFindingContact(null);
+      }
+    },
+    [onProspectsChange, refreshDrafts],
+  );
+
+  useEffect(() => {
+    if (autoContactRan.current || loading || queue.length === 0) return;
+    const blocked = queue.filter(
+      ({ draft, prospect }) => !effectiveOutreachEmail(prospect, draft.recipient_email),
+    );
+    if (blocked.length === 0) return;
+    autoContactRan.current = true;
+    void (async () => {
+      for (const { prospect } of blocked.slice(0, 3)) {
+        await runContactDiscovery(prospect.id);
+      }
+    })();
+  }, [loading, queue, runContactDiscovery]);
 
   async function sendDraft(draftId: string, prospectId: string) {
     const res = await fetch(`/api/owner/outreach/${draftId}/send`, { method: 'POST' });
@@ -93,62 +125,70 @@ export default function ProspectsActionQueue({
   if (queue.length === 0) {
     return (
       <section className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
-        <p className="text-sm font-medium text-gray-400">No emails in the send queue</p>
+        <p className="text-sm font-medium text-gray-400">Nothing ready to send yet</p>
         <p className="mt-2 text-xs text-gray-600">
-          Generate outreach from qualified prospects with contact info, or approve drafts from Inbox.
+          Prospects with an email and strong opportunity score appear here for approve-and-send.
         </p>
       </section>
     );
   }
 
+  const sendable = queue.filter(({ draft, prospect }) =>
+    Boolean(effectiveOutreachEmail(prospect, draft.recipient_email)),
+  );
+
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-            Send queue
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-white">
-            {queue.length} email{queue.length === 1 ? '' : 's'} ready — approve to send via Resend
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            These drafts are waiting for your approval. Sending moves prospects to Contacted and
-            schedules follow-ups.
-          </p>
-        </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Send queue</p>
+        <h2 className="mt-1 text-xl font-semibold text-white">
+          {sendable.length > 0
+            ? `${sendable.length} ready to send via Resend`
+            : `${queue.length} draft${queue.length === 1 ? '' : 's'} need an email first`}
+        </h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Approve to send. Prospect moves to Contacted and follow-ups are scheduled automatically.
+        </p>
       </div>
       <ul className="space-y-5">
-        {queue.map(({ draft, prospect }) => (
-          <li key={draft.id}>
-            {hasOutreachContact(prospect) ? (
-              <OutreachApprovalCard
-                prospect={prospect}
-                draft={draft}
-                onApproveSend={() => sendDraft(draft.id, prospect.id)}
-                onEditDraft={(content) => editDraft(draft.id, content)}
-                onRegenerate={() => regenerateDraft(draft.id)}
-                onArchive={() => patchProspect(prospect.id, { archive: true })}
-                onIgnoreForever={() => patchProspect(prospect.id, { ignore_forever: true })}
-              />
-            ) : (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4 text-sm text-amber-200">
-                {prospect.business_name}: draft exists but contact email missing —{' '}
-                <button
-                  type="button"
-                  className="text-violet-300 underline"
-                  onClick={async () => {
-                    await fetch(`/api/owner/prospects/${prospect.id}/contact`, { method: 'POST' });
-                    const res = await fetch('/api/owner/prospects');
-                    const data = await res.json();
-                    if (data.prospects) onProspectsChange(data.prospects);
-                  }}
-                >
-                  run contact discovery
-                </button>
-              </div>
-            )}
-          </li>
-        ))}
+        {queue.map(({ draft, prospect }) => {
+          const email = effectiveOutreachEmail(prospect, draft.recipient_email);
+          const prospectForCard = email
+            ? { ...prospect, contact_email: email }
+            : prospect;
+
+          return (
+            <li key={draft.id}>
+              {email ? (
+                <OutreachApprovalCard
+                  prospect={prospectForCard}
+                  draft={draft}
+                  onApproveSend={() => sendDraft(draft.id, prospect.id)}
+                  onEditDraft={(content) => editDraft(draft.id, content)}
+                  onRegenerate={() => regenerateDraft(draft.id)}
+                  onArchive={() => patchProspect(prospect.id, { archive: true })}
+                  onIgnoreForever={() => patchProspect(prospect.id, { ignore_forever: true })}
+                />
+              ) : (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4 text-sm text-amber-100">
+                  <p className="font-medium text-white">{prospect.business_name}</p>
+                  <p className="mt-1 text-amber-200/90">
+                    Outreach draft exists but no sendable email yet.
+                    {prospect.contact_phone ? ` Phone on file: ${prospect.contact_phone}.` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-3 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+                    disabled={findingContact === prospect.id}
+                    onClick={() => runContactDiscovery(prospect.id)}
+                  >
+                    {findingContact === prospect.id ? 'Searching website…' : 'Find email on website'}
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

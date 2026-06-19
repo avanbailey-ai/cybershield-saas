@@ -204,17 +204,24 @@ export function confidenceLabel(conversionLikelihood: number | null, opportunity
 }
 
 export function contactStatusLabel(p: {
-  contact_email_found: boolean | null;
-  contact_phone_found: boolean | null;
-  contact_page_found: boolean | null;
-}): { label: string; available: boolean } {
-  if (p.contact_email_found || p.contact_phone_found) {
-    return { label: 'Contact available', available: true };
+  contact_email?: string | null;
+  contact_email_found?: boolean | null;
+  contact_phone_found?: boolean | null;
+  contact_page_found?: boolean | null;
+}): { label: string; available: boolean; emailReady: boolean } {
+  if (p.contact_email?.trim()) {
+    return { label: 'Email ready', available: true, emailReady: true };
+  }
+  if (p.contact_phone_found) {
+    return { label: 'Phone only — need email', available: false, emailReady: false };
   }
   if (p.contact_page_found) {
-    return { label: 'Limited contact data', available: false };
+    return { label: 'Contact page — find email', available: false, emailReady: false };
   }
-  return { label: 'No contact found', available: false };
+  if (p.contact_email_found) {
+    return { label: 'Email flagged — re-run contact', available: false, emailReady: false };
+  }
+  return { label: 'No contact found', available: false, emailReady: false };
 }
 
 export function buildQualificationReasons(

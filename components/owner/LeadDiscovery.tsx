@@ -101,6 +101,20 @@ export default function LeadDiscovery({
     loadSettings();
   }, [refreshFeed, loadSettings]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch('/api/owner/prospects/reconcile', { method: 'POST' });
+      const data = await res.json();
+      if (!cancelled && data.prospects) {
+        setProspects(resolveProspectList(data.prospects));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function saveSettings() {
     setSavingSettings(true);
     try {
@@ -200,12 +214,6 @@ export default function LeadDiscovery({
   const body = (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-white">Revenue intelligence platform</p>
-          <p className="mt-1 text-sm text-gray-500">
-            Find businesses most likely to become CyberShield customers
-          </p>
-        </div>
         <div className="flex gap-2">
           <button
             type="button"
@@ -347,37 +355,22 @@ export default function LeadDiscovery({
       )}
 
       {runs.length > 0 && (
-        <div className="mb-8 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-          <h3 className="text-sm font-medium text-white">Recent discovery outcomes</h3>
-          <ul className="mt-3 space-y-3">
-            {runs.slice(0, 6).map((run) => {
+        <details className="mb-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+          <summary className="cursor-pointer text-sm font-medium text-gray-400">
+            Discovery history ({runs.length} runs)
+          </summary>
+          <ul className="mt-3 space-y-2">
+            {runs.slice(0, 3).map((run) => {
               const o = runOutcomes(run);
               return (
-                <li key={run.id} className="rounded-lg border border-white/[0.04] px-4 py-3">
-                  <p className="text-sm text-gray-300">
-                    {o.discovered} discovered · {o.qualified} qualified · {o.outreachReady}{' '}
-                    outreach-ready · {o.skipped} skipped
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-600">
-                    {new Date(run.created_at).toLocaleString()}
-                  </p>
-                  {run.provider_diagnostics && run.provider_diagnostics.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowAdvancedDiag(showAdvancedDiag === run.id ? null : run.id)
-                      }
-                      className="mt-2 text-xs text-gray-500 hover:text-gray-300"
-                    >
-                      {showAdvancedDiag === run.id ? 'Hide' : 'Show'} advanced diagnostics
-                    </button>
-                  )}
-                  {showAdvancedDiag === run.id && renderAdvancedDiagnostics(run.provider_diagnostics)}
+                <li key={run.id} className="text-xs text-gray-500">
+                  {new Date(run.created_at).toLocaleString()} — {o.discovered} found · {o.qualified}{' '}
+                  qualified · {o.outreachReady} outreach-ready
                 </li>
               );
             })}
           </ul>
-        </div>
+        </details>
       )}
 
       {!hasProspects ? discoveryEmpty : (

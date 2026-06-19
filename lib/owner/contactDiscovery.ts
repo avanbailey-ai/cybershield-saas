@@ -30,10 +30,23 @@ function pickBestEmail(matches: string[]): string | null {
       !e.endsWith('.jpg') &&
       !e.includes('example.com') &&
       !e.includes('sentry.io') &&
-      !e.includes('wixpress.com'),
+      !e.includes('wixpress.com') &&
+      !e.startsWith('noreply@') &&
+      !e.startsWith('no-reply@') &&
+      !e.startsWith('donotreply@'),
   );
-  return filtered[0] ?? null;
+  const preferred = filtered.find(
+    (e) =>
+      e.startsWith('info@') ||
+      e.startsWith('contact@') ||
+      e.startsWith('hello@') ||
+      e.startsWith('sales@') ||
+      e.startsWith('support@'),
+  );
+  return preferred ?? filtered[0] ?? null;
 }
+
+const CONTACT_PATHS = ['/contact', '/contact-us', '/contactus', '/about', '/about-us', '/get-in-touch'];
 
 export function parseContactSignalsFromHtml(html: string, pageUrl: string): ContactSignals {
   const signals = { ...EMPTY_SIGNALS };
@@ -101,6 +114,33 @@ export async function discoverContactSignals(website: string): Promise<ContactSi
 
     const html = (await res.text()).slice(0, 120_000);
     const signals = parseContactSignalsFromHtml(html, res.url || url);
+
+    if (!signals.contact_email_found) {
+      for (const path of CONTACT_PATHS) {
+        try {
+          const pageUrl = new URL(path, res.url || url).toString();
+          const pageRes = await fetch(pageUrl, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com' },
+          });
+          if (!pageRes.ok) continue;
+          signals.contact_page_found = true;
+          const pageHtml = (await pageRes.text()).slice(0, 80_000);
+          const extra = parseContactSignalsFromHtml(pageHtml, pageUrl);
+          if (extra.contact_email_found && extra.contact_email) {
+            signals.contact_email_found = true;
+            signals.contact_email = extra.contact_email;
+            break;
+          }
+          if (!signals.contact_phone_found && extra.contact_phone_found) {
+            signals.contact_phone_found = true;
+            signals.contact_phone = extra.contact_phone;
+          }
+        } catch {
+          /* try next path */
+        }
+      }
+    }
 
     if (!signals.contact_page_found) {
       try {

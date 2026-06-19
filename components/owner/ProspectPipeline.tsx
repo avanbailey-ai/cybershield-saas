@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import EmptyState from './EmptyState';
 import ProspectCard from './ProspectCard';
 import OutreachApprovalCard from './OutreachApprovalCard';
@@ -18,7 +18,7 @@ import {
   type ProspectFilterId,
 } from '@/lib/owner/prospectFilters';
 import type { OwnerOutreachDraft, OwnerProspect } from '@/lib/owner/types';
-import { hasOutreachContact } from '@/lib/owner/prospectDisplay';
+import { effectiveOutreachEmail, hasOutreachContact } from '@/lib/owner/prospectDisplay';
 
 export default function ProspectPipeline({
   prospects,
@@ -34,6 +34,16 @@ export default function ProspectPipeline({
   const [scanning, setScanning] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [drafts, setDrafts] = useState<OwnerOutreachDraft[]>([]);
+  const initialTabSet = useRef(false);
+
+  useEffect(() => {
+    if (initialTabSet.current || prospects.length === 0) return;
+    initialTabSet.current = true;
+    const counts = countByStage(prospects);
+    if (counts.outreach_ready > 0) setTab('outreach_ready');
+    else if (counts.qualified > 0) setTab('qualified');
+    else if (counts.new_discovery > 0) setTab('new_discovery');
+  }, [prospects]);
 
   useEffect(() => {
     if (tab !== 'outreach_ready') return;
@@ -135,6 +145,19 @@ export default function ProspectPipeline({
     setScanning(id);
     try {
       const res = await fetch(`/api/owner/prospects/${id}/scan`, { method: 'POST' });
+      const data = await res.json();
+      if (data.prospect) {
+        onProspectsChange(prospects.map((p) => (p.id === id ? data.prospect : p)));
+      }
+    } finally {
+      setScanning(null);
+    }
+  }
+
+  async function findContact(id: string) {
+    setScanning(id);
+    try {
+      const res = await fetch(`/api/owner/prospects/${id}/contact`, { method: 'POST' });
       const data = await res.json();
       if (data.prospect) {
         onProspectsChange(prospects.map((p) => (p.id === id ? data.prospect : p)));
@@ -340,13 +363,20 @@ export default function ProspectPipeline({
         <ul className="space-y-5">
           {filtered.map((p) => {
             const draft = tab === 'outreach_ready' ? draftByProspect.get(p.id) : undefined;
-            const showApproval = tab === 'outreach_ready' && draft && hasOutreachContact(p);
+            const showApproval =
+              tab === 'outreach_ready' &&
+              draft &&
+              Boolean(effectiveOutreachEmail(p, draft.recipient_email));
 
             return (
               <li key={p.id}>
                 {showApproval ? (
                   <OutreachApprovalCard
-                    prospect={p}
+                    prospect={{
+                      ...p,
+                      contact_email:
+                        effectiveOutreachEmail(p, draft.recipient_email) ?? p.contact_email,
+                    }}
                     draft={draft}
                     onApproveSend={() => sendDraft(draft.id, p.id)}
                     onEditDraft={(content) => editDraft(draft.id, content)}
@@ -365,6 +395,7 @@ export default function ProspectPipeline({
                       setSelected(new Set([p.id]));
                       void bulkAction('generate_outreach');
                     }}
+                    onFindContact={() => findContact(p.id)}
                     onArchive={() => patchProspect(p.id, { archive: true })}
                     onIgnoreForever={() => patchProspect(p.id, { ignore_forever: true })}
                     onUnarchive={() => patchProspect(p.id, { unarchive: true })}

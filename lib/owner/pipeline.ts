@@ -43,24 +43,19 @@ export function pipelineStateFromScan(input: {
   const meaningfulFinding =
     (input.opportunityScore ?? 0) >= 25 || (input.scanIssues?.length ?? 0) >= 1;
 
-  if (input.leadScore === 'HOT' && meaningfulFinding) {
+  if (!meaningfulFinding) {
+    return 'needs_review';
+  }
+
+  if (
+    input.leadScore === 'HOT' ||
+    input.leadScore === 'WARM' ||
+    (input.opportunityScore ?? 0) >= 45
+  ) {
     return 'outreach_ready';
   }
 
-  if (input.leadScore === 'WARM' && meaningfulFinding) {
-    return 'outreach_ready';
-  }
-
-  if (input.leadScore === 'LOW') {
-    return 'qualified';
-  }
-
-  if (input.leadScore === 'HOT' || input.leadScore === 'WARM') {
-    return 'qualified';
-  }
-
-  if ((input.opportunityScore ?? 0) >= 50) return 'qualified';
-  return 'needs_review';
+  return 'qualified';
 }
 
 export function topIssueFromFindings(findings: { issues?: string[] } | null): string | null {
@@ -143,17 +138,20 @@ export function hasActiveProspects(prospects: OwnerProspect[]): boolean {
 
 export function recommendedAction(p: OwnerProspect): { label: string; action: string } {
   const resolved = resolveProspectScores(p);
+  if (!p.contact_email?.trim() && (p.contact_phone_found || p.contact_page_found)) {
+    return { label: 'Find email address', action: 'contact' };
+  }
   if (
-    (resolved.pipeline_state === 'outreach_ready' || resolved.lead_score === 'HOT') &&
+    (resolved.pipeline_state === 'outreach_ready' || (resolved.opportunity_score ?? 0) >= 45) &&
     hasOutreachContact(resolved)
   ) {
-    return { label: 'Generate outreach', action: 'outreach' };
+    return { label: 'Approve & send outreach', action: 'outreach' };
   }
   if (resolved.pipeline_state === 'outreach_ready' && !hasOutreachContact(resolved)) {
-    return { label: 'Find contact first', action: 'contact' };
+    return { label: 'Find email first', action: 'contact' };
   }
-  if (!p.contact_email_found && !p.contact_phone_found && p.scan_status === 'completed') {
-    return { label: 'Find contact', action: 'contact' };
+  if (!hasOutreachContact(p) && p.scan_status === 'completed') {
+    return { label: 'Find email', action: 'contact' };
   }
   if (p.scan_status === 'completed') {
     return { label: 'Review scan findings', action: 'review' };

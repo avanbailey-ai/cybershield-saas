@@ -31,7 +31,7 @@ function main() {
   const pipeline = read('lib/owner/pipeline.ts');
   assert(pipeline.includes("input.leadScore === 'WARM'"), 'WARM promotion logic exists');
   assert(pipeline.includes('meaningfulFinding'), 'Meaningful finding gate for WARM');
-  assert(pipeline.includes("input.leadScore === 'LOW'"), 'LOW stays qualified');
+  assert(pipeline.includes('opportunityScore ?? 0) >= 45'), 'Strong opportunity promotes to outreach_ready');
 
   const attribution = read('lib/owner/prospectAttribution.ts');
   assert(attribution.includes('owner_prospect_attributions'), 'Attribution table used');

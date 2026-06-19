@@ -70,7 +70,7 @@ export async function applyProspectScan(
         opportunity_score: enrichment.opportunity_score,
         estimated_plan_fit: enrichment.estimated_plan_fit,
         contact_page_found: enrichment.contact_page_found,
-        contact_email_found: enrichment.contact_email_found,
+        contact_email_found: Boolean(enrichment.contact_email),
         contact_phone_found: enrichment.contact_phone_found,
         contact_linkedin_found: enrichment.contact_linkedin_found,
         contact_email: enrichment.contact_email,

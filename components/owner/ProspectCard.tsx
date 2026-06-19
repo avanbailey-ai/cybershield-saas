@@ -21,6 +21,7 @@ interface Props {
   onToggle: () => void;
   onScan: () => void;
   onGenerateOutreach: () => void;
+  onFindContact: () => void;
   onArchive: () => void;
   onIgnoreForever: () => void;
   onUnarchive: () => void;
@@ -38,6 +39,7 @@ export default function ProspectCard({
   onToggle,
   onScan,
   onGenerateOutreach,
+  onFindContact,
   onArchive,
   onIgnoreForever,
   onUnarchive,
@@ -142,19 +144,33 @@ export default function ProspectCard({
           )}
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onGenerateOutreach}
-              disabled={!canGenerateOutreach}
-              title={
-                !canGenerateOutreach
-                  ? 'Complete scan and find contact info first'
-                  : undefined
-              }
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Generate outreach
-            </button>
+            {canGenerateOutreach ? (
+              <button
+                type="button"
+                onClick={onGenerateOutreach}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+              >
+                Generate outreach
+              </button>
+            ) : action.action === 'contact' && p.scan_status === 'completed' ? (
+              <button
+                type="button"
+                onClick={onFindContact}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+              >
+                Find email on website
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onGenerateOutreach}
+                disabled
+                title="Complete scan and find an email first"
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white opacity-40"
+              >
+                Generate outreach
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowContact((v) => !v)}

@@ -9,10 +9,9 @@ import { ensureOutreachDraft } from '@/lib/owner/ensureOutreachDraft';
 import type { ProspectPipelineState } from '@/lib/owner/discovery/types';
 
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
-) {
-  const auth = await requireOwner();
+) {  const auth = await requireOwner();
   if (!auth.ok) {
     return NextResponse.json({ error: 'Forbidden' }, { status: auth.status });
   }
@@ -63,7 +62,7 @@ export async function POST(
     .from('owner_prospects')
     .update({
       contact_page_found: enrichment.contact_page_found,
-      contact_email_found: enrichment.contact_email_found,
+      contact_email_found: Boolean(enrichment.contact_email?.trim()),
       contact_phone_found: enrichment.contact_phone_found,
       contact_linkedin_found: enrichment.contact_linkedin_found,
       contact_email: enrichment.contact_email,
