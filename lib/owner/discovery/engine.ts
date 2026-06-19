@@ -7,6 +7,8 @@ import { validateProspectWebsite } from './validate';
 import { websiteHostKey } from './normalize';
 import { applyProspectScan } from '../prospectScanUpdate';
 import { enrichProspect } from '../prospectEnrichment';
+import { classifyAgencyProspect } from '../agency/agencyEnrichment';
+import type { AgencyType } from '../agency/agencyTypes';
 import type { DiscoveryRunResult, RawDiscoveredBusiness } from './types';
 import type { ProviderDiagnostic, DiscoveryProvider } from './provider';
 import {
@@ -15,6 +17,21 @@ import {
   type DiscoverySettings,
   DEFAULT_DISCOVERY_SETTINGS,
 } from './settings';
+
+/** Nominatim search seed terms per agency type (keys exist in nominatimSearch). */
+const AGENCY_SEARCH_SEEDS: Record<AgencyType, string> = {
+  web_design: 'web_design_agency',
+  wordpress: 'wordpress_agency',
+  shopify: 'shopify_agency',
+  ecommerce: 'ecommerce_agency',
+  seo: 'seo_agency',
+  marketing: 'marketing_agency',
+  branding: 'branding_agency',
+  creative_studio: 'creative_agency',
+  dev_shop: 'dev_agency',
+  msp: 'msp_agency',
+  unknown: 'web_agency',
+};
 
 async function loadExistingHosts(admin: SupabaseClient): Promise<Set<string>> {
   const { data } = await admin
@@ -60,6 +77,10 @@ function providersForSettings(settings: DiscoverySettings): DiscoveryProvider[] 
 export async function runProspectDiscovery(options?: {
   settings?: Partial<DiscoverySettings>;
   autoScan?: boolean;
+  /** When true, discovered prospects are classified as agencies (Founder OS). */
+  agencyMode?: boolean;
+  /** Preferred agency type for agency mode (also seeds the search terms). */
+  agencyType?: AgencyType;
 }): Promise<DiscoveryRunResult> {
   const admin = createAdminClient();
   const baseSettings = await getDiscoverySettings(admin);
@@ -71,6 +92,22 @@ export async function runProspectDiscovery(options?: {
       ...(options?.settings?.providers ?? {}),
     },
   };
+
+  const agencyMode = options?.agencyMode === true;
+  const agencyType: AgencyType = options?.agencyType ?? 'unknown';
+
+  // In agency mode, drive the search with agency seed terms and prefer the
+  // free-text Nominatim provider (geospatial amenity filters don't model
+  // agencies well). SMB discovery is untouched.
+  if (agencyMode) {
+    settings.industry = AGENCY_SEARCH_SEEDS[agencyType] ?? AGENCY_SEARCH_SEEDS.unknown;
+    settings.providers = {
+      openstreetmap: false,
+      nominatim_search: true,
+      directory_seed: settings.providers.directory_seed === true,
+      google_places: false,
+    };
+  }
 
   const maxInsert = Math.min(settings.maxProspectsPerRun, 50);
   const autoScan = options?.autoScan !== false;
@@ -199,6 +236,26 @@ export async function runProspectDiscovery(options?: {
     existingHosts.add(host);
     inserted++;
     pendingScanIds.push(data.id as string);
+  }
+
+  // FIX 1 (HIGH): In agency mode we MUST classify each inserted prospect BEFORE
+  // the auto-scan step. applyProspectScan() (invoked by scanProspect during
+  // autoScan) calls ensureOutreachDraft(), which keys the draft type off
+  // prospect_kind. If classification ran after the scan, every agency prospect
+  // would still be prospect_kind='smb' at draft time and get an SMB cold_email
+  // draft; the later agency draft would then be skipped (a draft already exists).
+  // Classifying first sets prospect_kind='agency' (only for real agency fits —
+  // see decideProspectKind) so the scan's ensureOutreachDraft builds the agency
+  // draft, while NOT-AGENCY-FIT rows stay 'smb' and get the normal SMB draft.
+  // SMB discovery (agencyMode=false) is byte-for-byte unaffected.
+  if (agencyMode) {
+    for (const id of pendingScanIds) {
+      try {
+        await classifyAgencyProspect(admin, id, agencyType);
+      } catch {
+        /* classification best-effort — never fail the whole run */
+      }
+    }
   }
 
   if (autoScan) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateOutreach, type OutreachType } from '@/lib/owner/generators/outreach';
+import { AGENCY_OUTREACH_TYPE, buildAgencyDraftContent, isAgencyProspect } from '@/lib/owner/agency/agencyDraft';
 
 export async function POST(
   _req: NextRequest,
@@ -29,21 +30,29 @@ export async function POST(
   const findings = prospect?.scan_findings as { issues?: string[] } | null | undefined;
   const issues = findings?.issues;
 
-  const outreachType = (draft.outreach_type as OutreachType) || 'cold_email';
-  const content = generateOutreach(outreachType, {
-    businessName: (draft.business_name as string) ?? (prospect?.business_name as string) ?? 'Business',
-    website: (prospect?.website as string) ?? '',
-    industry: (prospect?.industry as string) ?? undefined,
-    city: (prospect?.city as string) ?? undefined,
-    scanScore: prospect?.scan_score as number | undefined,
-    riskLevel: (prospect?.scan_risk_level as string) ?? undefined,
-    issues,
-    contactEmail: (prospect?.contact_email as string) ?? (draft.recipient_email as string) ?? undefined,
-  });
+  const agency = isAgencyProspect(prospect) || draft.outreach_type === AGENCY_OUTREACH_TYPE;
+
+  const content =
+    agency && prospect
+      ? buildAgencyDraftContent(prospect)
+      : generateOutreach((draft.outreach_type as OutreachType) || 'cold_email', {
+          businessName:
+            (draft.business_name as string) ?? (prospect?.business_name as string) ?? 'Business',
+          website: (prospect?.website as string) ?? '',
+          industry: (prospect?.industry as string) ?? undefined,
+          city: (prospect?.city as string) ?? undefined,
+          scanScore: prospect?.scan_score as number | undefined,
+          riskLevel: (prospect?.scan_risk_level as string) ?? undefined,
+          issues,
+          contactEmail:
+            (prospect?.contact_email as string) ?? (draft.recipient_email as string) ?? undefined,
+        });
+
+  const newType = agency ? AGENCY_OUTREACH_TYPE : draft.outreach_type;
 
   const { data: updated, error } = await admin
     .from('owner_outreach_drafts')
-    .update({ content, status: 'draft', send_error: null, updated_at: new Date().toISOString() })
+    .update({ content, outreach_type: newType, status: 'draft', send_error: null, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();

@@ -23,6 +23,17 @@ export function buildAttributionSignupUrl(token: string): string {
   return `${APP_URL}/signup?source=outreach&prospect=${encodeURIComponent(token)}`;
 }
 
+/**
+ * Tracked CTA link for AGENCY outreach. Separate from the SMB signup link so SMB
+ * behavior is unchanged: it lands on the Agency plan signup with an
+ * agency-specific attribution source. There is no dedicated `/agency` route
+ * today, so this points at `/signup?plan=agency`; the middleware still captures
+ * the `?prospect=` token into the attribution cookie.
+ */
+export function buildAgencyAttributionUrl(token: string): string {
+  return `${APP_URL}/signup?plan=agency&source=agency_outreach&prospect=${encodeURIComponent(token)}`;
+}
+
 export async function createAttributionToken(
   admin: SupabaseClient,
   input: { prospectId: string; draftId?: string | null },

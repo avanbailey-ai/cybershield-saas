@@ -85,3 +85,26 @@ export function isTrulyOutreachReady(p: OwnerProspect): boolean {
   const state = p.pipeline_state ?? 'new_discovery';
   return state === 'outreach_ready' && hasOutreachContact(p);
 }
+
+/** Founder OS prospect segmentation: SMB pipeline vs Agency pipeline. */
+export type ProspectKindView = 'smb' | 'agency' | 'all';
+
+export function isAgencyKind(p: OwnerProspect): boolean {
+  return p.prospect_kind === 'agency';
+}
+
+export function prospectMatchesKind(p: OwnerProspect, view: ProspectKindView): boolean {
+  if (view === 'all') return true;
+  return view === 'agency' ? isAgencyKind(p) : !isAgencyKind(p);
+}
+
+export function filterProspectsByKind(
+  prospects: OwnerProspect[],
+  view: ProspectKindView,
+): OwnerProspect[] {
+  return prospects.filter((p) => prospectMatchesKind(p, view));
+}
+
+export function countAgencyProspects(prospects: OwnerProspect[]): number {
+  return prospects.filter(isAgencyKind).length;
+}

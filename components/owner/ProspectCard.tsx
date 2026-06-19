@@ -11,8 +11,41 @@ import {
   confidenceLabel,
   contactStatusLabel,
 } from '@/lib/owner/pipeline';
-import { hasOutreachContact } from '@/lib/owner/prospectDisplay';
+import { hasOutreachContact, isAgencyKind } from '@/lib/owner/prospectDisplay';
+import { agencyTypeLabel } from '@/lib/owner/agency/agencyTypes';
+import { AGENCY_PLAN_PRICE } from '@/lib/owner/agency/agencyScore';
 import type { OwnerProspect } from '@/lib/owner/types';
+
+const SERVICE_LABELS: Record<string, string> = {
+  wordpress: 'WordPress',
+  shopify: 'Shopify',
+  webflow: 'Webflow',
+  wix: 'Wix',
+  squarespace: 'Squarespace',
+  woocommerce: 'WooCommerce',
+  seo: 'SEO',
+  hosting: 'Hosting',
+  maintenance: 'Maintenance',
+  care_plan: 'Care plans',
+  security: 'Security',
+  managed_sites: 'Managed sites',
+  digital_marketing: 'Digital marketing',
+  branding: 'Branding',
+  ecommerce: 'Ecommerce',
+};
+
+function agencyLabelStyle(label: string | null | undefined): string {
+  switch (label) {
+    case 'AGENCY HOT':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'AGENCY WARM':
+      return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+    case 'AGENCY LOW':
+      return 'border-gray-600/40 bg-white/[0.03] text-gray-300';
+    default:
+      return 'border-red-500/30 bg-red-500/5 text-red-300';
+  }
+}
 
 interface Props {
   prospect: OwnerProspect;
@@ -53,6 +86,8 @@ export default function ProspectCard({
   const contact = contactStatusLabel(p);
   const confidence = confidenceLabel(p.conversion_likelihood, p.opportunity_score);
   const canGenerateOutreach = hasOutreachContact(p) && p.scan_status === 'completed';
+  const isAgency = isAgencyKind(p);
+  const detectedServices = Array.isArray(p.detected_services) ? p.detected_services : [];
 
   return (
     <article className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-6 shadow-sm">
@@ -63,7 +98,8 @@ export default function ProspectCard({
             <div className="min-w-0">
               <h3 className="text-xl font-semibold tracking-tight text-white">{p.business_name}</h3>
               <p className="mt-1 text-sm text-gray-400">
-                {p.industry ?? 'Business'} · {locationLabel(p)}
+                {isAgency ? agencyTypeLabel(p.agency_type) : p.industry ?? 'Business'} ·{' '}
+                {locationLabel(p)}
               </p>
               <a
                 href={p.website.startsWith('http') ? p.website : `https://${p.website}`}
@@ -75,10 +111,77 @@ export default function ProspectCard({
               </a>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              <ScorePill label="Opportunity" value={opportunityScoreLabel(p)} accent="violet" />
+              {isAgency ? (
+                <ScorePill
+                  label="Agency Score"
+                  value={
+                    p.agency_opportunity_score != null ? `${p.agency_opportunity_score}/100` : '—'
+                  }
+                  accent="violet"
+                />
+              ) : (
+                <ScorePill label="Opportunity" value={opportunityScoreLabel(p)} accent="violet" />
+              )}
               <ScorePill label="Security" value={securityScoreLabel(p)} accent="amber" />
             </div>
           </div>
+
+          {isAgency && (
+            <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${agencyLabelStyle(
+                    p.agency_label,
+                  )}`}
+                >
+                  {p.agency_label ?? 'AGENCY'}
+                </span>
+                <span className="text-xs text-gray-400">{agencyTypeLabel(p.agency_type)}</span>
+                {p.manages_client_sites && (
+                  <span className="text-xs text-emerald-300">Manages client sites</span>
+                )}
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                  <p className="text-[10px] uppercase text-gray-500">Client-site potential</p>
+                  <p className="text-sm font-medium text-white">
+                    {p.estimated_site_count != null ? `~${p.estimated_site_count} sites` : 'Unknown'}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                  <p className="text-[10px] uppercase text-gray-500">Suggested plan</p>
+                  <p className="text-sm font-medium text-emerald-300">Agency (${AGENCY_PLAN_PRICE}/mo)</p>
+                </div>
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                  <p className="text-[10px] uppercase text-gray-500">Revenue potential</p>
+                  <p className="text-sm font-medium text-white">
+                    ${AGENCY_PLAN_PRICE}/mo · ${AGENCY_PLAN_PRICE * 12}/yr
+                  </p>
+                </div>
+              </div>
+
+              {detectedServices.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[10px] uppercase text-gray-500">Detected services</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {detectedServices.map((s) => (
+                      <span
+                        key={s}
+                        className="rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-xs text-gray-300"
+                      >
+                        {SERVICE_LABELS[s] ?? s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {p.agency_why_selected && (
+                <p className="mt-3 text-xs text-gray-400">{p.agency_why_selected}</p>
+              )}
+            </div>
+          )}
 
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {planFit && (
@@ -150,7 +253,7 @@ export default function ProspectCard({
                 onClick={onGenerateOutreach}
                 className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
               >
-                Generate outreach
+                {isAgency ? 'Generate agency draft' : 'Generate outreach'}
               </button>
             ) : action.action === 'contact' && p.scan_status === 'completed' ? (
               <button

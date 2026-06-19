@@ -20,6 +20,18 @@ const INDUSTRY_SEARCH_TERMS: Record<string, string> = {
   hospitality: 'restaurant cafe',
   technology: 'software IT company',
   general: 'business',
+  // ── Agency Prospect System search seeds (Founder OS agency discovery) ──
+  web_agency: 'web design agency',
+  web_design_agency: 'web design agency website developer',
+  wordpress_agency: 'wordpress web design agency',
+  shopify_agency: 'shopify ecommerce agency',
+  ecommerce_agency: 'ecommerce web design agency online store',
+  seo_agency: 'seo marketing agency',
+  marketing_agency: 'digital marketing agency advertising',
+  branding_agency: 'branding design agency studio',
+  creative_agency: 'creative design studio agency',
+  dev_agency: 'web development agency software studio',
+  msp_agency: 'managed it services provider web agency',
 };
 
 function inferIndustryFromClass(

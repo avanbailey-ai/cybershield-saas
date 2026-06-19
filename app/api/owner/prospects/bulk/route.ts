@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/owner/requireOwner';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateOutreach } from '@/lib/owner/generators/outreach';
+import { AGENCY_OUTREACH_TYPE, buildAgencyDraftContent, isAgencyProspect } from '@/lib/owner/agency/agencyDraft';
 
 export async function POST(req: NextRequest) {
   const auth = await requireOwner();
@@ -111,20 +112,23 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const agency = isAgencyProspect(p);
       const findings = p.scan_findings as { issues?: string[] } | null;
-      const content = generateOutreach('cold_email', {
-        businessName: p.business_name,
-        website: p.website,
-        industry: p.industry,
-        city: p.city,
-        scanScore: p.scan_score,
-        riskLevel: p.scan_risk_level,
-        issues: findings?.issues,
-        contactEmail: email,
-      });
+      const content = agency
+        ? buildAgencyDraftContent(p)
+        : generateOutreach('cold_email', {
+            businessName: p.business_name,
+            website: p.website,
+            industry: p.industry,
+            city: p.city,
+            scanScore: p.scan_score,
+            riskLevel: p.scan_risk_level,
+            issues: findings?.issues,
+            contactEmail: email,
+          });
       const { error } = await admin.from('owner_outreach_drafts').insert({
         prospect_id: p.id,
-        outreach_type: 'cold_email',
+        outreach_type: agency ? AGENCY_OUTREACH_TYPE : 'cold_email',
         business_name: p.business_name,
         content,
         status: 'draft',

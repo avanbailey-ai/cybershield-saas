@@ -3,14 +3,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import OutreachApprovalCard from './OutreachApprovalCard';
 import type { OwnerOutreachDraft, OwnerProspect } from '@/lib/owner/types';
-import { effectiveOutreachEmail, resolveProspectList } from '@/lib/owner/prospectDisplay';
+import {
+  effectiveOutreachEmail,
+  resolveProspectList,
+  prospectMatchesKind,
+  type ProspectKindView,
+} from '@/lib/owner/prospectDisplay';
 
 export default function ProspectsActionQueue({
   prospects,
   onProspectsChange,
+  kindView = 'smb',
 }: {
   prospects: OwnerProspect[];
   onProspectsChange: (next: OwnerProspect[]) => void;
+  kindView?: ProspectKindView;
 }) {
   const [drafts, setDrafts] = useState<OwnerOutreachDraft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,8 +53,9 @@ export default function ProspectsActionQueue({
         const prospect = draft.prospect_id ? prospectMap.get(draft.prospect_id) : null;
         return prospect ? { draft, prospect } : null;
       })
-      .filter((x): x is { draft: OwnerOutreachDraft; prospect: OwnerProspect } => x !== null);
-  }, [drafts, prospectMap]);
+      .filter((x): x is { draft: OwnerOutreachDraft; prospect: OwnerProspect } => x !== null)
+      .filter(({ prospect }) => prospectMatchesKind(prospect, kindView));
+  }, [drafts, prospectMap, kindView]);
 
   const runContactDiscovery = useCallback(
     async (prospectId: string) => {

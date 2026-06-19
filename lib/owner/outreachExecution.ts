@@ -8,6 +8,7 @@ import { logOutreachEvent } from './outreachEvents';
 import {
   appendAttributionLink,
   buildAttributionSignupUrl,
+  buildAgencyAttributionUrl,
   getOrCreateAttributionToken,
 } from './prospectAttribution';
 
@@ -193,6 +194,11 @@ export async function sendApprovedOutreach(
     (draft.business_name as string) ?? (prospect?.business_name as string) ?? 'your business';
   let { subject, body } = parseDraftContent(String(draft.content), businessName);
 
+  // Agency drafts get the Agency-plan tracked link + agency attribution source.
+  // SMB behavior is unchanged.
+  const isAgencyDraft =
+    prospect?.prospect_kind === 'agency' || draft.outreach_type === 'agency_email';
+
   let attributionToken: string | undefined;
 
   if (draft.prospect_id) {
@@ -201,7 +207,9 @@ export async function sendApprovedOutreach(
         prospectId: draft.prospect_id as string,
         draftId: draftId,
       });
-      const signupUrl = buildAttributionSignupUrl(attributionToken);
+      const signupUrl = isAgencyDraft
+        ? buildAgencyAttributionUrl(attributionToken)
+        : buildAttributionSignupUrl(attributionToken);
       if (!body.includes(signupUrl)) {
         body = appendAttributionLink(body, signupUrl);
       }
@@ -209,8 +217,12 @@ export async function sendApprovedOutreach(
         .from('owner_prospect_attributions')
         .update({
           source_template: draft.outreach_type,
-          source_email_category: draft.outreach_type === 'follow_up' ? 'follow_up' : 'outreach',
-          source_campaign: 'founder_outreach',
+          source_email_category: isAgencyDraft
+            ? 'agency_outreach'
+            : draft.outreach_type === 'follow_up'
+              ? 'follow_up'
+              : 'outreach',
+          source_campaign: isAgencyDraft ? 'founder_agency_outreach' : 'founder_outreach',
         })
         .eq('token', attributionToken);
     } catch {

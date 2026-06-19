@@ -18,15 +18,26 @@ import {
   type ProspectFilterId,
 } from '@/lib/owner/prospectFilters';
 import type { OwnerOutreachDraft, OwnerProspect } from '@/lib/owner/types';
-import { effectiveOutreachEmail, hasOutreachContact } from '@/lib/owner/prospectDisplay';
+import {
+  effectiveOutreachEmail,
+  hasOutreachContact,
+  filterProspectsByKind,
+  type ProspectKindView,
+} from '@/lib/owner/prospectDisplay';
 
 export default function ProspectPipeline({
   prospects,
   onProspectsChange,
+  kindView = 'smb',
 }: {
   prospects: OwnerProspect[];
   onProspectsChange: (next: OwnerProspect[]) => void;
+  kindView?: ProspectKindView;
 }) {
+  const kindProspects = useMemo(
+    () => filterProspectsByKind(prospects, kindView),
+    [prospects, kindView],
+  );
   const [tab, setTab] = useState<ProspectTabId>('outreach_ready');
   const [filter, setFilter] = useState<ProspectFilterId>('highest_opportunity');
   const [filterValue, setFilterValue] = useState('');
@@ -37,9 +48,9 @@ export default function ProspectPipeline({
   const initialTabSet = useRef(false);
 
   useEffect(() => {
-    if (initialTabSet.current || prospects.length === 0) return;
+    if (initialTabSet.current || kindProspects.length === 0) return;
     initialTabSet.current = true;
-    const counts = countByStage(prospects);
+    const counts = countByStage(kindProspects);
     if (counts.outreach_ready > 0) setTab('outreach_ready');
     else if (counts.qualified > 0) setTab('qualified');
     else if (counts.new_discovery > 0) setTab('new_discovery');
@@ -116,13 +127,13 @@ export default function ProspectPipeline({
     await refreshDrafts();
   }
 
-  const globalHasProspects = hasActiveProspects(prospects);
-  const stageCounts = useMemo(() => countByStage(prospects), [prospects]);
+  const globalHasProspects = hasActiveProspects(kindProspects);
+  const stageCounts = useMemo(() => countByStage(kindProspects), [kindProspects]);
 
   const filtered = useMemo(() => {
-    const inTab = prospectsForTab(prospects, tab, tab === 'archived');
+    const inTab = prospectsForTab(kindProspects, tab, tab === 'archived');
     return applyProspectFilter(inTab, filter, filterValue || undefined);
-  }, [prospects, tab, filter, filterValue]);
+  }, [kindProspects, tab, filter, filterValue]);
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
   const empty = stageEmptyMessage(tab, globalHasProspects);

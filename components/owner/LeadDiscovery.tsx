@@ -14,7 +14,12 @@ import {
 } from '@/lib/owner/discovery/settings';
 import { computeRevenueIntelligence, formatRevenue } from '@/lib/owner/revenueIntelligence';
 import { hasActiveProspects } from '@/lib/owner/pipeline';
-import { resolveProspectList } from '@/lib/owner/prospectDisplay';
+import {
+  resolveProspectList,
+  countAgencyProspects,
+  type ProspectKindView,
+} from '@/lib/owner/prospectDisplay';
+import { AGENCY_TYPE_OPTIONS, type AgencyType } from '@/lib/owner/agency/agencyTypes';
 
 interface ProviderDiagnostic {
   provider: string;
@@ -74,7 +79,11 @@ export default function LeadDiscovery({
   const [importing, setImporting] = useState(false);
   const [settings, setSettings] = useState<DiscoverySettings>(DEFAULT_DISCOVERY_SETTINGS);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [kindView, setKindView] = useState<ProspectKindView>('smb');
+  const [agencyMode, setAgencyMode] = useState(false);
+  const [agencyType, setAgencyType] = useState<AgencyType>('web_design');
 
+  const agencyCount = useMemo(() => countAgencyProspects(prospects), [prospects]);
   const hasProspects = hasActiveProspects(prospects);
   const revenue = useMemo(() => computeRevenueIntelligence(prospects), [prospects]);
 
@@ -137,11 +146,12 @@ export default function LeadDiscovery({
       const res = await fetch('/api/owner/discovery/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discovery: settings }),
+        body: JSON.stringify({ discovery: settings, agencyMode, agencyType }),
       });
       const data = (await res.json()) as DiscoveryRunResponse;
       if (data.ok) {
         setLastRun(data);
+        if (agencyMode) setKindView('agency');
         await refreshProspects();
         await refreshFeed();
       }
@@ -214,7 +224,7 @@ export default function LeadDiscovery({
   const body = (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setShowSettings((v) => !v)}
@@ -228,9 +238,66 @@ export default function LeadDiscovery({
             disabled={discovering}
             className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
           >
-            {discovering ? 'Discovering…' : 'Run discovery'}
+            {discovering
+              ? 'Discovering…'
+              : agencyMode
+                ? 'Run agency discovery'
+                : 'Run discovery'}
           </button>
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+              agencyMode
+                ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'
+                : 'border-gray-700 text-gray-400'
+            }`}
+            title="Find agencies / MSPs that manage client websites"
+          >
+            <input
+              type="checkbox"
+              className="accent-emerald-500"
+              checked={agencyMode}
+              onChange={(e) => setAgencyMode(e.target.checked)}
+            />
+            Agency discovery mode
+          </label>
+          {agencyMode && (
+            <select
+              value={agencyType}
+              onChange={(e) => setAgencyType(e.target.value as AgencyType)}
+              className="rounded-lg border border-gray-700 bg-gray-950 px-2 py-2 text-sm text-white"
+            >
+              {AGENCY_TYPE_OPTIONS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
+      </div>
+
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-500">View:</span>
+        {([
+          { id: 'smb', label: 'SMB Prospects' },
+          { id: 'agency', label: `Agency Prospects${agencyCount ? ` (${agencyCount})` : ''}` },
+          { id: 'all', label: 'All' },
+        ] as { id: ProspectKindView; label: string }[]).map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setKindView(opt.id)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+              kindView === opt.id
+                ? opt.id === 'agency'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-violet-600 text-white'
+                : 'bg-white/[0.03] text-gray-400 hover:text-white'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {hasProspects && <RevenueOpportunityBar summary={revenue} />}
@@ -376,9 +443,17 @@ export default function LeadDiscovery({
       {!hasProspects ? discoveryEmpty : (
         <>
           <div className="mb-8">
-            <ProspectsActionQueue prospects={prospects} onProspectsChange={setProspects} />
+            <ProspectsActionQueue
+              prospects={prospects}
+              onProspectsChange={setProspects}
+              kindView={kindView}
+            />
           </div>
-          <ProspectPipeline prospects={prospects} onProspectsChange={setProspects} />
+          <ProspectPipeline
+            prospects={prospects}
+            onProspectsChange={setProspects}
+            kindView={kindView}
+          />
         </>
       )}
 

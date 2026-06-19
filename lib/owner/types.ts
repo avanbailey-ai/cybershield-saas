@@ -53,6 +53,15 @@ export interface OwnerProspect {
   top_issue: string | null;
   dns_valid: boolean | null;
   http_valid: boolean | null;
+  // ── Agency Prospect System (Founder OS) — null/'smb' for normal SMB prospects ──
+  prospect_kind?: 'smb' | 'agency' | null;
+  agency_type?: string | null;
+  agency_opportunity_score?: number | null;
+  agency_label?: string | null;
+  detected_services?: string[] | null;
+  estimated_site_count?: number | null;
+  manages_client_sites?: boolean | null;
+  agency_why_selected?: string | null;
   archived_at: string | null;
   deleted_at: string | null;
   created_at: string;
