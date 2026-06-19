@@ -6,17 +6,19 @@ import {
 import { isOutreachReadyContact } from './prospectQualityBrain';
 import { AGENCY_PLAN_PRICE } from './agency/agencyScore';
 import { filterBannedDemoProspects } from './demoPatternFilter';
+import { sanitizePhone } from './placeholderPhone';
 import type { OwnerProspect } from './types';
 import type { ContactSignals } from './contactDiscovery';
 
 function signalsFromProspect(p: OwnerProspect): ContactSignals {
+  const phone = sanitizePhone(p.contact_phone);
   return {
     contact_page_found: p.contact_page_found ?? false,
     contact_email_found: p.contact_email_found ?? false,
-    contact_phone_found: p.contact_phone_found ?? false,
+    contact_phone_found: Boolean(phone),
     contact_linkedin_found: p.contact_linkedin_found ?? false,
     contact_email: p.contact_email ?? null,
-    contact_phone: p.contact_phone ?? null,
+    contact_phone: phone,
     contact_linkedin: p.contact_linkedin ?? null,
     contact_confidence: (p.contact_confidence as ContactSignals['contact_confidence']) ?? 'no_contact',
   };
@@ -90,6 +92,10 @@ export function effectiveOutreachEmail(
   draftEmail?: string | null,
 ): string | null {
   return prospect.contact_email?.trim() || draftEmail?.trim() || null;
+}
+
+export function displayContactPhone(prospect: OwnerProspect): string | null {
+  return sanitizePhone(prospect.contact_phone);
 }
 
 export function isTrulyOutreachReady(p: OwnerProspect): boolean {

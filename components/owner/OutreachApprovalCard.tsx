@@ -9,6 +9,7 @@ import {
   confidenceLabel,
 } from '@/lib/owner/pipeline';
 import { hasOutreachContact } from '@/lib/owner/prospectDisplay';
+import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 
 interface Props {
   prospect: OwnerProspect;
@@ -36,6 +37,7 @@ export default function OutreachApprovalCard({
     ? prospect.qualification_reasons
     : [];
   const canSend = hasOutreachContact(prospect) && prospect.scan_status === 'completed';
+  const sensitiveCaution = sensitiveSectorLabel(prospect);
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -53,7 +55,7 @@ export default function OutreachApprovalCard({
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-violet-300/80">
-            Outreach ready
+            Draft ready — approval required
           </p>
           <h3 className="mt-1 text-xl font-semibold text-white">{prospect.business_name}</h3>
           <a
@@ -73,6 +75,12 @@ export default function OutreachApprovalCard({
           {planFitLabel(prospect) && <Badge label="Plan" value={planFitLabel(prospect)!} />}
         </div>
       </header>
+
+      {sensitiveCaution && (
+        <p className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">
+          {sensitiveCaution}
+        </p>
+      )}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2">

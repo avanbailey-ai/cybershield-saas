@@ -434,16 +434,20 @@ export async function getFounderOsV5(input?: {
   for (const d of drafts.slice(0, 5)) {
     const name = (d.business_name as string) ?? 'Prospect';
     if (matchesBannedDemoPattern(name)) continue;
+    const content = (d.content as string) ?? '';
+    const subject = content.match(/^Subject:\s*(.+?)(?:\n|$)/im)?.[1]?.trim();
     inbox.push({
       id: `draft-${d.id}`,
       type: 'outreach',
       title: `Approve outreach: ${d.business_name ?? 'Prospect'}`,
-      description: 'Findings-based email draft ready to send via Resend.',
+      description: subject
+        ? `Draft ready — approval required. Subject: "${subject}"`
+        : 'Draft ready — approval required before Resend sends.',
       whyItMatters: 'Qualified prospect with contact — outreach converts pipeline to revenue.',
       revenueImpact: null,
       action: 'Approve & Send',
-      module: 'inbox',
-      meta: { draftId: d.id },
+      module: 'prospects',
+      meta: { draftId: d.id, prospectId: d.prospect_id },
     });
   }
 

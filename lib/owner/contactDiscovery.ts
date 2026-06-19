@@ -1,4 +1,5 @@
 import { classifyContactConfidence, type ContactConfidence } from './prospectQualityBrain';
+import { sanitizePhone } from './placeholderPhone';
 
 export interface ContactSignals {
   contact_page_found: boolean;
@@ -80,13 +81,19 @@ export function parseContactSignalsFromHtml(html: string, pageUrl: string): Cont
 
   const tel = html.match(/tel:([+\d().\s-]+)/i);
   if (tel?.[1]) {
-    signals.contact_phone_found = true;
-    signals.contact_phone = tel[1].trim().slice(0, 32);
+    const phone = sanitizePhone(tel[1]);
+    if (phone) {
+      signals.contact_phone_found = true;
+      signals.contact_phone = phone;
+    }
   } else {
     const phones = html.match(PHONE_RE);
     if (phones?.[0]) {
-      signals.contact_phone_found = true;
-      signals.contact_phone = phones[0].trim();
+      const phone = sanitizePhone(phones[0]);
+      if (phone) {
+        signals.contact_phone_found = true;
+        signals.contact_phone = phone;
+      }
     }
   }
 

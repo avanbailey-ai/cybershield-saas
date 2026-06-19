@@ -21,6 +21,7 @@ import {
   type ProspectKindView,
 } from '@/lib/owner/prospectDisplay';
 import { AGENCY_TYPE_OPTIONS, type AgencyType } from '@/lib/owner/agency/agencyTypes';
+import { useFounderNav } from './FounderNavContext';
 
 interface ProviderDiagnostic {
   provider: string;
@@ -93,8 +94,32 @@ export default function LeadDiscovery({
   const [kindView, setKindView] = useState<ProspectKindView>('smb');
   const [agencyMode, setAgencyMode] = useState(false);
   const [agencyType, setAgencyType] = useState<AgencyType>('web_design');
+  const { reviewTarget, clearReviewTarget } = useFounderNav();
+
+  useEffect(() => {
+    if (!reviewTarget) return;
+    const timer = window.setTimeout(() => {
+      if (reviewTarget.focus === 'send-queue') {
+        document.getElementById('prospects-send-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (reviewTarget.prospectId) {
+        document
+          .getElementById(`prospect-${reviewTarget.prospectId}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      clearReviewTarget();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [reviewTarget, clearReviewTarget]);
 
   const agencyCount = useMemo(() => countAgencyProspects(prospects), [prospects]);
+  const agencyDiscoveryStatus = agencyMode
+    ? agencyCount > 0
+      ? `Agency discovery enabled — ${agencyCount} agency prospect${agencyCount === 1 ? '' : 's'} in pipeline.`
+      : 'Agency discovery enabled — no agency prospects found yet. Click "Run agency discovery" to search.'
+    : agencyCount > 0
+      ? `${agencyCount} agency prospect${agencyCount === 1 ? '' : 's'} in pipeline. Toggle Agency discovery mode to search for more.`
+      : 'Agency discovery paused — toggle on and run discovery to find web design, SEO, or marketing agencies.';
   const scopedProspects = useMemo(
     () => filterProspectsByKind(prospects, kindView),
     [prospects, kindView],
@@ -290,6 +315,15 @@ export default function LeadDiscovery({
             </select>
           )}
         </div>
+        <p
+          className={`mt-3 w-full text-xs ${
+            agencyMode && agencyCount === 0
+              ? 'rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-amber-200/90'
+              : 'text-gray-500'
+          }`}
+        >
+          {agencyDiscoveryStatus}
+        </p>
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">

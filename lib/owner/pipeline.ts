@@ -103,12 +103,18 @@ export function topIssueFromFindings(findings: { issues?: string[] } | null): st
 export const PIPELINE_TABS = {
   new_discovery: { id: 'new_discovery', label: 'New Discoveries' },
   qualified: { id: 'qualified', label: 'Qualified' },
-  outreach_ready: { id: 'outreach_ready', label: 'Outreach Ready' },
+  outreach_ready: { id: 'outreach_ready', label: 'Pending approval' },
   contacted: { id: 'contacted', label: 'Contacted' },
   interested: { id: 'interested', label: 'Interested' },
   customer: { id: 'customer', label: 'Customer' },
   archived: { id: 'archived', label: 'Archived' },
 } as const;
+
+export interface PipelineTabOptions {
+  includeHidden?: boolean;
+  /** Prospects with active outreach drafts awaiting founder approval. */
+  pendingDraftProspectIds?: Set<string>;
+}
 
 export type ProspectTabId = keyof typeof PIPELINE_TABS;
 
@@ -140,8 +146,10 @@ function shouldHideProspect(p: OwnerProspect, tab: ProspectTabId): boolean {
 export function prospectsForTab(
   prospects: OwnerProspect[],
   tab: ProspectTabId,
-  includeHidden = false,
+  options: PipelineTabOptions = {},
 ): OwnerProspect[] {
+  const includeHidden = options.includeHidden ?? false;
+  const pendingDrafts = options.pendingDraftProspectIds;
   const states = TAB_STATES[tab];
   return prospects
     .map(resolveProspectScores)
@@ -151,7 +159,11 @@ export function prospectsForTab(
       if (!includeHidden && tab !== 'archived') {
         if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
       }
-      if (tab === 'outreach_ready' && !isTrulyOutreachReady(p)) return false;
+      if (tab === 'outreach_ready') {
+        if (pendingDrafts?.has(p.id)) return true;
+        if (!isTrulyOutreachReady(p)) return false;
+        return states.includes(p.pipeline_state ?? 'new_discovery');
+      }
       return states.includes(p.pipeline_state ?? 'new_discovery');
     })
     .sort(
@@ -161,10 +173,16 @@ export function prospectsForTab(
     );
 }
 
-export function countByStage(prospects: OwnerProspect[]): Record<ProspectTabId, number> {
+export function countByStage(
+  prospects: OwnerProspect[],
+  options: PipelineTabOptions = {},
+): Record<ProspectTabId, number> {
   const counts = {} as Record<ProspectTabId, number>;
   for (const id of Object.keys(PIPELINE_TABS) as ProspectTabId[]) {
-    counts[id] = prospectsForTab(prospects, id, id === 'archived').length;
+    counts[id] = prospectsForTab(prospects, id, {
+      ...options,
+      includeHidden: id === 'archived' ? true : options.includeHidden,
+    }).length;
   }
   return counts;
 }
@@ -243,6 +261,13 @@ export function stageEmptyMessage(tab: ProspectTabId, hasGlobalProspects: boolea
       title: 'No qualified prospects yet',
       description:
         'Run discovery to identify businesses that may benefit from CyberShield monitoring.',
+    };
+  }
+  if (tab === 'outreach_ready') {
+    return {
+      title: 'No drafts pending approval',
+      description:
+        'When outreach drafts are generated, they appear here for review before Resend sends.',
     };
   }
   const stage = PIPELINE_TABS[tab].label;

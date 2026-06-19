@@ -25,9 +25,18 @@ export function computeRevenueIntelligence(
     kindView === 'all' ? activeProspects(resolved) : filterProspectsByKind(activeProspects(resolved), kindView);
   const active = scoped;
   const qualified = active.filter((p) =>
-    ['qualified', 'outreach_ready', 'contacted', 'interested'].includes(
-      p.pipeline_state ?? '',
-    ),
+    [
+      'qualified',
+      'outreach_ready',
+      'contacted',
+      'interested',
+      'needs_review',
+      'follow_up_scheduled',
+      'follow_up_due',
+      'new_discovery',
+      'scanned',
+      'needs_contact',
+    ].includes(p.pipeline_state ?? ''),
   );
   const outreachReady = active.filter(
     (p) => p.pipeline_state === 'outreach_ready' && hasOutreachContact(p),
@@ -40,8 +49,18 @@ export function computeRevenueIntelligence(
   );
 
   const ranked = [...active]
-    .filter((p) => hasOutreachContact(p) || (p.opportunity_score ?? 0) >= 40)
-    .sort((a, b) => (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0));
+    .filter(
+      (p) =>
+        hasOutreachContact(p) ||
+        (p.opportunity_score ?? 0) >= 25 ||
+        p.pipeline_state === 'needs_review',
+    )
+    .sort((a, b) => {
+      const aDraftReady = hasOutreachContact(a) ? 1000 : 0;
+      const bDraftReady = hasOutreachContact(b) ? 1000 : 0;
+      if (bDraftReady !== aDraftReady) return bDraftReady - aDraftReady;
+      return (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0);
+    });
   const highestConfidenceLead = ranked[0] ?? null;
 
   const industryCounts = new Map<string, number>();

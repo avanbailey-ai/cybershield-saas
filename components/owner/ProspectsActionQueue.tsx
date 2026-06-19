@@ -7,8 +7,10 @@ import {
   effectiveOutreachEmail,
   resolveProspectList,
   prospectMatchesKind,
+  displayContactPhone,
   type ProspectKindView,
 } from '@/lib/owner/prospectDisplay';
+import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 
 export default function ProspectsActionQueue({
   prospects,
@@ -146,16 +148,16 @@ export default function ProspectsActionQueue({
   );
 
   return (
-    <section className="space-y-4">
+    <section id="prospects-send-queue" className="space-y-4">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Send queue</p>
         <h2 className="mt-1 text-xl font-semibold text-white">
           {sendable.length > 0
-            ? `${sendable.length} ready to send via Resend`
+            ? `${sendable.length} draft${sendable.length === 1 ? '' : 's'} ready — approval required`
             : `${queue.length} draft${queue.length === 1 ? '' : 's'} need an email first`}
         </h2>
         <p className="mt-1 text-sm text-gray-500">
-          Approve to send. Prospect moves to Contacted and follow-ups are scheduled automatically.
+          Draft ready but not sent until you approve. Prospect moves to Contacted after send.
         </p>
       </div>
       <ul className="space-y-5">
@@ -166,7 +168,7 @@ export default function ProspectsActionQueue({
             : prospect;
 
           return (
-            <li key={draft.id}>
+            <li key={draft.id} id={prospect.id ? `prospect-${prospect.id}` : undefined}>
               {email ? (
                 <OutreachApprovalCard
                   prospect={prospectForCard}
@@ -182,7 +184,7 @@ export default function ProspectsActionQueue({
                   <p className="font-medium text-white">{prospect.business_name}</p>
                   <p className="mt-1 text-amber-200/90">
                     Outreach draft exists but no sendable email yet.
-                    {prospect.contact_phone ? ` Phone on file: ${prospect.contact_phone}.` : ''}
+                    {displayContactPhone(prospect) ? ` Phone on file: ${displayContactPhone(prospect)}.` : ''}
                   </p>
                   <button
                     type="button"

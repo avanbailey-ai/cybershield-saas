@@ -5,6 +5,7 @@ import { ensureOutreachDraft } from './ensureOutreachDraft';
 import type { ProspectPipelineState } from './discovery/types';
 import type { LeadScore } from './types';
 import type { ContactSignals } from './contactDiscovery';
+import { sanitizePhone } from './placeholderPhone';
 
 function resolvePipelineState(input: {
   scanStatus: string;
@@ -100,7 +101,7 @@ export async function reconcileOneProspect(
       contact_phone_found: enrichment.contact_phone_found,
       contact_linkedin_found: enrichment.contact_linkedin_found,
       contact_email: contactEmail,
-      contact_phone: enrichment.contact_phone ?? prospect.contact_phone,
+      contact_phone: sanitizePhone(enrichment.contact_phone ?? (prospect.contact_phone as string)),
       contact_linkedin: enrichment.contact_linkedin ?? prospect.contact_linkedin,
       qualification_reasons: enrichment.qualification_reasons,
       selection_reason: enrichment.selection_reason,

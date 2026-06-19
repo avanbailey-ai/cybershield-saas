@@ -23,6 +23,7 @@ import {
 import { decideProspectKind, scoreAgency } from '../lib/owner/agency/agencyScore';
 import { detectAgencySignalsFromHtml } from '../lib/owner/agency/agencyDetect';
 import { parseContactSignalsFromHtml } from '../lib/owner/contactDiscovery';
+import { isPlaceholderPhone, sanitizePhone } from '../lib/owner/placeholderPhone';
 
 const problems: string[] = [];
 function assert(condition: boolean, message: string): void {
@@ -197,6 +198,11 @@ assert(
 );
 
 // ── Sensitive sector manual review ──
+assert(isPlaceholderPhone('0000000000'), '0000000000 treated as placeholder phone');
+assert(isPlaceholderPhone('1111111111'), '1111111111 treated as placeholder phone');
+assert(isPlaceholderPhone('1234567890'), '1234567890 treated as placeholder phone');
+assert(sanitizePhone('0000000000') === null, 'Placeholder phone sanitized to null');
+assert(sanitizePhone('(541) 555-0199') === '(541) 555-0199', 'Real phone preserved');
 assert(isSensitiveSector('dental', 'Smile Dental'), 'Dental flagged sensitive');
 const dental = assessProspectQuality({
   businessName: 'Smile Dental',

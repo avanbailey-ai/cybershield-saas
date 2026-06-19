@@ -11,7 +11,8 @@ import {
   confidenceLabel,
   contactStatusLabel,
 } from '@/lib/owner/pipeline';
-import { hasOutreachContact, isAgencyKind, isTrulyOutreachReady } from '@/lib/owner/prospectDisplay';
+import { hasOutreachContact, isAgencyKind, isTrulyOutreachReady, displayContactPhone } from '@/lib/owner/prospectDisplay';
+import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 import { agencyTypeLabel } from '@/lib/owner/agency/agencyTypes';
 import { AGENCY_PLAN_PRICE } from '@/lib/owner/agency/agencyScore';
 import { rejectionReasonLabel } from '@/lib/owner/prospectQualityBrain';
@@ -118,9 +119,14 @@ export default function ProspectCard({
   const canGenerateOutreach = isTrulyOutreachReady(p);
   const isAgency = isAgencyKind(p);
   const detectedServices = Array.isArray(p.detected_services) ? p.detected_services : [];
+  const phone = displayContactPhone(p);
+  const sensitiveCaution = sensitiveSectorLabel(p);
 
   return (
-    <article className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-6 shadow-sm">
+    <article
+      id={`prospect-${p.id}`}
+      className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-6 shadow-sm"
+    >
       <div className="flex items-start gap-3">
         <input type="checkbox" checked={selected} onChange={onToggle} className="mt-1.5" />
         <div className="min-w-0 flex-1">
@@ -164,6 +170,12 @@ export default function ProspectCard({
               <ScorePill label="Security" value={securityScoreLabel(p)} accent="amber" />
             </div>
           </div>
+
+          {sensitiveCaution && (
+            <p className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-orange-100">
+              {sensitiveCaution}
+            </p>
+          )}
 
           {isAgency && (
             <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
@@ -320,7 +332,7 @@ export default function ProspectCard({
           {showContact && (
             <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-gray-300">
               {p.contact_email && <p>Email: {p.contact_email}</p>}
-              {p.contact_phone && <p>Phone: {p.contact_phone}</p>}
+              {phone && <p>Phone: {phone}</p>}
               {p.contact_linkedin && (
                 <p>
                   LinkedIn:{' '}
@@ -329,7 +341,7 @@ export default function ProspectCard({
                   </a>
                 </p>
               )}
-              {!p.contact_email && !p.contact_phone && !p.contact_linkedin && (
+              {!p.contact_email && !phone && !p.contact_linkedin && (
                 <p className="text-gray-500">No contact details found on website yet.</p>
               )}
             </div>

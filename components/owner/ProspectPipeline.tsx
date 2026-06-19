@@ -48,16 +48,6 @@ export default function ProspectPipeline({
   const initialTabSet = useRef(false);
 
   useEffect(() => {
-    if (initialTabSet.current || kindProspects.length === 0) return;
-    initialTabSet.current = true;
-    const counts = countByStage(kindProspects);
-    if (counts.outreach_ready > 0) setTab('outreach_ready');
-    else if (counts.qualified > 0) setTab('qualified');
-    else if (counts.new_discovery > 0) setTab('new_discovery');
-  }, [prospects]);
-
-  useEffect(() => {
-    if (tab !== 'outreach_ready') return;
     let cancelled = false;
     (async () => {
       const res = await fetch('/api/owner/outreach/drafts?view=active');
@@ -73,7 +63,29 @@ export default function ProspectPipeline({
     return () => {
       cancelled = true;
     };
-  }, [tab, prospects]);
+  }, [prospects]);
+
+  const pendingDraftProspectIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const d of drafts) {
+      if (d.prospect_id) ids.add(d.prospect_id);
+    }
+    return ids;
+  }, [drafts]);
+
+  useEffect(() => {
+    if (initialTabSet.current || kindProspects.length === 0) return;
+    initialTabSet.current = true;
+    const counts = countByStage(kindProspects, { pendingDraftProspectIds });
+    if (counts.outreach_ready > 0) setTab('outreach_ready');
+    else if (counts.qualified > 0) setTab('qualified');
+    else if (counts.new_discovery > 0) setTab('new_discovery');
+  }, [kindProspects, pendingDraftProspectIds]);
+
+  const stageCounts = useMemo(
+    () => countByStage(kindProspects, { pendingDraftProspectIds }),
+    [kindProspects, pendingDraftProspectIds],
+  );
 
   const draftByProspect = useMemo(() => {
     const map = new Map<string, OwnerOutreachDraft>();
@@ -128,12 +140,14 @@ export default function ProspectPipeline({
   }
 
   const globalHasProspects = hasActiveProspects(kindProspects);
-  const stageCounts = useMemo(() => countByStage(kindProspects), [kindProspects]);
 
   const filtered = useMemo(() => {
-    const inTab = prospectsForTab(kindProspects, tab, tab === 'archived');
+    const inTab = prospectsForTab(kindProspects, tab, {
+      includeHidden: tab === 'archived',
+      pendingDraftProspectIds,
+    });
     return applyProspectFilter(inTab, filter, filterValue || undefined);
-  }, [kindProspects, tab, filter, filterValue]);
+  }, [kindProspects, tab, filter, filterValue, pendingDraftProspectIds]);
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
   const empty = stageEmptyMessage(tab, globalHasProspects);
@@ -373,7 +387,7 @@ export default function ProspectPipeline({
       ) : (
         <ul className="space-y-5">
           {filtered.map((p) => {
-            const draft = tab === 'outreach_ready' ? draftByProspect.get(p.id) : undefined;
+            const draft = draftByProspect.get(p.id);
             const showApproval =
               tab === 'outreach_ready' &&
               draft &&

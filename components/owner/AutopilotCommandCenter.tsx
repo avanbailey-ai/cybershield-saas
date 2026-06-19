@@ -3,7 +3,6 @@
 import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
 import { resolveReviewSection } from '@/lib/owner/founderNav';
 import { useFounderNav } from './FounderNavContext';
-
 export default function AutopilotCommandCenter({
   autopilot,
   onApproveAll,
@@ -100,7 +99,29 @@ export function FounderInboxList({
   onDismiss?: (id: string) => void;
   busy?: boolean;
 }) {
-  const { setSection } = useFounderNav();
+  const { setSection, openProspectsReview } = useFounderNav();
+
+  function handleReview(item: FounderInboxItem) {
+    const meta = item.meta ?? {};
+    const prospectId = typeof meta.prospectId === 'string' ? meta.prospectId : undefined;
+    const draftId = typeof meta.draftId === 'string' ? meta.draftId : undefined;
+
+    if (item.type === 'outreach' && (prospectId || draftId)) {
+      openProspectsReview({
+        prospectId,
+        draftId,
+        focus: 'send-queue',
+      });
+      return;
+    }
+
+    if (prospectId) {
+      openProspectsReview({ prospectId, focus: 'prospect' });
+      return;
+    }
+
+    setSection(resolveReviewSection(item.module));
+  }
 
   if (items.length === 0) {
     return (
@@ -148,10 +169,10 @@ export function FounderInboxList({
             )}
             <button
               type="button"
-              onClick={() => setSection(resolveReviewSection(item.module))}
+              onClick={() => handleReview(item)}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-violet-500/50"
             >
-              Review
+              {item.type === 'outreach' ? 'Review draft' : 'Review'}
             </button>
           </div>
         </li>

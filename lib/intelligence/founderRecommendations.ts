@@ -1,11 +1,10 @@
 import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
 import type { OwnerProspect } from '@/lib/owner/types';
+import { isAgencyKind } from '@/lib/owner/prospectDisplay';
 import {
-  filterProspectsByKind,
-  isAgencyKind,
-  resolveProspectList,
-} from '@/lib/owner/prospectDisplay';
-import { computeRevenueIntelligence } from '@/lib/owner/revenueIntelligence';
+  countActiveProspectsByKind,
+  resolveBestLeadForKind,
+} from '@/lib/owner/founderPipelineSignals';
 import type { FounderIntelligenceSnapshot, FounderRecommendation } from './types';
 
 export interface FounderRecommendationInput {
@@ -91,7 +90,9 @@ export function buildFounderRecommendations(
   }
 
   if (input.agencyProspectCount === 0) {
-    warnings.push('No agency prospects yet — run Agency Discovery before agency outreach.');
+    warnings.push(
+      'Agency discovery enabled — no agency prospects found yet. Run Agency Discovery when ready.',
+    );
   }
 
   if (input.emailOpenRate != null && input.emailOpenRate > 100) {
@@ -102,10 +103,8 @@ export function buildFounderRecommendations(
     blockedRevenueItems.push(`${input.pendingApprovals} outreach approval(s) blocking pipeline progress`);
   }
 
-  const smbScoped = filterProspectsByKind(input.prospects, 'smb');
-  const agencyScoped = filterProspectsByKind(input.prospects, 'agency');
-  const smbLead = computeRevenueIntelligence(smbScoped, 'smb').highestConfidenceLead;
-  const agencyLead = computeRevenueIntelligence(agencyScoped, 'agency').highestConfidenceLead;
+  const smbLead = resolveBestLeadForKind(input.prospects, input.inbox, 'smb');
+  const agencyLead = resolveBestLeadForKind(input.prospects, input.inbox, 'agency');
 
   const bestSmbLead = smbLead
     ? {
@@ -157,10 +156,5 @@ export function explainLeadChoice(prospect: OwnerProspect): string {
 }
 
 export function countProspectsByKind(prospects: OwnerProspect[]) {
-  const list = resolveProspectList(prospects);
-  return {
-    smb: filterProspectsByKind(list, 'smb').length,
-    agency: filterProspectsByKind(list, 'agency').length,
-    all: list.length,
-  };
+  return countActiveProspectsByKind(prospects);
 }

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFounderNav } from '../FounderNavContext';
 import type { OwnerProspect } from '@/lib/owner/types';
 import {
-  filterProspectsByKind,
   isAgencyKind,
   resolveProspectList,
   type ProspectKindView,
@@ -15,8 +14,14 @@ import {
   countProspectsByKind,
   explainLeadChoice,
 } from '@/lib/intelligence/founderRecommendations';
+import {
+  countActiveProspectsByKind,
+  resolveBestLeadForKind,
+} from '@/lib/owner/founderPipelineSignals';
+import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 import EmailHealthSection from './EmailHealthSection';
 import GrowthAutopilotHomePanel from './GrowthAutopilotHomePanel';
+import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
 
 type PriorityStatus = 'ready' | 'blocked' | 'needs_review';
 
@@ -35,9 +40,12 @@ function statusTone(status: PriorityStatus): string {
   return 'text-amber-300 bg-amber-500/10 border-amber-500/20';
 }
 
-function bestLeadForView(prospects: OwnerProspect[], view: ProspectKindView) {
-  const scoped = filterProspectsByKind(prospects, view);
-  return computeRevenueIntelligence(scoped, view).highestConfidenceLead;
+function bestLeadForView(
+  prospects: OwnerProspect[],
+  inbox: FounderInboxItem[],
+  view: Exclude<ProspectKindView, 'all'>,
+) {
+  return resolveBestLeadForKind(prospects, inbox, view);
 }
 
 export default function FounderCommandCenterHome() {
@@ -56,11 +64,17 @@ export default function FounderCommandCenterHome() {
 
   const smbPipeline = useMemo(() => computeRevenueIntelligence(prospects, 'smb'), [prospects]);
   const agencyPipeline = useMemo(() => computeRevenueIntelligence(prospects, 'agency'), [prospects]);
-  const allPipeline = useMemo(() => computeRevenueIntelligence(prospects, 'all'), [prospects]);
 
-  const smbBest = useMemo(() => bestLeadForView(prospects, 'smb'), [prospects]);
-  const agencyBest = useMemo(() => bestLeadForView(prospects, 'agency'), [prospects]);
-  const showAgencyBest = agencyPipeline.potentialOpportunities > 0 && agencyBest;
+  const activeCounts = useMemo(() => countActiveProspectsByKind(prospects), [prospects]);
+  const smbBest = useMemo(
+    () => bestLeadForView(prospects, data.inbox, 'smb'),
+    [prospects, data.inbox],
+  );
+  const agencyBest = useMemo(
+    () => bestLeadForView(prospects, data.inbox, 'agency'),
+    [prospects, data.inbox],
+  );
+  const showAgencyBest = activeCounts.agency > 0 && agencyBest;
 
   const prospectCounts = useMemo(() => countProspectsByKind(prospects), [prospects]);
   const founderIntel = useMemo(
@@ -119,10 +133,10 @@ export default function FounderCommandCenterHome() {
       text: `Customer count mismatch (${v6.businessHealth.payingCustomers} paying vs ${payingInHealth} in health) — refresh data.`,
     });
   }
-  if (agencyPipeline.potentialOpportunities === 0 && !warnings.some((w) => w.text.includes('agency'))) {
+  if (activeCounts.agency === 0 && !warnings.some((w) => w.text.includes('agency'))) {
     warnings.push({
       id: 'no-agency',
-      text: 'No agency prospects yet — run Agency Discovery before agency outreach.',
+      text: 'Agency discovery enabled — no agency prospects found yet. Run Agency Discovery when ready.',
       section: 'prospects',
     });
   }
@@ -197,7 +211,7 @@ export default function FounderCommandCenterHome() {
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Snap label="Paying customers" value={String(v6.businessHealth.payingCustomers)} />
           <Snap label="MRR" value={`$${v6.businessHealth.mrr}`} tone="text-emerald-400" />
-          <Snap label="Outreach ready" value={String(allPipeline.outreachReady)} />
+          <Snap label="Pending approval" value={String(v6.executionStats.pendingApprovals)} />
           <Snap
             label="Interested"
             value={String(prospects.filter((p) => p.pipeline_state === 'interested').length)}
@@ -206,11 +220,11 @@ export default function FounderCommandCenterHome() {
           <Snap label="Agency opps" value={String(agencyPipeline.potentialOpportunities)} />
         </div>
         <p className="mt-3 text-xs text-gray-600">
-          SMB: {smbPipeline.potentialOpportunities} prospects · est.{' '}
+          SMB: {activeCounts.smb} active prospect{activeCounts.smb === 1 ? '' : 's'} · est.{' '}
           {smbPipeline.estimatedMonthlyRevenue > 0
             ? `$${smbPipeline.estimatedMonthlyRevenue}/mo`
             : '—'}{' '}
-          · Agency: {agencyPipeline.potentialOpportunities} · est.{' '}
+          · Agency: {activeCounts.agency} active · est.{' '}
           {agencyPipeline.estimatedMonthlyRevenue > 0
             ? `$${agencyPipeline.estimatedMonthlyRevenue}/mo`
             : '—'}
@@ -360,10 +374,17 @@ function BestLeadCard({
     );
   }
 
+  const caution = sensitiveSectorLabel(lead);
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4">
       <p className="text-[10px] uppercase tracking-wider text-gray-500">{label}</p>
       <p className="mt-2 font-medium text-white">{lead.business_name}</p>
+      {caution && (
+        <p className="mt-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-200">
+          {caution}
+        </p>
+      )}
       <p className="mt-1 text-xs text-gray-400">
         Score {lead.opportunity_score ?? '—'}/100
         {estMrr ? ` · est. $${estMrr}/mo` : ''}
