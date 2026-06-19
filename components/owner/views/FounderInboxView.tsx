@@ -28,8 +28,14 @@ export default function FounderInboxView() {
         body: JSON.stringify({ action, ids: [id], meta }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setLastError(typeof json.error === 'string' ? json.error : 'Inbox action failed.');
+      if (!res.ok || json.ok === false) {
+        const failed = (json.results as { ok?: boolean; detail?: string }[] | undefined)?.find(
+          (r) => r.ok === false,
+        );
+        setLastError(
+          failed?.detail ??
+            (typeof json.error === 'string' ? json.error : 'Inbox action failed.'),
+        );
         return;
       }
       await refreshFounderData();

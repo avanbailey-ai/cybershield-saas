@@ -98,6 +98,29 @@ export function displayContactPhone(prospect: OwnerProspect): string | null {
   return sanitizePhone(prospect.contact_phone);
 }
 
+/** Founder manual approve — email on prospect or draft is enough; confidence tier is advisory only. */
+export function canFounderApproveOutreach(
+  prospect: OwnerProspect,
+  draftRecipientEmail?: string | null,
+): { ok: boolean; email: string | null; reason: string | null } {
+  const email = effectiveOutreachEmail(prospect, draftRecipientEmail);
+  if (!email) {
+    return {
+      ok: false,
+      email: null,
+      reason: 'No sendable email — find contact on the website or add one to the draft.',
+    };
+  }
+  if (prospect.scan_status !== 'completed') {
+    return {
+      ok: false,
+      email,
+      reason: 'Security scan must finish before outreach can send.',
+    };
+  }
+  return { ok: true, email, reason: null };
+}
+
 export function isTrulyOutreachReady(p: OwnerProspect): boolean {
   const state = p.pipeline_state ?? 'new_discovery';
   const label = p.quality_label;

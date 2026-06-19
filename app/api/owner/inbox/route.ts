@@ -43,5 +43,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, approved, results });
+  const firstFail = results.find((r) => !r.ok);
+
+  return NextResponse.json({
+    ok: results.length === 0 || results.every((r) => r.ok),
+    approved,
+    results,
+    error: firstFail?.detail,
+  });
 }

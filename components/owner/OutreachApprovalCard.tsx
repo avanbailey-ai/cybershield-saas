@@ -8,7 +8,7 @@ import {
   securityScoreLabel,
   confidenceLabel,
 } from '@/lib/owner/pipeline';
-import { hasOutreachContact } from '@/lib/owner/prospectDisplay';
+import { canFounderApproveOutreach } from '@/lib/owner/prospectDisplay';
 import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 
 interface Props {
@@ -36,13 +36,16 @@ export default function OutreachApprovalCard({
   const reasons = Array.isArray(prospect.qualification_reasons)
     ? prospect.qualification_reasons
     : [];
-  const canSend = hasOutreachContact(prospect) && prospect.scan_status === 'completed';
+  const sendGate = canFounderApproveOutreach(prospect, draft.recipient_email);
+  const canSend = sendGate.ok;
   const sensitiveCaution = sensitiveSectorLabel(prospect);
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     try {
       await fn();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setBusy(false);
     }
@@ -86,7 +89,7 @@ export default function OutreachApprovalCard({
         <div className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2">
           <p className="text-[10px] uppercase text-gray-500">Contact email</p>
           <p className="text-sm font-medium text-emerald-300">
-            {prospect.contact_email ?? '—'}
+            {sendGate.email ?? prospect.contact_email ?? draft.recipient_email ?? '—'}
           </p>
         </div>
         <div className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2">
@@ -125,6 +128,12 @@ export default function OutreachApprovalCard({
           </pre>
         )}
       </div>
+
+      {!canSend && sendGate.reason && (
+        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          {sendGate.reason}
+        </p>
+      )}
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button

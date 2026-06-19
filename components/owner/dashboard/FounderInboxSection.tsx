@@ -14,15 +14,28 @@ export default function FounderInboxSection({
 }) {
   const { refreshFounderData, setSection } = useFounderNav();
   const [busy, setBusy] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   async function postInbox(action: 'approve' | 'dismiss', id: string, meta?: Record<string, unknown>) {
     setBusy(true);
+    setLastError(null);
     try {
-      await fetch('/api/owner/inbox', {
+      const res = await fetch('/api/owner/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, ids: [id], meta }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.ok === false) {
+        const failed = (json.results as { ok?: boolean; detail?: string }[] | undefined)?.find(
+          (r) => r.ok === false,
+        );
+        setLastError(
+          failed?.detail ??
+            (typeof json.error === 'string' ? json.error : 'Inbox action failed.'),
+        );
+        return;
+      }
       await refreshFounderData();
     } finally {
       setBusy(false);
@@ -48,6 +61,11 @@ export default function FounderInboxSection({
           </button>
         )}
       </div>
+      {lastError && (
+        <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {lastError}
+        </div>
+      )}
       <div className="mt-5">
         <FounderInboxList
           items={items}
