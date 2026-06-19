@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
+import { productionSecurityHeadersForNextConfig } from "./lib/security/productionHeaders";
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return productionSecurityHeadersForNextConfig();
+  },
   // PDFKit standalone avoids missing Helvetica.afm on Vercel serverless.
   serverExternalPackages: ["pdfkit", "fontkit"],
   outputFileTracingIncludes: {
