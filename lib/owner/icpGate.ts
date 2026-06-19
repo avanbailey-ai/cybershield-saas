@@ -47,24 +47,27 @@ export type GatedQualityLabel = 'HOT' | 'WARM' | 'LOW' | 'REJECTED' | 'NEEDS REV
 
 const GOV_TLD = /\.(gov|edu|mil)(?:\/|$|[?#])/i;
 const PUBLIC_HOST =
-  /(?:^|\.)((?:cityof|townof|countyof)[a-z0-9-]+|denvergov|centennialco|hillsboro-oregon|tigard-or|cityofeaglepoint|cityofvancouver)\./i;
+  /(?:^|\.)((?:cityof|townof|countyof)[a-z0-9-]+|denvergov|centennialco|hillsboro-oregon|tigard-or|cityofeaglepoint|cityofvancouver|austintexas|ashland\.or)\./i;
 const PUBLIC_KEYWORDS =
-  /\b(city hall|city of|county of|municipality|municipal|school district|public school|government|parks?\s*(?:&|and)\s*rec|recreation department|public institution)\b/i;
+  /\b(city hall|city of|county of|municipality|municipal|school district|public school|government|parks?\s*(?:&|and)\s*rec|recreation department|public institution|community center)\b/i;
 
 const CHURCH_KEYWORDS =
-  /\b(church|ministry|ministries|temple|mosque|synagogue|assembly of god|nazarene|apostolic|faithweb|parish|congregation|baptist church|methodist church|church of christ|lutheran church)\b/i;
+  /\b(church|ministry|ministries|templo|temple|mosque|synagogue|asamblea de dios|assembly of god|nazarene|apostolic|faithweb|fvcofc|parish|congregation|baptist church|methodist church|church of christ|lutheran church|christ apostolic)\b/i;
 
 const SCHOOL_KEYWORDS =
-  /\b(elementary school|middle school|high school|school district|public school|\.edu\b|redeemer.*school|jewett elementary|pps\.org)\b/i;
+  /\b(elementary school|middle school|high school|school district|public school|schoolwebpages|district6|redeemer.*school|jewett elementary|pps\.org)\b/i;
 
 const HEALTHCARE_KEYWORDS =
-  /\b(hospital|healthcare|health care|medical|clinic|dental|surgery center|hospice|stdavids|heart hospital|texan surgery)\b/i;
+  /\b(hospital|healthcare|health care|medical|clinic|dental|surgery center|hospice|home health|stdavids|heart hospital|texan surgery|chghospitals|cornerstone hospital|family practice)\b/i;
 
 const NONPROFIT_MUSEUM =
-  /\b(museum|nonprofit|non-profit|community association|neighborhood association|art center|community convergence|laguna gloria)\b/i;
+  /\b(museum|nonprofit|non-profit|community association|neighborhood association|art center|community convergence|laguna gloria|elisabet ney|cityrepair|irvington)\b/i;
+
+const COMMUNITY_ORG =
+  /\b(neighborhood|community org|community organization|community group|irvingtonpdx)\b/i;
 
 const NATIONAL_BRANDS =
-  /\b(mcdonald'?s?|mcdonalds|dollar general|dollar tree|phillips 66|walmart|target|starbucks|costco|home depot|lowe'?s|amazon\.com|google\.com|microsoft\.com|apple\.com|dsv|fedex|ups|maersk)\b/i;
+  /\b(mcdonald'?s?|mcdonalds|dollar general|dollar tree|phillips 66|phillips66|walmart|target|starbucks|costco|home depot|lowe'?s|amazon\.com|google\.com|microsoft\.com|apple\.com|dsv|fedex|ups|maersk)\b/i;
 
 const ENTERPRISE_KEYWORDS =
   /\b(fortune 500|global logistics|enterprise software|healthcare systems|national chain|multinational)\b/i;
@@ -140,7 +143,7 @@ export function isChurchOrReligiousProspect(p: Partial<OwnerProspect>): boolean 
 
 export function isSchoolProspect(p: Partial<OwnerProspect>): boolean {
   const hay = `${p.business_name ?? ''} ${p.industry ?? ''} ${p.website ?? ''}`.toLowerCase();
-  return SCHOOL_KEYWORDS.test(hay) || GOV_TLD.test(p.website ?? '');
+  return SCHOOL_KEYWORDS.test(hay) || GOV_TLD.test(p.website ?? '') || /\.or\.us\b/i.test(p.website ?? '');
 }
 
 export function isHealthcareProspect(p: Partial<OwnerProspect>): boolean {
@@ -157,8 +160,9 @@ export function isNationalEnterpriseProspect(p: Partial<OwnerProspect>): boolean
 }
 
 export function isNonprofitOrMuseumProspect(p: Partial<OwnerProspect>): boolean {
-  const hay = `${p.business_name ?? ''} ${p.industry ?? ''}`.toLowerCase();
-  return NONPROFIT_MUSEUM.test(hay) || /\bnonprofit\b/i.test(p.industry ?? '');
+  const hay = `${p.business_name ?? ''} ${p.industry ?? ''} ${p.website ?? ''}`.toLowerCase();
+  if (NONPROFIT_MUSEUM.test(hay) || COMMUNITY_ORG.test(hay)) return true;
+  return /\b(nonprofit|community|neighborhood)\b/i.test(p.industry ?? '');
 }
 
 export function hasMeaningfulScanFinding(p: Partial<OwnerProspect>): boolean {
@@ -262,13 +266,14 @@ export function evaluateBuyerFit(p: Partial<OwnerProspect>): BuyerFitEvaluation 
   const emailDraftAllowed = sendQueueEligible;
 
   let qualityLabel: GatedQualityLabel = 'LOW';
+  if (score === 0 || score < MIN_BUYER_FIT_SCORE) qualityLabel = 'LOW';
   if (blockedCategories.includes(icpStatus)) qualityLabel = 'REJECTED';
   else if (manualCategories.includes(icpStatus)) qualityLabel = 'NEEDS REVIEW';
   else if (icpStatus === 'ICP_NOT_URGENT') qualityLabel = 'LOW';
   else if (sendQueueEligible && score >= 60) qualityLabel = 'HOT';
-  else if (sendQueueEligible || formQueueEligible || (buyerFitPassed && score >= 45)) {
-    qualityLabel = emailReady ? 'WARM' : 'WARM';
-  } else if (score < MIN_BUYER_FIT_SCORE) qualityLabel = 'LOW';
+  else if (sendQueueEligible || formQueueEligible || (buyerFitPassed && score >= MIN_BUYER_FIT_SCORE)) {
+    qualityLabel = 'WARM';
+  }
 
   if (blockedCategories.includes(icpStatus) || manualCategories.includes(icpStatus)) {
     qualityLabel =
@@ -276,6 +281,8 @@ export function evaluateBuyerFit(p: Partial<OwnerProspect>): BuyerFitEvaluation 
         ? 'NEEDS REVIEW'
         : 'REJECTED';
   }
+
+  if (score === 0) qualityLabel = blockedCategories.includes(icpStatus) ? 'REJECTED' : 'LOW';
 
   let revenueQueue: RevenueQueue = 'not_urgent';
   if (blockedCategories.includes(icpStatus)) revenueQueue = 'rejected_not_icp';

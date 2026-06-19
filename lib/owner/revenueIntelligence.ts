@@ -2,10 +2,10 @@ import type { OwnerProspect } from './types';
 import { activeProspects } from './prospectFilters';
 import {
   filterProspectsByKind,
-  hasOutreachContact,
   resolveProspectList,
   type ProspectKindView,
 } from './prospectDisplay';
+import { isEmailSendEligible, evaluateBuyerFit } from './icpGate';
 
 export interface RevenueIntelligenceSummary {
   potentialOpportunities: number;
@@ -38,11 +38,9 @@ export function computeRevenueIntelligence(
       'needs_contact',
     ].includes(p.pipeline_state ?? ''),
   );
-  const outreachReady = active.filter(
-    (p) => p.pipeline_state === 'outreach_ready' && hasOutreachContact(p),
-  );
+  const outreachReady = active.filter((p) => isEmailSendEligible(p));
 
-  const revenueProspects = outreachReady.length > 0 ? outreachReady : qualified.filter(hasOutreachContact);
+  const revenueProspects = outreachReady.length > 0 ? outreachReady : qualified.filter((p) => isEmailSendEligible(p));
   const estimatedMonthlyRevenue = revenueProspects.reduce(
     (sum, p) => sum + (p.estimated_plan_fit ?? 0),
     0,
@@ -51,13 +49,13 @@ export function computeRevenueIntelligence(
   const ranked = [...active]
     .filter(
       (p) =>
-        hasOutreachContact(p) ||
+        isEmailSendEligible(p) ||
         (p.opportunity_score ?? 0) >= 25 ||
-        p.pipeline_state === 'needs_review',
+        evaluateBuyerFit(p).revenueQueue === 'manual_review',
     )
     .sort((a, b) => {
-      const aDraftReady = hasOutreachContact(a) ? 1000 : 0;
-      const bDraftReady = hasOutreachContact(b) ? 1000 : 0;
+      const aDraftReady = isEmailSendEligible(a) ? 1000 : 0;
+      const bDraftReady = isEmailSendEligible(b) ? 1000 : 0;
       if (bDraftReady !== aDraftReady) return bDraftReady - aDraftReady;
       return (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0);
     });

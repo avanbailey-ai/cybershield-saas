@@ -1,17 +1,15 @@
 import type { LeadScore, OwnerProspect } from './types';
 import type { ProspectPipelineState } from './discovery/types';
 import { planFitDisplayName, confidenceLabel, contactStatusLabel } from './salesIntelligence';
-import { activeProspects } from './prospectFilters';
-import {
-  hasOutreachContact,
-  resolveProspectScores,
-  isTrulyOutreachReady,
-} from './prospectDisplay';
+import { evaluateBuyerFit } from './icpGate';
+import { resolveProspectScores } from './prospectDisplay';
 import { assessProspectQuality } from './prospectQualityBrain';
 import {
   recommendedOutreachAction,
   prospectNextStepLabel,
 } from './prospectVerdict';
+import { activeProspects } from './prospectFilters';
+import { isEmailSendEligible } from './icpGate';
 
 export { planFitDisplayName, confidenceLabel, contactStatusLabel };
 
@@ -164,8 +162,8 @@ export function prospectsForTab(
         if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
       }
       if (tab === 'outreach_ready') {
-        if (pendingDrafts?.has(p.id)) return true;
-        if (!isTrulyOutreachReady(p)) return false;
+        if (pendingDrafts?.has(p.id)) return isEmailSendEligible(p);
+        if (!isEmailSendEligible(p)) return false;
         return states.includes(p.pipeline_state ?? 'new_discovery');
       }
       return states.includes(p.pipeline_state ?? 'new_discovery');
@@ -215,7 +213,9 @@ export function opportunityScoreLabel(p: OwnerProspect): string {
 }
 
 export function planFitLabel(p: OwnerProspect): string | null {
-  return planFitDisplayName(p.estimated_plan_fit);
+  const fit = evaluateBuyerFit(resolveProspectScores(p));
+  if (fit.planFit == null) return null;
+  return planFitDisplayName(fit.planFit);
 }
 
 export function stageEmptyMessage(tab: ProspectTabId, hasGlobalProspects: boolean): {

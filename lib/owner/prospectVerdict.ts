@@ -221,10 +221,13 @@ export function icpStatusForProspect(p: OwnerProspect): string {
 }
 
 export function buyerFitLabel(p: OwnerProspect): string {
-  const score = p.opportunity_score ?? p.agency_opportunity_score ?? 0;
-  if (score >= 60) return 'High';
-  if (score >= 40) return 'Medium';
-  return 'Low';
+  const fit = evaluateBuyerFit(p);
+  if (!fit.buyerFitPassed) return fit.blockReason ? 'Blocked' : 'Low';
+  if (fit.sendQueueEligible) return 'High — send eligible';
+  if (fit.formQueueEligible) return 'Medium — form action';
+  if (fit.revenueQueue === 'manual_review') return 'Manual review';
+  if (fit.revenueQueue === 'rejected_not_icp') return 'Not ICP';
+  return 'Medium';
 }
 
 export function securityFitLabel(p: OwnerProspect): string {

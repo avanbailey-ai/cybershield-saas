@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SectionCard } from './MetricCard';
 import ProspectPipeline from './ProspectPipeline';
+import ProspectPipelineBuckets from './ProspectPipelineBuckets';
 import ProspectsActionQueue from './ProspectsActionQueue';
 import RevenueOpportunityBar from './RevenueOpportunityBar';
 import EmptyState from './EmptyState';
@@ -173,6 +174,52 @@ export default function LeadDiscovery({
     const res = await fetch('/api/owner/prospects');
     const data = await res.json();
     if (data.prospects) setProspects(resolveProspectList(data.prospects));
+  }, []);
+
+  const patchProspect = useCallback(
+    async (id: string, body: Record<string, unknown>) => {
+      const res = await fetch(`/api/owner/prospects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.prospect) {
+        setProspects((prev) => prev.map((p) => (p.id === id ? data.prospect : p)));
+      }
+    },
+    [],
+  );
+
+  const runProspectScan = useCallback(async (id: string) => {
+    const res = await fetch(`/api/owner/prospects/${id}/scan`, { method: 'POST' });
+    const data = await res.json();
+    if (data.prospect) {
+      setProspects((prev) => prev.map((p) => (p.id === id ? data.prospect : p)));
+    }
+  }, []);
+
+  const findProspectContact = useCallback(async (id: string) => {
+    const res = await fetch(`/api/owner/prospects/${id}/contact`, { method: 'POST' });
+    const data = await res.json();
+    if (data.prospect) {
+      setProspects((prev) => prev.map((p) => (p.id === id ? data.prospect : p)));
+    }
+  }, []);
+
+  const generateProspectOutreach = useCallback(async (id: string) => {
+    await fetch('/api/owner/prospects/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'generate_outreach', ids: [id] }),
+    });
+    await refreshProspects();
+  }, [refreshProspects]);
+
+  const deleteProspect = useCallback(async (id: string) => {
+    const res = await fetch(`/api/owner/prospects/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setProspects((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   const refreshFeed = useCallback(async () => {
@@ -697,6 +744,20 @@ export default function LeadDiscovery({
         )
       ) : (
         <>
+          <div className="mb-8">
+            <ProspectPipelineBuckets
+              prospects={prospects}
+              kindView={kindView}
+              onProspectsChange={setProspects}
+              onScan={runProspectScan}
+              onGenerateOutreach={generateProspectOutreach}
+              onFindContact={findProspectContact}
+              onArchive={(id) => patchProspect(id, { archive: true })}
+              onIgnoreForever={(id) => patchProspect(id, { ignore_forever: true })}
+              onUnarchive={(id) => patchProspect(id, { unarchive: true })}
+              onDelete={deleteProspect}
+            />
+          </div>
           <div className="mb-8">
             <ProspectsActionQueue
               prospects={prospects}

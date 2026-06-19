@@ -1,5 +1,6 @@
 import type { OwnerProspect } from './types';
-import { isTrulyOutreachReady } from './prospectDisplay';
+import { evaluateBuyerFit, isEmailSendEligible } from './icpGate';
+import { resolveProspectScores } from './prospectDisplay';
 
 export type ProspectFilterId =
   | 'all'
@@ -65,28 +66,22 @@ export function applyProspectFilter(
 
   switch (filter) {
     case 'hot':
-      return list.filter((p) => p.quality_label === 'HOT');
+      return list.filter((p) => evaluateBuyerFit(resolveProspectScores(p)).qualityLabel === 'HOT');
     case 'warm':
-      return list.filter((p) => p.quality_label === 'WARM');
+      return list.filter((p) => evaluateBuyerFit(resolveProspectScores(p)).qualityLabel === 'WARM');
     case 'low':
-      return list.filter((p) => p.quality_label === 'LOW');
+      return list.filter((p) => evaluateBuyerFit(resolveProspectScores(p)).qualityLabel === 'LOW');
     case 'needs_contact':
       return list.filter(
-        (p) =>
-          p.pipeline_state === 'needs_contact' ||
-          p.pipeline_state === 'no_contact_found' ||
-          p.contact_confidence === 'no_contact',
+        (p) => evaluateBuyerFit(resolveProspectScores(p)).revenueQueue === 'needs_contact',
       );
     case 'needs_review':
       return list.filter(
-        (p) => p.quality_label === 'NEEDS REVIEW' || p.pipeline_state === 'needs_review',
+        (p) => evaluateBuyerFit(resolveProspectScores(p)).revenueQueue === 'manual_review',
       );
     case 'rejected':
       return list.filter(
-        (p) =>
-          p.quality_label === 'REJECTED' ||
-          p.pipeline_state === 'bad_fit' ||
-          Boolean(p.rejection_reason),
+        (p) => evaluateBuyerFit(resolveProspectScores(p)).revenueQueue === 'rejected_not_icp',
       );
     case 'smb':
       return list.filter((p) => p.prospect_kind !== 'agency');
@@ -109,7 +104,7 @@ export function applyProspectFilter(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
     case 'outreach_ready':
-      return list.filter((p) => isTrulyOutreachReady(p));
+      return list.filter((p) => isEmailSendEligible(resolveProspectScores(p)));
     case 'by_industry':
       if (!filterValue) return list;
       return list.filter((p) =>

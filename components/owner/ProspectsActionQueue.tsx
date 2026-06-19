@@ -10,7 +10,8 @@ import {
   displayContactPhone,
   type ProspectKindView,
 } from '@/lib/owner/prospectDisplay';
-import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
+import { isEmailSendEligible } from '@/lib/owner/icpGate';
+import { isDraftBlocked, draftBlockReason } from '@/lib/owner/pipelineGate';
 
 export default function ProspectsActionQueue({
   prospects,
@@ -59,6 +60,22 @@ export default function ProspectsActionQueue({
       .filter(({ prospect }) => prospectMatchesKind(prospect, kindView));
   }, [drafts, prospectMap, kindView]);
 
+  const sendable = useMemo(
+    () =>
+      queue.filter(
+        ({ draft, prospect }) =>
+          !isDraftBlocked(prospect, draft) &&
+          isEmailSendEligible(prospect) &&
+          Boolean(effectiveOutreachEmail(prospect, draft.recipient_email)),
+      ),
+    [queue],
+  );
+
+  const blocked = useMemo(
+    () => queue.filter(({ draft, prospect }) => isDraftBlocked(prospect, draft)),
+    [queue],
+  );
+
   const runContactDiscovery = useCallback(
     async (prospectId: string) => {
       setFindingContact(prospectId);
@@ -76,18 +93,19 @@ export default function ProspectsActionQueue({
   );
 
   useEffect(() => {
-    if (autoContactRan.current || loading || queue.length === 0) return;
-    const blocked = queue.filter(
-      ({ draft, prospect }) => !effectiveOutreachEmail(prospect, draft.recipient_email),
+    if (autoContactRan.current || loading || sendable.length > 0) return;
+    const needsEmail = queue.filter(
+      ({ draft, prospect }) =>
+        !isDraftBlocked(prospect, draft) && !effectiveOutreachEmail(prospect, draft.recipient_email),
     );
-    if (blocked.length === 0) return;
+    if (needsEmail.length === 0) return;
     autoContactRan.current = true;
     void (async () => {
-      for (const { prospect } of blocked.slice(0, 3)) {
+      for (const { prospect } of needsEmail.slice(0, 3)) {
         await runContactDiscovery(prospect.id);
       }
     })();
-  }, [loading, queue, runContactDiscovery]);
+  }, [loading, queue, sendable.length, runContactDiscovery]);
 
   async function sendDraft(draftId: string, prospectId: string) {
     const res = await fetch(`/api/owner/outreach/${draftId}/send`, { method: 'POST' });
@@ -137,69 +155,73 @@ export default function ProspectsActionQueue({
       <section className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
         <p className="text-sm font-medium text-gray-400">Nothing ready to send yet</p>
         <p className="mt-2 text-xs text-gray-600">
-          Prospects with an email and strong opportunity score appear here for approve-and-send.
+          Email-ready private-business leads with buyer-fit approval appear here. Contact-form and
+          manual-review leads stay in their own queues.
         </p>
       </section>
     );
   }
 
-  const sendable = queue.filter(({ draft, prospect }) =>
-    Boolean(effectiveOutreachEmail(prospect, draft.recipient_email)),
-  );
-
   return (
-    <section id="prospects-send-queue" className="space-y-4">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Send queue</p>
-        <h2 className="mt-1 text-xl font-semibold text-white">
-          {sendable.length > 0
-            ? `${sendable.length} draft${sendable.length === 1 ? '' : 's'} ready — approval required`
-            : `${queue.length} draft${queue.length === 1 ? '' : 's'} need an email first`}
-        </h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Draft ready but not sent until you approve. Prospect moves to Contacted after send.
-        </p>
-      </div>
-      <ul className="space-y-5">
-        {queue.map(({ draft, prospect }) => {
-          const email = effectiveOutreachEmail(prospect, draft.recipient_email);
-          const prospectForCard = email
-            ? { ...prospect, contact_email: email }
-            : prospect;
+    <section id="prospects-send-queue" className="space-y-6">
+      {blocked.length > 0 && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-red-300">
+            Drafts blocked ({blocked.length})
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-red-100/90">
+            {blocked.map(({ draft, prospect }) => (
+              <li key={draft.id}>
+                <span className="font-medium text-white">{prospect.business_name}</span>
+                <span className="text-red-200/80"> — {draftBlockReason(prospect, draft)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-          return (
-            <li key={draft.id} id={prospect.id ? `prospect-${prospect.id}` : undefined}>
-              {email ? (
-                <OutreachApprovalCard
-                  prospect={prospectForCard}
-                  draft={draft}
-                  onApproveSend={() => sendDraft(draft.id, prospect.id)}
-                  onEditDraft={(content) => editDraft(draft.id, content)}
-                  onRegenerate={() => regenerateDraft(draft.id)}
-                  onArchive={() => patchProspect(prospect.id, { archive: true })}
-                  onIgnoreForever={() => patchProspect(prospect.id, { ignore_forever: true })}
-                />
-              ) : (
-                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4 text-sm text-amber-100">
-                  <p className="font-medium text-white">{prospect.business_name}</p>
-                  <p className="mt-1 text-amber-200/90">
-                    Outreach draft exists but no sendable email yet.
-                    {displayContactPhone(prospect) ? ` Phone on file: ${displayContactPhone(prospect)}.` : ''}
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-3 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50"
-                    disabled={findingContact === prospect.id}
-                    onClick={() => runContactDiscovery(prospect.id)}
-                  >
-                    {findingContact === prospect.id ? 'Searching website…' : 'Find email on website'}
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {sendable.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-amber-500/20 bg-amber-500/5 p-8 text-center">
+          <p className="text-sm font-medium text-amber-200">No send-ready drafts</p>
+          <p className="mt-2 text-xs text-amber-200/70">
+            {blocked.length > 0
+              ? 'Existing drafts failed buyer-fit/contact rules and were removed from Send Queue.'
+              : 'Drafts need a verified email and buyer-fit clearance before approval.'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Send queue</p>
+            <h2 className="mt-1 text-xl font-semibold text-white">
+              {sendable.length} draft{sendable.length === 1 ? '' : 's'} ready — approval required
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Buyer-fit passed · verified email · weak scan findings. Not sent until you approve.
+            </p>
+          </div>
+          <ul className="space-y-5">
+            {sendable.map(({ draft, prospect }) => {
+              const email = effectiveOutreachEmail(prospect, draft.recipient_email)!;
+              const prospectForCard = { ...prospect, contact_email: email };
+
+              return (
+                <li key={draft.id} id={prospect.id ? `prospect-${prospect.id}` : undefined}>
+                  <OutreachApprovalCard
+                    prospect={prospectForCard}
+                    draft={draft}
+                    onApproveSend={() => sendDraft(draft.id, prospect.id)}
+                    onEditDraft={(content) => editDraft(draft.id, content)}
+                    onRegenerate={() => regenerateDraft(draft.id)}
+                    onArchive={() => patchProspect(prospect.id, { archive: true })}
+                    onIgnoreForever={() => patchProspect(prospect.id, { ignore_forever: true })}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </section>
   );
 }

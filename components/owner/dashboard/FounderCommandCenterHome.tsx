@@ -185,10 +185,13 @@ export default function FounderCommandCenterHome() {
           <Snap label="Need rescan" value={String(acquisition.needsRescan)} />
         </div>
         <p className="mt-3 text-xs text-violet-300">{acquisition.nextRecommendedAction}</p>
-        {acquisition.sendQueue === 0 && acquisition.privateBusinessWithContact === 0 && acquisition.weakWebsitesTotal > 0 && (
+        {acquisition.sendQueue === 0 && (
           <p className="mt-2 text-xs text-amber-300/90">
-            Found weak websites, but most are not ideal buyers. Focus on private businesses with valid
-            contact paths.
+            {acquisition.privateBusinessWithContact > 0
+              ? `No send-ready leads yet. You have ${acquisition.formQueue + acquisition.needsContactEnrichment} weak-score website${acquisition.formQueue + acquisition.needsContactEnrichment === 1 ? '' : 's'} that need contact enrichment or manual review.`
+              : acquisition.weakWebsitesTotal > 0
+                ? `No send-ready leads yet. You have ${acquisition.weakWebsitesTotal} weak-score website${acquisition.weakWebsitesTotal === 1 ? '' : 's'} that need contact enrichment or manual review.`
+                : 'No send-ready leads yet. Run Find customers to discover private businesses with weak security scores.'}
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">

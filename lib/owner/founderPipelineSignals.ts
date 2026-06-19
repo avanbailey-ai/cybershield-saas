@@ -3,10 +3,10 @@ import type { OwnerProspect } from './types';
 import { activeProspects } from './prospectFilters';
 import {
   filterProspectsByKind,
-  hasOutreachContact,
   resolveProspectList,
   type ProspectKindView,
 } from './prospectDisplay';
+import { isEmailSendEligible } from './icpGate';
 import { computeRevenueIntelligence } from './revenueIntelligence';
 
 export function countActiveProspectsByKind(prospects: OwnerProspect[]) {
@@ -64,7 +64,7 @@ export function resolveBestLeadForKind(
   if (fromInbox) return fromInbox;
 
   const ranked = filterProspectsByKind(activeProspects(resolveProspectList(prospects)), kind)
-    .filter((p) => hasOutreachContact(p) || (p.opportunity_score ?? 0) >= 25)
+    .filter((p) => isEmailSendEligible(p) || (p.opportunity_score ?? 0) >= 25)
     .sort((a, b) => (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0));
 
   return ranked[0] ?? null;

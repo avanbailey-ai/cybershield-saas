@@ -127,10 +127,10 @@ export default function ProspectCard({
   const reasons = Array.isArray(p.qualification_reasons) ? p.qualification_reasons : [];
   const contact = contactStatusLabel(p);
   const confidence = confidenceLabel(p.conversion_likelihood, p.opportunity_score);
-  const canGenerateOutreach = isTrulyOutreachReady(p);
-  const isAgency = isAgencyKind(p);
   const verdict = prospectVerdict(p);
   const icp = evaluateBuyerFit(p);
+  const canGenerateOutreach = icp.emailDraftAllowed;
+  const isAgency = isAgencyKind(p);
   const icpLabel = icpStatusForProspect(p);
   const contactReadiness = contactReadinessLabel(resolveContactReadiness(p));
   const outreachReady = outreachReadinessLabel(p);
@@ -205,7 +205,7 @@ export default function ProspectCard({
             </p>
           )}
 
-          {isAgency && (
+          {isAgency && icp.planFit === AGENCY_PLAN_PRICE && (
             <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -263,10 +263,18 @@ export default function ProspectCard({
           )}
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {planFit && (
+            {icp.planFit != null && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
                 <p className="text-[10px] uppercase text-gray-500">Plan fit</p>
-                <p className="text-sm font-medium text-emerald-300">{planFit}</p>
+                <p className="text-sm font-medium text-emerald-300">
+                  {icp.planFit === AGENCY_PLAN_PRICE
+                    ? `Agency ($${AGENCY_PLAN_PRICE}/mo)`
+                    : icp.planFit === 149
+                      ? `Growth ($${icp.planFit}/mo)`
+                      : icp.planFit === 79
+                        ? `Pro ($${icp.planFit}/mo)`
+                        : `$${icp.planFit}/mo`}
+                </p>
               </div>
             )}
             <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
