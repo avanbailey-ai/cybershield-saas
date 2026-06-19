@@ -3,13 +3,13 @@ const steps = [
     number: "01",
     title: "Add Your Website",
     description:
-      "Enter your website URL. CyberShield configures continuous monitoring for SSL, domain, uptime, and security checks — no agents required.",
+      "Enter your website URL for a free one-time scan. On a paid plan, CyberShield then sets up continuous monitoring for SSL, domain, uptime, and security checks — no agents required.",
   },
   {
     number: "02",
     title: "CyberShield Monitors Continuously",
     description:
-      "Scheduled checks track certificates, headers, page structure, and availability. Changes are compared against your baseline automatically.",
+      "On paid plans, scheduled checks track certificates, headers, page structure, and availability. Changes are compared against your baseline automatically.",
   },
   {
     number: "03",

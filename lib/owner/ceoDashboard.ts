@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getBusinessOverview, getOverviewAllWindows } from './metrics';
+import { isInternalCustomerProfile } from './internalAccountFilters';
 import { buildRevenueOpportunity } from './revenueOpportunity';
 import type { FounderBriefing } from './briefing';
 import type { BusinessOverviewMetrics, OwnerCrmLead, OwnerProspect, TrendWindow } from './types';
@@ -338,7 +339,7 @@ export async function getCeoDashboard(input?: {
       input?.crmLeads
         ? Promise.resolve({ data: input.crmLeads })
         : admin.from('owner_crm_leads').select('*').is('deleted_at', null),
-      admin.from('profiles').select('plan, subscription_status, created_at, churn_risk_score'),
+      admin.from('profiles').select('plan, subscription_status, created_at, churn_risk_score, email, is_qa_account'),
       getBusinessOverview('today'),
       input?.windows ?? getOverviewAllWindows(),
       admin
@@ -366,7 +367,14 @@ export async function getCeoDashboard(input?: {
 
   const prospects = prospectsRes.data ?? [];
   const crmLeads = crmRes.data ?? [];
-  const profiles = profilesRes.data ?? [];
+  const profiles = (profilesRes.data ?? []).filter(
+    (p) =>
+      !isInternalCustomerProfile({
+        email: (p as { email?: string }).email ?? '',
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      }),
+  );
   const revenue = input?.revenue ?? buildRevenueOpportunity(prospects, crmLeads);
 
   const payingCustomers = profiles.filter(

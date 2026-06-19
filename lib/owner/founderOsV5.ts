@@ -4,7 +4,7 @@ import { getCustomerIntelligence } from './customerIntelligence';
 import type { OwnerProspect, OwnerCrmLead } from './types';
 import { planFitDisplayName } from './salesIntelligence';
 import { hasOutreachContact, resolveProspectList } from './prospectDisplay';
-import { isInternalCustomerEmail } from './founderCustomerFilters';
+import { isInternalCustomerProfile } from './internalAccountFilters';
 
 const DEFAULT_MRR_GOAL = 1000;
 
@@ -192,7 +192,7 @@ export async function getFounderOsV5(input?: {
     getBusinessOverview('30d'),
     getBusinessOverview('7d'),
     getCustomerIntelligence(),
-    admin.from('profiles').select('id, plan, subscription_status, churn_risk_score, updated_at, email'),
+    admin.from('profiles').select('id, plan, subscription_status, churn_risk_score, updated_at, email, is_qa_account'),
     admin
       .from('owner_outreach_drafts')
       .select('*')
@@ -235,7 +235,11 @@ export async function getFounderOsV5(input?: {
 
   const payingCustomers = profiles.filter(
     (p) =>
-      !isInternalCustomerEmail((p.email as string) ?? '') &&
+      !isInternalCustomerProfile({
+        email: (p.email as string) ?? '',
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      }) &&
       p.subscription_status === 'active' &&
       p.plan &&
       p.plan !== 'free' &&
@@ -243,12 +247,20 @@ export async function getFounderOsV5(input?: {
   ).length;
   const activeTrials = profiles.filter(
     (p) =>
-      !isInternalCustomerEmail((p.email as string) ?? '') &&
+      !isInternalCustomerProfile({
+        email: (p.email as string) ?? '',
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      }) &&
       p.subscription_status === 'trialing',
   ).length;
   const churnRiskCount = profiles.filter(
     (p) =>
-      !isInternalCustomerEmail((p.email as string) ?? '') &&
+      !isInternalCustomerProfile({
+        email: (p.email as string) ?? '',
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      }) &&
       (p.churn_risk_score ?? 0) > 70,
   ).length;
   const churnRisk: 'Low' | 'Medium' | 'High' =

@@ -1,7 +1,19 @@
 import { createHmac } from 'crypto';
 import { EMAIL_LINKS_DOMAIN, EMAIL_TRACK_DOMAIN, getTrackingBaseUrl } from './config';
 
-const SECRET = process.env.EMAIL_TRACKING_SECRET ?? process.env.CRON_SECRET ?? 'dev-tracking';
+function resolveTrackingSecret(): string {
+  const explicit = process.env.EMAIL_TRACKING_SECRET ?? process.env.CRON_SECRET;
+  if (explicit) return explicit;
+  if (process.env.VERCEL_ENV === 'production') {
+    console.error(
+      '[email/tracking] EMAIL_TRACKING_SECRET and CRON_SECRET are both unset in production — ' +
+        'open/click signatures use a weak fallback and can be forged. Set EMAIL_TRACKING_SECRET.',
+    );
+  }
+  return 'dev-tracking';
+}
+
+const SECRET = resolveTrackingSecret();
 
 export function signTrackingPayload(deliveryId: string, target?: string): string {
   const payload = target ? `${deliveryId}:${target}` : deliveryId;

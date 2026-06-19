@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { captureSignupAttribution } from '@/lib/owner/prospectAttribution';
+import {
+  PROSPECT_ATTRIBUTION_COOKIE,
+  captureSignupAttribution,
+  isValidAttributionToken,
+} from '@/lib/owner/prospectAttribution';
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const token = typeof body.token === 'string' ? body.token.trim() : '';
+  const bodyToken = typeof body.token === 'string' ? body.token.trim() : '';
 
-  if (!token) {
+  const cookieStore = await cookies();
+  const cookieToken = cookieStore.get(PROSPECT_ATTRIBUTION_COOKIE)?.value ?? '';
+
+  // Body token (sessionStorage) takes precedence; cookie is the durable fallback.
+  const token = isValidAttributionToken(bodyToken) ? bodyToken : cookieToken;
+
+  if (!isValidAttributionToken(token)) {
     return NextResponse.json({ error: 'token required' }, { status: 400 });
   }
 
@@ -27,5 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, prospectId: result.prospectId });
+  const response = NextResponse.json({ ok: true, prospectId: result.prospectId });
+  response.cookies.set(PROSPECT_ATTRIBUTION_COOKIE, '', { maxAge: 0, path: '/' });
+  return response;
 }

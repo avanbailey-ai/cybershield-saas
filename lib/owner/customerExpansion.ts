@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
-import { isInternalCustomerEmail } from './founderCustomerFilters';
+import { isInternalCustomerProfile } from './internalAccountFilters';
 
 export type ExpansionProbability = 'High' | 'Medium' | 'Low';
 
@@ -71,7 +71,7 @@ export async function getCustomerExpansion(): Promise<CustomerExpansionSummary> 
   const [profilesRes, websitesRes, scansRes, displayAmounts] = await Promise.all([
     admin
       .from('profiles')
-      .select('id, email, plan, subscription_status, last_active_at, updated_at')
+      .select('id, email, plan, subscription_status, last_active_at, updated_at, is_qa_account')
       .eq('subscription_status', 'active')
       .in('plan', ['pro', 'growth', 'agency']),
     admin.from('websites').select('user_id'),
@@ -95,7 +95,14 @@ export async function getCustomerExpansion(): Promise<CustomerExpansionSummary> 
 
   for (const p of profilesRes.data ?? []) {
     const email = (p.email as string) ?? '';
-    if (isInternalCustomerEmail(email)) continue;
+    if (
+      isInternalCustomerProfile({
+        email,
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      })
+    )
+      continue;
 
     const userId = p.id as string;
     const plan = (p.plan as string) ?? 'pro';

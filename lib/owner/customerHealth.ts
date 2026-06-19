@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { PLAN_LIMITS, type Plan } from '@/lib/billing/plans';
-import { formatInactivityDays, isInternalCustomerEmail } from './founderCustomerFilters';
+import { formatInactivityDays, isInternalCustomerProfile } from './internalAccountFilters';
 
 export type CustomerHealthStatus = 'Healthy' | 'At Risk' | 'Critical';
 
@@ -59,7 +59,7 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
     await Promise.all([
       admin
         .from('profiles')
-        .select('id, email, plan, subscription_status, churn_risk_score, last_active_at, updated_at')
+        .select('id, email, plan, subscription_status, churn_risk_score, last_active_at, updated_at, is_qa_account')
         .neq('plan', 'owner')
         .in('subscription_status', ['active', 'trialing', 'past_due']),
       admin.from('websites').select('id, user_id, is_active, url'),
@@ -124,7 +124,14 @@ export async function getCustomerHealth(): Promise<CustomerHealthSummary> {
 
   for (const p of profiles) {
     const email = (p.email as string) ?? '';
-    if (isInternalCustomerEmail(email)) continue;
+    if (
+      isInternalCustomerProfile({
+        email,
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      })
+    )
+      continue;
 
     const userId = p.id as string;
     const plan = (p.plan as string) ?? 'free';

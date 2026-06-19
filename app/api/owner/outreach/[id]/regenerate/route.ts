@@ -38,6 +38,7 @@ export async function POST(
     scanScore: prospect?.scan_score as number | undefined,
     riskLevel: (prospect?.scan_risk_level as string) ?? undefined,
     issues,
+    contactEmail: (prospect?.contact_email as string) ?? (draft.recipient_email as string) ?? undefined,
   });
 
   const { data: updated, error } = await admin

@@ -36,7 +36,7 @@ function parseDraftContent(content: string, businessName: string): { subject: st
     return { subject, body };
   }
   return {
-    subject: `Security findings for ${businessName}`,
+    subject: `Quick note about ${businessName}'s website`,
     body: trimmed,
   };
 }
@@ -212,7 +212,7 @@ export async function sendApprovedOutreach(
     bodyHtml: bodyToHtmlParagraphs(body),
     bodyText: body,
     category,
-    reason: `You were contacted because our security scan identified actionable findings for ${businessName}.`,
+    reason: `You were contacted because our website review identified items worth monitoring for ${businessName}.`,
     includeUnsubscribe: true,
   });
 

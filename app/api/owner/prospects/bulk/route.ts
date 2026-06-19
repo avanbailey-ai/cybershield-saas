@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
         scanScore: p.scan_score,
         riskLevel: p.scan_risk_level,
         issues: findings?.issues,
+        contactEmail: email,
       });
       const { error } = await admin.from('owner_outreach_drafts').insert({
         prospect_id: p.id,

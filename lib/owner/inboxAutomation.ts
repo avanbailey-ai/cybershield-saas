@@ -174,6 +174,7 @@ async function approveFollowUp(
     industry: (prospect.industry as string) ?? undefined,
     scanScore: prospect.scan_score as number | undefined,
     issues,
+    contactEmail: (prospect.contact_email as string) ?? undefined,
   });
 
   const { data: draft } = await admin

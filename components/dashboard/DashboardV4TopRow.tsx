@@ -25,6 +25,7 @@ function trendClass(trend: number | null): string {
 
 export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
   const { orgHealth, activeMonitoring, needsAttention, websites } = data;
+  const monitoringEnabled = !/no automated monitoring/i.test(data.planMonitoringLabel ?? '');
   const topIssue = needsAttention[0] ?? null;
   const topIssueSite = topIssue
     ? websites.find((w) => w.displayName === topIssue.websiteName)
@@ -62,12 +63,20 @@ export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
         </p>
       </article>
 
-      {/* 2. Monitoring Active */}
+      {/* 2. Monitoring */}
       <article className="rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6">
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-          {DASHBOARD_V4_COPY.monitoringActiveTitle}
+        <p
+          className={`text-xs font-semibold uppercase tracking-widest ${
+            monitoringEnabled ? 'text-emerald-400' : 'text-gray-400'
+          }`}
+        >
+          {monitoringEnabled ? DASHBOARD_V4_COPY.monitoringActiveTitle : 'Monitoring — upgrade to enable'}
         </p>
-        <p className="mt-2 text-sm text-gray-400">{DASHBOARD_V4_COPY.monitoringActiveSubtitle}</p>
+        <p className="mt-2 text-sm text-gray-400">
+          {monitoringEnabled
+            ? DASHBOARD_V4_COPY.monitoringActiveSubtitle
+            : 'Your plan includes manual scans only. Upgrade to a paid plan for continuous SSL, domain, uptime, and configuration monitoring.'}
+        </p>
         <dl className="mt-5 grid grid-cols-2 gap-4">
           <Metric label="Checks completed" value={String(activeMonitoring.checksCompleted)} />
           <Metric label="Changes detected" value={String(activeMonitoring.changesDetected)} />

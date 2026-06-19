@@ -29,6 +29,10 @@ const REF_COOKIE = "cybershield_ref";
 
 const REF_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
+const PROSPECT_COOKIE = "cybershield_prospect";
+
+const PROSPECT_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
 /** Enterprise users manage sites/scans here — do not redirect to portal. */
 const ENTERPRISE_OPERATIONAL_APP_PREFIXES = [
   '/app/websites',
@@ -40,6 +44,24 @@ const ENTERPRISE_OPERATIONAL_APP_PREFIXES = [
 
 function isEnterpriseOperationalAppPath(pathname: string): boolean {
   return ENTERPRISE_OPERATIONAL_APP_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/** Founder OS / owner-only surfaces — pages and APIs. */
+const OWNER_ONLY_PATH_PREFIXES = [
+  '/dashboard/admin',
+  '/dashboard/owner',
+  '/app/admin',
+  '/app/owner',
+  '/owner',
+  '/founder',
+  '/api/owner',
+  '/api/admin',
+] as const;
+
+function isOwnerOnlyPath(pathname: string): boolean {
+  return OWNER_ONLY_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
 }
@@ -142,6 +164,31 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
+    // ── Founder OS defense-in-depth ──
+    // Owner-only surfaces are also guarded per-route/per-page, but the middleware
+    // denies non-owners here as a second layer so a future route added without an
+    // explicit guard can never leak owner data.
+    if (isOwnerOnlyPath(pathname)) {
+      const isOwnerApiPath = pathname.startsWith('/api/owner') || pathname.startsWith('/api/admin');
+      if (!user) {
+        if (isOwnerApiPath) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('redirectTo', pathname);
+        return NextResponse.redirect(url);
+      }
+      if (!isOwner(user.email)) {
+        if (isOwnerApiPath) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+        const url = request.nextUrl.clone();
+        url.pathname = '/app';
+        return NextResponse.redirect(url);
+      }
+    }
+
     // Legacy /dashboard → canonical /app (enterprise dashboard → portal)
     if (pathname.startsWith('/dashboard/enterprise')) {
       const url = request.nextUrl.clone();
@@ -173,6 +220,25 @@ export async function updateSession(request: NextRequest) {
       supabaseResponse.cookies.set(REF_COOKIE, refCode, {
 
         maxAge: REF_COOKIE_MAX_AGE,
+
+        path: "/",
+
+        sameSite: "lax",
+
+      });
+
+    }
+
+    // Prospect attribution: persist outreach token so it survives OAuth, email
+    // confirmation, reloads, and redirected checkout. Also accepts ref=prospect_<token>.
+    const refProspect = refCode?.startsWith("prospect_") ? refCode.slice("prospect_".length) : null;
+    const prospectToken = request.nextUrl.searchParams.get("prospect") ?? refProspect;
+
+    if (prospectToken && prospectToken.length >= 8 && /^[A-Za-z0-9_-]+$/.test(prospectToken)) {
+
+      supabaseResponse.cookies.set(PROSPECT_COOKIE, prospectToken, {
+
+        maxAge: PROSPECT_COOKIE_MAX_AGE,
 
         path: "/",
 

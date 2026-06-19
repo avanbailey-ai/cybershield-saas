@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
 import { getCustomerHealth, type CustomerHealthRecord } from './customerHealth';
-import { isInternalCustomerEmail } from './founderCustomerFilters';
+import { isInternalCustomerEmail } from './internalAccountFilters';
 
 export interface RevenueAtRiskItem {
   userId: string;

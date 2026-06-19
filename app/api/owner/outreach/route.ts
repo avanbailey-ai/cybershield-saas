@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
     riskLevel: body.riskLevel,
     issues: body.issues,
     contactName: body.contactName,
+    contactEmail: body.contactEmail,
+    signupUrl: body.signupUrl,
+    variant: body.variant,
   });
 
   return NextResponse.json({ ok: true, type, content });

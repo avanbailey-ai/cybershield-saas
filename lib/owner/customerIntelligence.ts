@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isInternalCustomerProfile } from './internalAccountFilters';
 
 export interface CustomerIntelligenceSummary {
   topIndustries: { name: string; count: number }[];
@@ -18,7 +19,7 @@ export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSum
     admin.from('scans').select('score, issues').order('created_at', { ascending: false }).limit(200),
     admin
       .from('profiles')
-      .select('churn_risk_score, subscription_status, plan, updated_at')
+      .select('churn_risk_score, subscription_status, plan, updated_at, email, is_qa_account')
       .not('churn_risk_score', 'is', null),
     admin.from('owner_crm_leads').select('industry').not('industry', 'is', null),
     admin
@@ -49,10 +50,19 @@ export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSum
     }
   }
 
-  const churnSignals = (profilesRes.data ?? []).filter(
+  const customerProfiles = (profilesRes.data ?? []).filter(
+    (p) =>
+      !isInternalCustomerProfile({
+        email: (p as { email?: string }).email ?? '',
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      }),
+  );
+
+  const churnSignals = customerProfiles.filter(
     (p) => (p.churn_risk_score ?? 0) > 70,
   ).length;
-  const conversionSignals = (profilesRes.data ?? []).filter(
+  const conversionSignals = customerProfiles.filter(
     (p) => p.subscription_status === 'active' || p.subscription_status === 'trialing',
   ).length;
 
@@ -67,11 +77,11 @@ export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSum
     .map(([finding, count]) => ({ finding, count }));
 
   const churnDrivers: string[] = [];
-  const atRisk = (profilesRes.data ?? []).filter((p) => (p.churn_risk_score ?? 0) > 70);
+  const atRisk = customerProfiles.filter((p) => (p.churn_risk_score ?? 0) > 70);
   if (atRisk.length > 0) {
     churnDrivers.push(`${atRisk.length} accounts with churn risk score > 70`);
   }
-  const inactive = (profilesRes.data ?? []).filter((p) => {
+  const inactive = customerProfiles.filter((p) => {
     const ts = (p as { updated_at?: string }).updated_at;
     if (!ts) return false;
     const days = (Date.now() - new Date(ts).getTime()) / 86400000;
@@ -80,7 +90,7 @@ export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSum
   if (inactive.length > 0) {
     churnDrivers.push(`${inactive.length} active subscribers inactive 30+ days`);
   }
-  const freeStuck = (profilesRes.data ?? []).filter(
+  const freeStuck = customerProfiles.filter(
     (p) => p.plan === 'free' && p.subscription_status !== 'active',
   );
   if (freeStuck.length > 5) {
@@ -88,7 +98,7 @@ export async function getCustomerIntelligence(): Promise<CustomerIntelligenceSum
   }
 
   const conversionDrivers: string[] = [];
-  const paid = (profilesRes.data ?? []).filter(
+  const paid = customerProfiles.filter(
     (p) => p.subscription_status === 'active' || p.subscription_status === 'trialing',
   );
   if (paid.length > 0) {

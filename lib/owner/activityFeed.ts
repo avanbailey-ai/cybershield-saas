@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isInternalCustomerEmail } from './founderCustomerFilters';
+import { isInternalCustomerProfile } from './internalAccountFilters';
 
 export type ActivityFeedEventType =
   | 'discovery'
@@ -86,20 +86,20 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
       .limit(10),
     admin
       .from('profiles')
-      .select('id, email, plan, created_at')
+      .select('id, email, plan, created_at, is_qa_account')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10),
     admin
       .from('profiles')
-      .select('id, email, plan, updated_at')
+      .select('id, email, plan, updated_at, is_qa_account')
       .gte('updated_at', since)
       .in('plan', ['growth', 'agency'])
       .order('updated_at', { ascending: false })
       .limit(5),
     admin
       .from('profiles')
-      .select('id, email, churn_risk_score, updated_at')
+      .select('id, email, churn_risk_score, updated_at, plan, is_qa_account')
       .gt('churn_risk_score', 70)
       .gte('updated_at', since)
       .order('updated_at', { ascending: false })
@@ -182,7 +182,14 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
 
   for (const s of signupsRes.data ?? []) {
     const email = (s.email as string) ?? '';
-    if (isInternalCustomerEmail(email)) continue;
+    if (
+      isInternalCustomerProfile({
+        email,
+        is_qa_account: (s as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (s as { plan?: string }).plan ?? null,
+      })
+    )
+      continue;
     const at = s.created_at as string;
     events.push({
       id: `signup-${s.id}`,
@@ -196,7 +203,14 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
 
   for (const e of expansionsRes.data ?? []) {
     const email = (e.email as string) ?? '';
-    if (isInternalCustomerEmail(email)) continue;
+    if (
+      isInternalCustomerProfile({
+        email,
+        is_qa_account: (e as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (e as { plan?: string }).plan ?? null,
+      })
+    )
+      continue;
     const at = e.updated_at as string;
     events.push({
       id: `plan-${e.id}`,
@@ -209,6 +223,14 @@ export async function getActivityFeed(hours = 24): Promise<ActivityFeedSummary> 
   }
 
   for (const r of riskProfilesRes.data ?? []) {
+    if (
+      isInternalCustomerProfile({
+        email: (r.email as string) ?? '',
+        is_qa_account: (r as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (r as { plan?: string }).plan ?? null,
+      })
+    )
+      continue;
     const at = r.updated_at as string;
     events.push({
       id: `churn-${r.id}`,

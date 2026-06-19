@@ -35,6 +35,7 @@ export async function ensureOutreachDraft(
     scanScore: prospect.scan_score as number | undefined,
     riskLevel: prospect.scan_risk_level as string | undefined,
     issues: findings?.issues,
+    contactEmail: contactEmail,
   });
 
   const { data: draft, error } = await admin

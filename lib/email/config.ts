@@ -54,28 +54,59 @@ export function getSendingDomain(): string {
   return EMAIL_SENDING_DOMAIN;
 }
 
+/**
+ * True when the dedicated mail subdomain (mail.cybershieldcloud.com) has been
+ * explicitly configured — i.e. verified in Resend. Only then do we route
+ * per-function local addresses (alerts@, outreach@, …) through the subdomain.
+ * Otherwise we never force the unverified subdomain and fall back to the
+ * verified root sender in EMAIL_FROM.
+ */
+export function isMailSubdomainConfigured(): boolean {
+  return Boolean(process.env.EMAIL_SENDING_DOMAIN?.trim());
+}
+
 export function getResendFromAddress(category: EmailCategory = 'system'): string {
+  // 1. Per-category explicit override always wins.
   const override = process.env[`EMAIL_FROM_${category.toUpperCase()}`]?.trim();
   if (override) return override;
 
   const configured = process.env.EMAIL_FROM?.trim();
-  if (configured && !configured.includes('@resend.dev')) {
-    if (category === 'system' || category === 'alert') return configured;
-  }
 
-  if (process.env.VERCEL_ENV === 'production' || configured) {
+  // 2. Verified mail subdomain → per-function local addressing.
+  if (isMailSubdomainConfigured()) {
     const local = FROM_LOCAL[category];
     return `CyberShield <${local}@${EMAIL_SENDING_DOMAIN}>`;
   }
 
+  // 3. No subdomain set → use the configured (verified root) sender for ALL
+  //    categories. Never force the unverified mail subdomain.
+  if (configured && !configured.includes('@resend.dev')) {
+    return configured;
+  }
+
+  // 4. Nothing verified — sandbox (warning fires in lib/email.ts).
   return RESEND_SANDBOX_FROM;
 }
 
 export function getReplyToAddress(category: EmailCategory = 'system'): string {
   const override = process.env.EMAIL_REPLY_TO?.trim();
   if (override) return override;
-  const local = REPLY_LOCAL[category];
-  return `${local}@${EMAIL_SENDING_DOMAIN}`;
+
+  // Match reply-to to the actual sending domain so it stays deliverable.
+  if (isMailSubdomainConfigured()) {
+    const local = REPLY_LOCAL[category];
+    return `${local}@${EMAIL_SENDING_DOMAIN}`;
+  }
+
+  const from = getResendFromAddress(category);
+  const match = from.match(/@([a-zA-Z0-9.-]+)/);
+  const domain = match?.[1] ?? EMAIL_ROOT_DOMAIN;
+  if (domain.includes('resend.dev')) {
+    return `${REPLY_LOCAL[category]}@${EMAIL_ROOT_DOMAIN}`;
+  }
+  const localMatch = from.match(/<?([a-zA-Z0-9._%+-]+)@/);
+  const local = localMatch?.[1] ?? REPLY_LOCAL[category];
+  return `${local}@${domain}`;
 }
 
 export function isResendSandboxFrom(from?: string): boolean {

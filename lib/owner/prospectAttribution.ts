@@ -6,6 +6,19 @@ import { isInternalCustomerEmail } from './founderCustomerFilters';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://cybershieldcloud.com';
 
+/**
+ * Durable prospect attribution cookie. Set by middleware from the `?prospect=`
+ * link param so attribution survives OAuth redirects, email confirmation, page
+ * reloads, and the gap between signup and an immediate session.
+ */
+export const PROSPECT_ATTRIBUTION_COOKIE = 'cybershield_prospect';
+export const PROSPECT_ATTRIBUTION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
+/** Tokens are base64url from randomBytes — validate before trusting. */
+export function isValidAttributionToken(token: string | null | undefined): boolean {
+  return typeof token === 'string' && token.length >= 8 && /^[A-Za-z0-9_-]+$/.test(token);
+}
+
 export function buildAttributionSignupUrl(token: string): string {
   return `${APP_URL}/signup?source=outreach&prospect=${encodeURIComponent(token)}`;
 }

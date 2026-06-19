@@ -81,16 +81,16 @@ export default function SignupForm() {
 
       if (data.user && data.session) {
         try {
+          // Always attempt capture: the server falls back to the durable
+          // prospect cookie when sessionStorage is empty (reload/other device).
           const attributionToken = sessionStorage.getItem("prospect_attribution_token");
-          if (attributionToken) {
-            await fetch("/api/attribution/signup", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ token: attributionToken }),
-            });
-            sessionStorage.removeItem("prospect_attribution_token");
-          }
+          await fetch("/api/attribution/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(attributionToken ? { token: attributionToken } : {}),
+          });
+          sessionStorage.removeItem("prospect_attribution_token");
         } catch {
           // Non-blocking
         }

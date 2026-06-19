@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanDisplayAmounts } from '@/lib/billing/stripeDisplayPrices';
-import { isInternalCustomerEmail } from './founderCustomerFilters';
+import { isInternalCustomerProfile } from './internalAccountFilters';
 import { getRevenueAtRisk } from './revenueAtRisk';
 
 const DEFAULT_MRR_GOAL = 1000;
@@ -51,7 +51,7 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
 
   const [profilesRes, goalRes, displayAmounts, revenueAtRisk] = await Promise.all([
     admin.from('profiles').select(
-      'id, email, plan, subscription_status, churn_risk_score, created_at, updated_at',
+      'id, email, plan, subscription_status, churn_risk_score, created_at, updated_at, is_qa_account',
     ),
     admin
       .from('owner_founder_settings')
@@ -75,7 +75,13 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
 
   for (const p of profiles) {
     const email = (p.email as string) ?? '';
-    if (isInternalCustomerEmail(email)) {
+    if (
+      isInternalCustomerProfile({
+        email,
+        is_qa_account: (p as { is_qa_account?: boolean }).is_qa_account ?? null,
+        plan: (p.plan as string) ?? null,
+      })
+    ) {
       excludedAccounts.push(email);
       continue;
     }
@@ -157,8 +163,8 @@ export async function getBusinessHealthMetrics(): Promise<BusinessHealthMetrics>
         rules: [
           'Counts active paid subscriptions only (trialing excluded from MRR total).',
           'Uses Stripe display prices from getPlanDisplayAmounts().',
-          'Excludes owner plan, free plan, and internal/test emails via founderCustomerFilters.',
-          'Owner email, test@gmail.com, +test@, stripe-preview-test, and disposable domains excluded.',
+          'Excludes owner plan, free plan, and internal/test emails via internalAccountFilters.',
+          'Owner email, test@gmail.com, +test@, qa+, stripe-preview-test, disposable/example domains, and is_qa_account profiles excluded.',
         ],
       },
       conversion: {
