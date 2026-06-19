@@ -11,7 +11,9 @@ import SecurityFindingCard from './SecurityFindingCard';
 import SecurityRecommendationsPanel from './SecurityRecommendationsPanel';
 import FindingActionBar from './FindingActionBar';
 import RemediationAssistantPanel from './RemediationAssistantPanel';
+import CustomerReportPanel from '@/components/intelligence/CustomerReportPanel';
 import { riskScoreColor } from './severityStyles';
+import type { SecurityIntelligenceReport } from '@/lib/securityIntelligence/types';
 
 interface SecurityReportExperienceProps {
   presentation: ExecutiveReportPresentation;
@@ -19,6 +21,10 @@ interface SecurityReportExperienceProps {
   recommendations: SecurityRecommendation[];
   sslValid: boolean | null;
   actionContext?: FindingActionContext;
+  intelligenceReport?: SecurityIntelligenceReport;
+  siteLabel?: string;
+  siteUrl?: string;
+  planLevel?: 'free' | 'pro' | 'growth' | 'agency' | 'enterprise';
 }
 
 function ViewModeToggle({
@@ -85,6 +91,10 @@ export default function SecurityReportExperience({
   recommendations,
   sslValid,
   actionContext,
+  intelligenceReport,
+  siteLabel,
+  siteUrl,
+  planLevel,
 }: SecurityReportExperienceProps) {
   const [viewMode, setViewMode] = useState<ReportViewMode>('executive');
   const { summary, scoreExplanation, fixTheseFirst, strengths, groupedFindings, plan, progress } =
@@ -93,6 +103,19 @@ export default function SecurityReportExperience({
   return (
     <>
       <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+
+      {intelligenceReport && siteLabel && siteUrl && (
+        <div className="mb-6">
+          <CustomerReportPanel
+            siteLabel={siteLabel}
+            siteUrl={siteUrl}
+            report={intelligenceReport}
+            findings={findings}
+            sslValid={sslValid}
+            planLevel={planLevel}
+          />
+        </div>
+      )}
 
       {/* Executive Summary — structured first */}
       <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">

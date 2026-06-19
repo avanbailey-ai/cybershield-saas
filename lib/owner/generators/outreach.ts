@@ -1,3 +1,6 @@
+import { matchExplainerFromText } from '@/lib/intelligence/catalog';
+import { translateFindingForOutreach, buildNoFindingsOutreachParagraph } from '@/lib/intelligence/outreachCopy';
+
 export interface OutreachInput {
   businessName: string;
   website: string;
@@ -99,6 +102,7 @@ export const SAFETY_DISCLAIMER =
 export const PRODUCT_EXPLANATION =
   'CyberShield Cloud monitors business websites for security settings, SSL certificate issues, domain problems, uptime changes, and unexpected website changes, so owners know when something important changes.';
 
+
 export interface FindingTranslation {
   /** Plain-English, business-owner-facing description. No jargon. */
   business: string;
@@ -111,84 +115,15 @@ export interface FindingTranslation {
  * optional technical note. Never returns raw severity tags or scanner strings.
  */
 export function translateFinding(issue: string): FindingTranslation {
-  const lower = issue.toLowerCase();
-
-  if (/content-security-policy|\bcsp\b/.test(lower)) {
+  const fromCatalog = matchExplainerFromText(issue);
+  if (fromCatalog) {
     return {
-      business:
-        'Your site does not have a strong browser rule limiting which scripts and third-party resources can run.',
-      technical:
-        'Content-Security-Policy (CSP) helps reduce the impact of injected scripts and unsafe third-party resources.',
+      business: fromCatalog.plainEnglish,
+      technical: fromCatalog.technicalExplanation,
     };
   }
-  if (/strict-transport-security|\bhsts\b/.test(lower)) {
-    return {
-      business: 'Your site may not be forcing browsers to stay on the secure HTTPS version.',
-      technical: 'HSTS tells browsers to always use HTTPS after the first secure visit.',
-    };
-  }
-  if (/referrer-policy/.test(lower)) {
-    return {
-      business:
-        'Your site may be sharing more page information with outside websites than necessary.',
-      technical: 'Referrer-Policy controls how much URL/referrer data is sent to third-party sites.',
-    };
-  }
-  if (/permissions-policy/.test(lower)) {
-    return {
-      business:
-        'Your site has not clearly limited which browser features outside scripts can request.',
-      technical:
-        'Permissions-Policy can restrict browser APIs such as camera, microphone, geolocation, and payment features.',
-    };
-  }
-  if (/x-frame-options|clickjack|frame-ancestors/.test(lower)) {
-    return {
-      business: 'Your site may be easy to embed on untrusted pages, which can mislead visitors.',
-      technical:
-        'X-Frame-Options / frame-ancestors restricts which sites can embed your pages, reducing clickjacking risk.',
-    };
-  }
-  if (/x-content-type|content-type-options/.test(lower)) {
-    return {
-      business: 'Browsers may not be told clearly how to handle certain files on your site.',
-      technical:
-        'X-Content-Type-Options: nosniff stops browsers from guessing (MIME-sniffing) file types.',
-    };
-  }
-  if (/ssl|https|certificate|tls/.test(lower)) {
-    if (/expir/.test(lower)) {
-      return {
-        business:
-          'Your security certificate timing may leave a window where browsers warn visitors, which can erode trust.',
-        technical: 'An expiring or expired TLS certificate triggers browser warnings until it is renewed.',
-      };
-    }
-    if (/no https|plaintext/.test(lower)) {
-      return {
-        business:
-          'Traffic to your site may not always be encrypted, which can expose information and trigger browser warnings.',
-        technical: 'Pages served without HTTPS leave traffic unencrypted and flagged as "Not secure".',
-      };
-    }
-    return {
-      business:
-        'Your secure-connection settings may need attention before they affect customer trust or availability.',
-      technical: 'TLS/SSL configuration affects whether connections are encrypted and trusted by browsers.',
-    };
-  }
-  if (/could not reach|unreachable|server error|client error|http [45]/.test(lower)) {
-    return {
-      business:
-        'Your site may have reliability issues that affect whether customers can reach it consistently.',
-      technical: 'HTTP 4xx/5xx responses or reachability failures were observed during the scan.',
-    };
-  }
-
   return {
-    business:
-      'This is a public website configuration item worth reviewing before it affects customers, uptime, or trust.',
-    // Strip any leading "[SEVERITY]" tag so raw scanner output never leaks through.
+    business: translateFindingForOutreach(issue),
     technical: issue.replace(/^\s*\[[A-Za-z]+\]\s*/, '').trim() || 'Configuration item flagged during the scan.',
   };
 }

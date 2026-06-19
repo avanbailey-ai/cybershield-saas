@@ -218,6 +218,12 @@ export default async function ReportPage({ params }: PageProps) {
               recommendations={intelligence.recommendations}
               sslValid={scanRow.ssl_valid}
               actionContext={findingActionContext}
+              intelligenceReport={intelligence}
+              siteLabel={siteLabel}
+              siteUrl={siteUrl}
+              planLevel={
+                plan === 'owner' ? 'enterprise' : plan
+              }
             />
             {scanRow.website_id && (
               <SecurityTrendPanel websiteId={scanRow.website_id} period={30} />

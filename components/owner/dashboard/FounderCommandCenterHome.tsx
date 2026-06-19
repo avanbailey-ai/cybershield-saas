@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useFounderNav } from '../FounderNavContext';
-import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
 import type { OwnerProspect } from '@/lib/owner/types';
 import {
   filterProspectsByKind,
@@ -11,6 +10,11 @@ import {
   type ProspectKindView,
 } from '@/lib/owner/prospectDisplay';
 import { computeRevenueIntelligence } from '@/lib/owner/revenueIntelligence';
+import {
+  buildFounderRecommendations,
+  countProspectsByKind,
+  explainLeadChoice,
+} from '@/lib/intelligence/founderRecommendations';
 import EmailHealthSection from './EmailHealthSection';
 
 type PriorityStatus = 'ready' | 'blocked' | 'needs_review';
@@ -28,60 +32,6 @@ function statusTone(status: PriorityStatus): string {
   if (status === 'ready') return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
   if (status === 'blocked') return 'text-red-300 bg-red-500/10 border-red-500/20';
   return 'text-amber-300 bg-amber-500/10 border-amber-500/20';
-}
-
-function buildPriorities(
-  inbox: FounderInboxItem[],
-  followUpsDue: number,
-  pendingApprovals: number,
-): TodayPriority[] {
-  const items: TodayPriority[] = [];
-
-  const outreach = inbox.find((i) => i.type === 'outreach');
-  if (outreach) {
-    items.push({
-      id: outreach.id,
-      title: outreach.title,
-      why: outreach.whyItMatters ?? 'Outreach-ready prospect with email on file.',
-      action: 'Review draft',
-      status: 'ready',
-      section: 'inbox',
-    });
-  } else if (pendingApprovals > 0) {
-    items.push({
-      id: 'inbox-pending',
-      title: `${pendingApprovals} item(s) need approval`,
-      why: 'Manual approval is required before any email sends.',
-      action: 'Open inbox',
-      status: 'needs_review',
-      section: 'inbox',
-    });
-  }
-
-  if (followUpsDue > 0) {
-    items.push({
-      id: 'follow-ups',
-      title: `${followUpsDue} follow-up(s) due`,
-      why: 'Timely follow-ups improve reply rates on contacted prospects.',
-      action: 'Review follow-ups',
-      status: 'ready',
-      section: 'inbox',
-    });
-  }
-
-  const risk = inbox.find((i) => i.type === 'customer_risk');
-  if (risk) {
-    items.push({
-      id: risk.id,
-      title: risk.title,
-      why: risk.whyItMatters ?? 'Protect recurring revenue.',
-      action: 'Review retention',
-      status: 'needs_review',
-      section: 'success',
-    });
-  }
-
-  return items.slice(0, 3);
 }
 
 function bestLeadForView(prospects: OwnerProspect[], view: ProspectKindView) {
@@ -111,16 +61,51 @@ export default function FounderCommandCenterHome() {
   const agencyBest = useMemo(() => bestLeadForView(prospects, 'agency'), [prospects]);
   const showAgencyBest = agencyPipeline.potentialOpportunities > 0 && agencyBest;
 
-  const priorities = buildPriorities(
-    data.inbox,
-    v6.executionStats.followUpsDue,
-    v6.executionStats.pendingApprovals,
+  const prospectCounts = useMemo(() => countProspectsByKind(prospects), [prospects]);
+  const founderIntel = useMemo(
+    () =>
+      buildFounderRecommendations({
+        inbox: data.inbox,
+        prospects,
+        followUpsDue: v6.executionStats.followUpsDue,
+        pendingApprovals: v6.executionStats.pendingApprovals,
+        payingCustomers: v6.businessHealth.payingCustomers,
+        mrrCents: v6.businessHealth.mrr * 100,
+        emailOpenRate: null,
+        agencyProspectCount: prospectCounts.agency,
+        smbProspectCount: prospectCounts.smb,
+      }),
+    [
+      data.inbox,
+      prospects,
+      v6.executionStats,
+      v6.businessHealth,
+      prospectCounts,
+    ],
   );
 
+  const priorities = founderIntel.todaysPriorities.map((p) => ({
+    id: p.id,
+    title: p.title,
+    why: p.why,
+    action: p.action,
+    status: (p.section === 'success'
+      ? 'needs_review'
+      : p.id === 'inbox-pending'
+        ? 'needs_review'
+        : 'ready') as PriorityStatus,
+    section: p.section,
+  }));
+
   const payingInHealth = v6.customerHealth.customers.filter((c) => c.mrr > 0).length;
-  const warnings: { id: string; text: string; section?: 'inbox' | 'prospects' | 'settings' }[] = [];
+  const warnings: { id: string; text: string; section?: 'inbox' | 'prospects' | 'settings' }[] =
+    founderIntel.warnings.map((text, i) => ({
+      id: `intel-warn-${i}`,
+      text,
+      section: text.includes('Agency Discovery') ? 'prospects' : text.includes('Email') ? 'settings' : undefined,
+    }));
   const emailHealthCheck = v6.emailHealth.checks.find((c) => c.id === 'delivery_rate');
-  if (v6.emailHealth.overall !== 'healthy') {
+  if (v6.emailHealth.overall !== 'healthy' && !warnings.some((w) => w.id === 'email-health')) {
     warnings.push({
       id: 'email-health',
       text: emailHealthCheck?.detail ?? 'Email health needs attention',
@@ -133,13 +118,15 @@ export default function FounderCommandCenterHome() {
       text: `Customer count mismatch (${v6.businessHealth.payingCustomers} paying vs ${payingInHealth} in health) — refresh data.`,
     });
   }
-  if (agencyPipeline.potentialOpportunities === 0) {
+  if (agencyPipeline.potentialOpportunities === 0 && !warnings.some((w) => w.text.includes('agency'))) {
     warnings.push({
       id: 'no-agency',
       text: 'No agency prospects yet — run Agency Discovery before agency outreach.',
       section: 'prospects',
     });
   }
+
+  const revenueBlockers = founderIntel.blockedRevenueItems;
 
   const recentActivity = v6.activityFeed.events.slice(0, 5);
 
@@ -165,7 +152,7 @@ export default function FounderCommandCenterHome() {
 
       <section className="rounded-2xl border border-violet-500/25 bg-violet-500/5 p-5 sm:p-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-violet-300">
-          Today&apos;s priorities
+          Today&apos;s recommended actions
         </h2>
         {priorities.length === 0 ? (
           <p className="mt-4 text-sm text-gray-400">
@@ -256,6 +243,28 @@ export default function FounderCommandCenterHome() {
         </div>
       </section>
 
+      {revenueBlockers.length > 0 && (
+        <section className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5 sm:p-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-red-300/90">
+            Revenue blockers
+          </h2>
+          <ul className="mt-3 space-y-2">
+            {revenueBlockers.map((item) => (
+              <li key={item} className="text-sm text-red-100/90">
+                {item}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setSection('inbox')}
+            className="mt-4 min-h-[40px] rounded-lg border border-red-500/40 px-3 py-1.5 text-xs text-red-200 hover:bg-red-500/10"
+          >
+            {founderIntel.nextBestAction}
+          </button>
+        </section>
+      )}
+
       {warnings.length > 0 && (
         <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 sm:p-6">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
@@ -338,6 +347,8 @@ function BestLeadCard({
   estMrr: number | null;
   onAction: () => void;
 }) {
+  const [whyOpen, setWhyOpen] = useState(false);
+
   if (!lead) {
     return (
       <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4 text-sm text-gray-500">
@@ -355,13 +366,25 @@ function BestLeadCard({
         {estMrr ? ` · est. $${estMrr}/mo` : ''}
         {isAgencyKind(lead) ? ' · Agency' : ' · SMB'}
       </p>
-      <button
-        type="button"
-        onClick={onAction}
-        className="mt-3 min-h-[40px] rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10"
-      >
-        View in prospects
-      </button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setWhyOpen((v) => !v)}
+          className="min-h-[40px] rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs text-violet-300 hover:bg-violet-500/10"
+        >
+          {whyOpen ? 'Hide why' : 'Why this lead?'}
+        </button>
+        <button
+          type="button"
+          onClick={onAction}
+          className="min-h-[40px] rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10"
+        >
+          View in prospects
+        </button>
+      </div>
+      {whyOpen && (
+        <p className="mt-3 text-xs leading-relaxed text-gray-400">{explainLeadChoice(lead)}</p>
+      )}
     </div>
   );
 }

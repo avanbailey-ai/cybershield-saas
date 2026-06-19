@@ -27,9 +27,6 @@ export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
   const { orgHealth, activeMonitoring, needsAttention, websites } = data;
   const monitoringEnabled = !/no automated monitoring/i.test(data.planMonitoringLabel ?? '');
   const topIssue = needsAttention[0] ?? null;
-  const topIssueSite = topIssue
-    ? websites.find((w) => w.displayName === topIssue.websiteName)
-    : null;
 
   return (
     <section className="grid gap-4 lg:grid-cols-3">
@@ -104,28 +101,43 @@ export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
           {DASHBOARD_V4_COPY.immediateAttentionTitle}
         </p>
         {topIssue ? (
-          <div className="mt-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClass(topIssue.severity)}`}
+          <div className="mt-4 space-y-4">
+            {needsAttention.slice(0, 3).map((issue) => {
+              const site = websites.find((w) => w.displayName === issue.websiteName);
+              return (
+                <div key={`${issue.websiteName}-${issue.title}`} className="border-t border-gray-800 pt-4 first:border-0 first:pt-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${severityBadgeClass(issue.severity)}`}
+                    >
+                      {issue.severity}
+                    </span>
+                    <span className="text-xs text-gray-500">{issue.websiteName}</span>
+                    {site?.score !== null && site?.score !== undefined && (
+                      <span className="text-xs font-medium text-gray-400">
+                        {site.score}/100
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-white">{issue.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-400">{issue.whyItMatters}</p>
+                  <Link
+                    href={issue.actionHref}
+                    className="mt-2 inline-flex text-xs font-medium text-blue-400 hover:text-blue-300"
+                  >
+                    Why this matters →
+                  </Link>
+                </div>
+              );
+            })}
+            {topIssue && (
+              <Link
+                href={topIssue.actionHref}
+                className="inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
               >
-                {topIssue.severity}
-              </span>
-              <span className="text-xs text-gray-500">{topIssue.websiteName}</span>
-              {topIssueSite?.score !== null && topIssueSite?.score !== undefined && (
-                <span className="text-xs font-medium text-gray-400">
-                  {topIssueSite.score}/100
-                </span>
-              )}
-            </div>
-            <p className="mt-3 text-sm font-semibold text-white">{topIssue.title}</p>
-            <p className="mt-2 text-xs leading-relaxed text-gray-400">{topIssue.whyItMatters}</p>
-            <Link
-              href={topIssue.actionHref}
-              className="mt-4 inline-flex min-h-[40px] items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-500"
-            >
-              Open Health Center
-            </Link>
+                Open Health Center
+              </Link>
+            )}
           </div>
         ) : (
           <div className="mt-4">

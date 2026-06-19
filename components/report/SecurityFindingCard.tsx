@@ -11,6 +11,7 @@ import {
 import CollapsibleReportSection from './CollapsibleReportSection';
 import FindingActionBar from './FindingActionBar';
 import RemediationAssistantPanel from './RemediationAssistantPanel';
+import FindingIntelligencePanel from '@/components/intelligence/FindingIntelligencePanel';
 
 interface SecurityFindingCardProps {
   finding: SecurityIntelligenceCard & { id?: string };
@@ -105,6 +106,10 @@ function FindingDetails({
 
       <div className="mb-4">
         <RemediationAssistantPanel finding={findingWithId} />
+      </div>
+
+      <div className="mb-4">
+        <FindingIntelligencePanel finding={findingWithId} actionContext={actionContext} />
       </div>
 
       <div className="mb-4">

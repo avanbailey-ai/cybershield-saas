@@ -13,6 +13,7 @@ import {
   type NeedsAttentionClient,
   type OrgInsight,
 } from '@/lib/enterprise/enterpriseCommandCenter';
+import AgencyClientReportPanel from '@/components/intelligence/AgencyClientReportPanel';
 
 const mobileActionClass =
   'inline-flex min-h-[48px] w-full items-center justify-center rounded-lg px-4 py-3.5 text-sm font-medium sm:w-auto sm:min-h-0 sm:py-2';
@@ -71,6 +72,11 @@ function AgencySectionHeader({
 
 export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCommandCenterData }) {
   const { orgSummary, valueMetrics, advancedDiagnostics } = data;
+  const featuredClient: EnterpriseWebsiteRow | undefined =
+    data.needsAttention[0]
+      ? data.protectedWebsites.find((w) => w.id === data.needsAttention[0]!.id) ??
+        data.protectedWebsites[0]
+      : data.protectedWebsites[0];
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-auto">
@@ -142,6 +148,19 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
               <MetricPill label="SSL alerts" value={String(orgSummary.weekStats.sslIssues)} />
             </div>
           </section>
+
+          {featuredClient && (
+            <AgencyClientReportPanel
+              clientName={featuredClient.displayName}
+              siteUrl={featuredClient.url}
+              siteLabel={featuredClient.displayName}
+              securityScore={featuredClient.score ?? orgSummary.overallScore ?? 0}
+              findings={[]}
+              sslValid={featuredClient.sslStatus === 'healthy' ? true : featuredClient.sslStatus === 'critical' ? false : null}
+              scansThisMonth={orgSummary.weekStats.checksCompleted}
+              alertsThisMonth={orgSummary.weekStats.issuesDetected}
+            />
+          )}
 
           {data.isEmpty && (
             <div className="rounded-xl border border-dashed border-indigo-700/40 bg-indigo-950/20 px-5 py-8 text-center">
