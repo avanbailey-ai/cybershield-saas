@@ -53,6 +53,10 @@ assert(read('lib/owner/conversionPathGuard.ts').includes('checkConversionPaths')
 assert(read('app/agency/page.tsx').length > 0 || existsSync(join(process.cwd(), 'app/agency/page.tsx')), 'agency page exists');
 assert(read('app/summary/page.tsx').length > 0 || existsSync(join(process.cwd(), 'app/summary/page.tsx')), 'summary page exists');
 
-assert(read('lib/owner/discovery/settings.ts').includes("'global'"), 'global discovery scope exists');
+assert(read('lib/owner/discovery/settings.ts').includes("'nationwide'"), 'nationwide discovery scope exists (global discovery not shipping yet)');
+assert(
+  read('lib/owner/growthAutopilotSettings.ts').includes('global_discovery_enabled: false'),
+  'global discovery disabled by default until international compliance is ready',
+);
 
 console.log('\nAll growth autopilot checks passed.');
