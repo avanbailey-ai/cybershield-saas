@@ -16,26 +16,43 @@ export async function scheduleFollowUps(
   const now = Date.now();
   let scheduled = 0;
 
+  // Idempotency: never schedule a follow-up stage that already has an active
+  // (scheduled/due) row for this prospect+draft. Prevents duplicate follow-up
+  // emails for the same step if scheduling is ever invoked more than once.
+  const { data: existing } = await admin
+    .from('owner_follow_ups')
+    .select('follow_up_number')
+    .eq('prospect_id', input.prospectId)
+    .eq('draft_id', input.draftId)
+    .in('status', ['scheduled', 'due']);
+  const existingStages = new Set<number>(
+    (existing ?? []).map((r) => Number((r as { follow_up_number: number }).follow_up_number)),
+  );
+
   for (let i = 0; i < days.length; i++) {
+    const followUpNumber = i + 1;
+    if (existingStages.has(followUpNumber)) continue; // already scheduled — skip
+
     const dayOffset = days[i];
     const scheduledAt = new Date(now + dayOffset * 86400000).toISOString();
 
     const { error } = await admin.from('owner_follow_ups').insert({
       prospect_id: input.prospectId,
       draft_id: input.draftId,
-      follow_up_number: i + 1,
+      follow_up_number: followUpNumber,
       scheduled_at: scheduledAt,
       status: 'scheduled',
     });
 
     if (!error) {
       scheduled++;
+      existingStages.add(followUpNumber);
       await logOutreachEvent(admin, {
         prospect_id: input.prospectId,
         draft_id: input.draftId,
         event_type: 'follow_up_scheduled',
-        detail: `Follow-up #${i + 1} in ${dayOffset} days`,
-        metadata: { follow_up_number: i + 1, scheduled_at: scheduledAt },
+        detail: `Follow-up #${followUpNumber} in ${dayOffset} days`,
+        metadata: { follow_up_number: followUpNumber, scheduled_at: scheduledAt },
       });
     }
   }

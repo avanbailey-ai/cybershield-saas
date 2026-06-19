@@ -295,11 +295,16 @@ export async function sendApprovedOutreach(
       })
       .eq('id', draft.prospect_id);
 
-    await scheduleFollowUps(admin, {
-      prospectId: draft.prospect_id as string,
-      draftId,
-      scheduleDays: settings.follow_up_schedule,
-    });
+    // Only the initial outreach seeds the follow-up cadence. Sending a follow-up
+    // must NOT schedule another full cadence, otherwise follow-ups multiply on
+    // every send (runaway duplicate scheduling).
+    if (draft.outreach_type !== 'follow_up') {
+      await scheduleFollowUps(admin, {
+        prospectId: draft.prospect_id as string,
+        draftId,
+        scheduleDays: settings.follow_up_schedule,
+      });
+    }
   }
 
   await logOutreachEvent(admin, {
