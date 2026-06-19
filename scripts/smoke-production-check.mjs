@@ -46,7 +46,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = new URL(pathname, BASE_URL).toString();
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -72,6 +72,8 @@ async function request(pathname, options = {}) {
 
   return { status: res.status, headers: res.headers, body, url };
 }
+
+const redirectStatuses = new Set([301, 302, 303, 307, 308]);
 
 async function checkUserPlan() {
   const name = 'user-plan';
@@ -163,13 +165,21 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  let res = await request('/enterprise/portal', { redirect: 'manual' });
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
   }
 
-  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+  const firstLocation = res.headers.get('location') ?? '';
+  if (redirectStatuses.has(res.status) && firstLocation) {
+    const currentUrl = new URL(res.url);
+    const redirectUrl = new URL(firstLocation, res.url);
+    if (redirectUrl.origin !== currentUrl.origin && redirectUrl.pathname === currentUrl.pathname) {
+      res = await request(redirectUrl.toString(), { redirect: 'manual' });
+    }
+  }
+
   if (!redirectStatuses.has(res.status)) {
     fail(name, `unauthenticated expected redirect, got ${res.status}`);
   }
