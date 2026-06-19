@@ -12,12 +12,17 @@ interface CheckoutContextPanelProps {
   funnelState?: FunnelSessionState | null;
 }
 
-const PRO_UNLOCKS = [
+const BASE_UNLOCKS = [
   'Full vulnerability report with remediation steps',
   'Daily automated scans & email alerts',
-  'Attack surface & change detection monitoring',
+  'Health Center for SSL, domain, uptime, and security score',
   'Exploit scenario analysis',
 ];
+
+const PLAN_SPECIFIC_UNLOCKS: Partial<Record<BilledPlan, string[]>> = {
+  growth: ['Hourly monitoring checks', 'Change timeline for headers, scripts, SSL, and page updates'],
+  agency: ['Multi-client dashboard', 'Priority monitoring slots for client sites'],
+};
 
 export default function CheckoutContextPanel({
   open,
@@ -34,6 +39,7 @@ export default function CheckoutContextPanel({
   const score = state?.score;
   const issues = state?.issue_count ?? 0;
   const planLabel = plan === 'growth' ? 'Continuous Protection' : plan === 'pro' ? 'Pro' : plan;
+  const unlocks = [...BASE_UNLOCKS, ...(PLAN_SPECIFIC_UNLOCKS[plan] ?? [])];
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
@@ -88,7 +94,7 @@ export default function CheckoutContextPanel({
             What {planLabel} unlocks
           </p>
           <ul className="space-y-2">
-            {PRO_UNLOCKS.map((item) => (
+            {unlocks.map((item) => (
               <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
                 <svg
                   className="mt-0.5 h-4 w-4 shrink-0 text-blue-400"

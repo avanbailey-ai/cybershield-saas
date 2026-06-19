@@ -14,7 +14,7 @@ const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string 
   {
     feature: 'Websites',
     values: {
-      free: '1 scan only',
+      free: '1 website preview',
       pro: getPlanMarketing('pro').websiteLabel,
       growth: getPlanMarketing('growth').websiteLabel,
       agency: getPlanMarketing('agency').websiteLabel,
@@ -49,12 +49,12 @@ const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string 
   },
   {
     feature: 'Full vulnerability report',
-    freeNote: 'Not enabled on Free plan',
+    freeNote: 'Free shows score and top finding names only',
     values: { free: false, pro: true, growth: true, agency: true },
   },
   {
     feature: 'Change detection',
-    freeNote: 'Not enabled on Free plan',
+    freeNote: 'Included for teams that need change tracking',
     values: { free: false, pro: false, growth: true, agency: true },
   },
   {

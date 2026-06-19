@@ -7,7 +7,8 @@ import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
 
 export const metadata: Metadata = {
   title: 'Free Security Scan — CyberShield',
-  description: 'Scan any website for free. No login required.',
+  description:
+    'Run a free website security scan. See a visible score and top findings before deciding whether to enable continuous monitoring.',
 };
 
 export default function ScanPage() {

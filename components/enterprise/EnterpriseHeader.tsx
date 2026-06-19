@@ -23,7 +23,7 @@ export default function EnterpriseHeader() {
             Case Studies
           </Link>
           <Link href="/enterprise/review" className="text-gray-400 hover:text-white">
-            Request Security Review
+            Enterprise Review
           </Link>
           <Link href="/enterprise/login" className="text-gray-400 hover:text-white">
             Enterprise Login

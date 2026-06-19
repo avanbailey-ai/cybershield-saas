@@ -7,11 +7,11 @@ export default function CTA() {
       <div className="mx-auto max-w-3xl text-center">
         <div className="rounded-2xl border border-gray-800 bg-gray-900/60 px-6 py-12 sm:px-8 sm:py-16">
           <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
-            Stop guessing — start monitoring
+            Start with clarity, then keep watch
           </h2>
           <p className="mx-auto mb-8 max-w-xl text-base text-gray-400 sm:mb-10">
-            A free scan shows today&apos;s posture. Continuous monitoring shows what changes —
-            SSL expiry, downtime, security gaps — before they cost you trust and revenue.
+            A free scan shows today&apos;s score and top findings. Continuous monitoring adds alerts,
+            change tracking, and fix guidance when you&apos;re ready to protect the site over time.
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <a
@@ -21,10 +21,10 @@ export default function CTA() {
               Start with a free scan
             </a>
             <Link
-              href="/signup"
+              href="/pricing"
               className="inline-flex min-h-[48px] items-center gap-2 rounded-lg border border-gray-700 px-8 py-3.5 text-base font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
             >
-              Enable monitoring
+              Compare monitoring plans
             </Link>
           </div>
         </div>

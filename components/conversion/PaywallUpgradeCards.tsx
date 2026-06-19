@@ -76,17 +76,19 @@ export default function PaywallUpgradeCards({
       </div>
 
       <div className="mt-6 rounded-lg border border-gray-700/50 bg-gray-800/20 px-4 py-3 text-center">
-        <p className="text-sm text-gray-400">Need agency or enterprise coverage?</p>
+        <p className="text-sm text-gray-400">
+          Managing many client sites or regulated requirements?
+        </p>
         <div className="mt-2 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
           <Link href="/pricing" className="text-sm font-medium text-blue-400 hover:text-blue-300">
-            View all plans
+            Compare SMB and agency plans
           </Link>
           <span className="hidden text-gray-600 sm:inline">·</span>
           <Link
             href="/enterprise/review"
             className="text-sm font-medium text-amber-400 hover:text-amber-300"
           >
-            Request Security Review
+            Enterprise review for SSO/audit needs
           </Link>
         </div>
       </div>
