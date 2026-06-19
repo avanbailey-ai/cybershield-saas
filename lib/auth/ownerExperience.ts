@@ -12,6 +12,8 @@ export function isOwnerExperiencePath(pathname: string): boolean {
   if (pathname.startsWith('/api/admin')) return true;
   if (pathname.startsWith('/auth/')) return true;
   if (pathname === '/reset-password') return true;
+  // Owner may change password / billing on customer settings without leaving Founder OS loop.
+  if (pathname === '/app/settings' || pathname.startsWith('/app/settings/')) return true;
   return false;
 }
 

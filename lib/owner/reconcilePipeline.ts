@@ -4,6 +4,7 @@ import { pipelineStateFromScan, topIssueFromFindings } from './pipeline';
 import { ensureOutreachDraft } from './ensureOutreachDraft';
 import type { ProspectPipelineState } from './discovery/types';
 import type { LeadScore } from './types';
+import type { ContactSignals } from './contactDiscovery';
 
 function resolvePipelineState(input: {
   scanStatus: string;
@@ -71,6 +72,8 @@ export async function reconcileOneProspect(
           contact_email: prospect.contact_email as string,
           contact_phone: (prospect.contact_phone as string) ?? null,
           contact_linkedin: (prospect.contact_linkedin as string) ?? null,
+          contact_confidence:
+            (prospect.contact_confidence as ContactSignals['contact_confidence']) ?? 'likely_business_email',
         }
       : undefined,
   });

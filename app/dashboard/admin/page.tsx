@@ -82,10 +82,10 @@ export default async function AdminPage() {
                 Founder OS →
               </a>
               <a
-                href="/dashboard/admin/owner#insights"
+                href="/dashboard/admin/revenue-intelligence"
                 className="text-xs font-medium text-emerald-400 hover:text-emerald-300"
               >
-                Platform insights (Founder OS) →
+                Revenue intelligence →
               </a>
               <a
                 href="/dashboard/admin/revenue-intelligence"

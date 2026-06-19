@@ -2,7 +2,12 @@ import type { LeadScore, OwnerProspect } from './types';
 import type { ProspectPipelineState } from './discovery/types';
 import { planFitDisplayName, confidenceLabel, contactStatusLabel } from './salesIntelligence';
 import { activeProspects } from './prospectFilters';
-import { hasOutreachContact, resolveProspectScores } from './prospectDisplay';
+import {
+  hasOutreachContact,
+  resolveProspectScores,
+  isTrulyOutreachReady,
+} from './prospectDisplay';
+import { assessProspectQuality } from './prospectQualityBrain';
 
 export { planFitDisplayName, confidenceLabel, contactStatusLabel };
 
@@ -13,6 +18,7 @@ export function pipelineStateFromScan(input: {
   opportunityScore?: number | null;
   hasContactEmail?: boolean;
   scanIssues?: string[];
+  prospect?: Partial<OwnerProspect>;
 }): ProspectPipelineState {
   const terminal: ProspectPipelineState[] = [
     'contacted',
@@ -26,6 +32,37 @@ export function pipelineStateFromScan(input: {
   ];
   if (input.currentState && terminal.includes(input.currentState)) {
     return input.currentState;
+  }
+
+  if (input.prospect) {
+    const assessment = assessProspectQuality({
+      businessName: input.prospect.business_name ?? '',
+      website: input.prospect.website ?? '',
+      industry: input.prospect.industry ?? null,
+      prospectKind: input.prospect.prospect_kind === 'agency' ? 'agency' : 'smb',
+      scanStatus: input.scanStatus,
+      scanCompleted: input.scanStatus === 'completed',
+      leadScore: input.leadScore ?? input.prospect.lead_score,
+      opportunityScore: input.opportunityScore ?? input.prospect.opportunity_score ?? 0,
+      agencyScore: input.prospect.agency_opportunity_score ?? null,
+      agencyLabel: (input.prospect.agency_label as never) ?? null,
+      signals: {
+        contact_page_found: input.prospect.contact_page_found ?? false,
+        contact_email_found: input.prospect.contact_email_found ?? false,
+        contact_phone_found: input.prospect.contact_phone_found ?? false,
+        contact_linkedin_found: input.prospect.contact_linkedin_found ?? false,
+        contact_email: input.prospect.contact_email ?? null,
+        contact_phone: input.prospect.contact_phone ?? null,
+        contact_linkedin: input.prospect.contact_linkedin ?? null,
+        contact_confidence: (input.prospect.contact_confidence as never) ?? 'no_contact',
+      },
+      httpValid: input.prospect.http_valid,
+      dnsValid: input.prospect.dns_valid,
+      scanIssues: input.scanIssues,
+      planFit: input.prospect.estimated_plan_fit ?? null,
+      rejectionReason: (input.prospect.rejection_reason as never) ?? null,
+    });
+    return assessment.pipelineState;
   }
 
   if (input.scanStatus !== 'completed') {
@@ -114,7 +151,7 @@ export function prospectsForTab(
       if (!includeHidden && tab !== 'archived') {
         if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
       }
-      if (tab === 'outreach_ready' && !hasOutreachContact(p)) return false;
+      if (tab === 'outreach_ready' && !isTrulyOutreachReady(p)) return false;
       return states.includes(p.pipeline_state ?? 'new_discovery');
     })
     .sort(
@@ -142,8 +179,7 @@ export function recommendedAction(p: OwnerProspect): { label: string; action: st
     return { label: 'Find email address', action: 'contact' };
   }
   if (
-    (resolved.pipeline_state === 'outreach_ready' || (resolved.opportunity_score ?? 0) >= 45) &&
-    hasOutreachContact(resolved)
+    isTrulyOutreachReady(resolved)
   ) {
     return { label: 'Approve & send outreach', action: 'outreach' };
   }

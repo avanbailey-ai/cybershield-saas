@@ -77,6 +77,7 @@ function main() {
       contact_email: 'info@smiledental.com',
       contact_phone: null,
       contact_linkedin: null,
+      contact_confidence: 'generic_public_inbox',
     },
     issueCount: 4,
   });
@@ -97,6 +98,7 @@ function main() {
       contact_email: null,
       contact_phone: null,
       contact_linkedin: null,
+      contact_confidence: 'no_contact',
     },
     opportunityScore: score,
   });

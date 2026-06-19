@@ -52,7 +52,7 @@ export default function SettingsView() {
         </div>
         <div className="border-t border-white/10 pt-4">
           <Link
-            href="/dashboard/settings"
+            href="/app/settings"
             className="text-sm font-medium text-violet-400 hover:text-violet-300"
           >
             Account & password →
@@ -65,6 +65,10 @@ export default function SettingsView() {
           <h2 className="text-lg font-medium text-white">Outreach automation</h2>
           <p className="text-sm text-gray-500">
             Control Resend delivery, limits, and follow-up schedule. Approval is required by default.
+          </p>
+          <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/90">
+            Manual sends (approval required) have no daily count cap. Sending still requires healthy
+            SPF/DKIM/DMARC and stays paused if bounce or spam rates spike.
           </p>
           <label className="flex items-center gap-2 text-sm text-gray-300">
             <input
@@ -86,21 +90,23 @@ export default function SettingsView() {
             />
             Require founder approval before send
           </label>
-          <label className="block text-sm">
-            <span className="text-gray-400">Daily outreach limit</span>
-            <input
-              type="number"
-              min={1}
-              value={outreach.daily_outreach_limit}
-              onChange={(e) =>
-                setOutreach({
-                  ...outreach,
-                  daily_outreach_limit: Number(e.target.value) || 1,
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
-            />
-          </label>
+          {!outreach.require_approval && (
+            <label className="block text-sm">
+              <span className="text-gray-400">Daily outreach limit (autopilot / unapproved sends only)</span>
+              <input
+                type="number"
+                min={1}
+                value={outreach.daily_outreach_limit}
+                onChange={(e) =>
+                  setOutreach({
+                    ...outreach,
+                    daily_outreach_limit: Number(e.target.value) || 1,
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
+              />
+            </label>
+          )}
           <label className="block text-sm">
             <span className="text-gray-400">Sender email (Resend verified)</span>
             <input

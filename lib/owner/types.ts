@@ -62,6 +62,12 @@ export interface OwnerProspect {
   estimated_site_count?: number | null;
   manages_client_sites?: boolean | null;
   agency_why_selected?: string | null;
+  contact_confidence?: string | null;
+  rejection_reason?: string | null;
+  quality_label?: string | null;
+  quality_stage?: string | null;
+  buying_trigger?: string | null;
+  why_now?: string | null;
   archived_at: string | null;
   deleted_at: string | null;
   created_at: string;

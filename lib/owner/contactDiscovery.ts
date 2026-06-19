@@ -1,3 +1,5 @@
+import { classifyContactConfidence, type ContactConfidence } from './prospectQualityBrain';
+
 export interface ContactSignals {
   contact_page_found: boolean;
   contact_email_found: boolean;
@@ -6,6 +8,7 @@ export interface ContactSignals {
   contact_email: string | null;
   contact_phone: string | null;
   contact_linkedin: string | null;
+  contact_confidence: ContactConfidence;
 }
 
 const EMPTY_SIGNALS: ContactSignals = {
@@ -16,6 +19,7 @@ const EMPTY_SIGNALS: ContactSignals = {
   contact_email: null,
   contact_phone: null,
   contact_linkedin: null,
+  contact_confidence: 'no_contact',
 };
 
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -23,18 +27,24 @@ const PHONE_RE = /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
 const LINKEDIN_RE = /https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[a-zA-Z0-9_-]+/gi;
 const CONTACT_PATH_RE = /href=["'][^"']*\/(contact|about|get-in-touch)[^"']*["']/i;
 
+const PLACEHOLDER_LOCAL = /^(example|test|yourname|email|placeholder|user|name|admin)$/i;
+
 function pickBestEmail(matches: string[]): string | null {
-  const filtered = matches.filter(
-    (e) =>
+  const filtered = matches.filter((e) => {
+    const lower = e.toLowerCase();
+    const local = lower.split('@')[0] ?? '';
+    return (
       !e.endsWith('.png') &&
       !e.endsWith('.jpg') &&
-      !e.includes('example.com') &&
-      !e.includes('sentry.io') &&
-      !e.includes('wixpress.com') &&
-      !e.startsWith('noreply@') &&
-      !e.startsWith('no-reply@') &&
-      !e.startsWith('donotreply@'),
-  );
+      !lower.includes('example.com') &&
+      !lower.includes('sentry.io') &&
+      !lower.includes('wixpress.com') &&
+      !lower.startsWith('noreply@') &&
+      !lower.startsWith('no-reply@') &&
+      !lower.startsWith('donotreply@') &&
+      !PLACEHOLDER_LOCAL.test(local)
+    );
+  });
   const preferred = filtered.find(
     (e) =>
       e.startsWith('info@') ||
@@ -53,9 +63,14 @@ export function parseContactSignalsFromHtml(html: string, pageUrl: string): Cont
 
   const mailto = html.match(/mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
   if (mailto?.[1]) {
-    signals.contact_email_found = true;
-    signals.contact_email = mailto[1];
-  } else {
+    const candidate = mailto[1].toLowerCase();
+    const local = candidate.split('@')[0] ?? '';
+    if (!candidate.includes('example.com') && !PLACEHOLDER_LOCAL.test(local)) {
+      signals.contact_email_found = true;
+      signals.contact_email = mailto[1];
+    }
+  }
+  if (!signals.contact_email_found) {
     const emails = pickBestEmail(html.match(EMAIL_RE) ?? []);
     if (emails) {
       signals.contact_email_found = true;
@@ -94,7 +109,22 @@ export function parseContactSignalsFromHtml(html: string, pageUrl: string): Cont
     /* ignore */
   }
 
+  finalizeContactConfidence(signals, pageUrl);
   return signals;
+}
+
+function finalizeContactConfidence(signals: ContactSignals, website: string): void {
+  if (signals.contact_email) {
+    signals.contact_confidence = classifyContactConfidence(signals.contact_email, website, {
+      fromPublicPage: true,
+    });
+    if (signals.contact_confidence === 'no_contact') {
+      signals.contact_email_found = false;
+      signals.contact_email = null;
+    }
+  } else {
+    signals.contact_confidence = 'no_contact';
+  }
 }
 
 export async function discoverContactSignals(website: string): Promise<ContactSignals> {
@@ -167,6 +197,7 @@ export async function discoverContactSignals(website: string): Promise<ContactSi
       }
     }
 
+    finalizeContactConfidence(signals, res.url || url);
     return signals;
   } catch {
     return { ...EMPTY_SIGNALS };

@@ -11,6 +11,9 @@ import {
   buildAgencyAttributionUrl,
   getOrCreateAttributionToken,
 } from './prospectAttribution';
+import { assertCanSendOutreach } from './deliverabilityGuard';
+import { validateOutreachCopy } from './outreachCopyGuard';
+import { conversionBlockReason } from './conversionPathGuard';
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const COOLDOWN_DAYS = 30;
@@ -185,14 +188,35 @@ export async function sendApprovedOutreach(
     }
   }
 
-  const sentToday = await dailySendCount(admin);
-  if (sentToday >= settings.daily_outreach_limit) {
-    return { ok: false, error: `Daily outreach limit (${settings.daily_outreach_limit}) reached` };
+  const isManualSend = settings.require_approval && options.approved === true;
+
+  if (!isManualSend) {
+    const sentToday = await dailySendCount(admin);
+    if (sentToday >= settings.daily_outreach_limit) {
+      return { ok: false, error: `Daily outreach limit (${settings.daily_outreach_limit}) reached` };
+    }
+  }
+
+  const deliverability = await assertCanSendOutreach(admin, toEmail, { manualApproval: isManualSend });
+  if (!deliverability.ok) {
+    return { ok: false, error: deliverability.error };
+  }
+
+  const isAgencyDraftEarly =
+    prospect?.prospect_kind === 'agency' || draft.outreach_type === 'agency_email';
+  const conversionBlock = conversionBlockReason(isAgencyDraftEarly);
+  if (conversionBlock) {
+    return { ok: false, error: `Conversion path blocked: ${conversionBlock}` };
   }
 
   const businessName =
     (draft.business_name as string) ?? (prospect?.business_name as string) ?? 'your business';
   let { subject, body } = parseDraftContent(String(draft.content), businessName);
+
+  const copyCheck = validateOutreachCopy(`${subject}\n\n${body}`, { skipUnsubscribeCheck: true });
+  if (!copyCheck.ok) {
+    return { ok: false, error: copyCheck.issues[0] ?? 'Outreach copy failed safety check' };
+  }
 
   // Agency drafts get the Agency-plan tracked link + agency attribution source.
   // SMB behavior is unchanged.

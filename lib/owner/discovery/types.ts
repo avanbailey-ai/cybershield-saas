@@ -45,6 +45,18 @@ export interface ValidatedProspect extends RawDiscoveredBusiness {
 
 import type { ProviderDiagnostic } from './provider';
 
+export interface DiscoveryBreakdownResult {
+  rawResults: number;
+  duplicatesSkipped: number;
+  rejectedLowFit: number;
+  missingContact: number;
+  qualified: number;
+  outreachReady: number;
+  needsReview: number;
+  inserted: number;
+  rejectedInserted: number;
+}
+
 export interface DiscoveryRunResult {
   discovered: number;
   inserted: number;
@@ -56,4 +68,6 @@ export interface DiscoveryRunResult {
   estimatedOpportunityMrr: number;
   errors: string[];
   providerDiagnostics: ProviderDiagnostic[];
+  breakdown: DiscoveryBreakdownResult;
+  summaryMessage?: string;
 }

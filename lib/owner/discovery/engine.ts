@@ -17,6 +17,7 @@ import {
   type DiscoverySettings,
   DEFAULT_DISCOVERY_SETTINGS,
 } from './settings';
+import { emptyDiscoveryBreakdown, formatDiscoverySummary } from '../prospectQualityBrain';
 
 /** Nominatim search seed terms per agency type (keys exist in nominatimSearch). */
 const AGENCY_SEARCH_SEEDS: Record<AgencyType, string> = {
@@ -296,6 +297,13 @@ export async function runProspectDiscovery(options?: {
     provider_diagnostics: providerDiagnostics,
   });
 
+  const breakdown = emptyDiscoveryBreakdown();
+  breakdown.rawResults = discovered;
+  breakdown.duplicatesSkipped = skipped;
+  breakdown.inserted = inserted;
+  breakdown.qualified = qualifiedCount;
+  breakdown.outreachReady = outreachReadyCount;
+
   return {
     discovered,
     inserted,
@@ -307,6 +315,8 @@ export async function runProspectDiscovery(options?: {
     estimatedOpportunityMrr,
     errors,
     providerDiagnostics,
+    breakdown,
+    summaryMessage: formatDiscoverySummary(breakdown, inserted),
   };
 }
 

@@ -67,6 +67,7 @@ const emptySignals = {
   contact_email: null,
   contact_phone: null,
   contact_linkedin: null,
+  contact_confidence: 'no_contact' as const,
 };
 
 assert(computePlanFit({ industry: 'healthcare', signals: emptySignals, scanCompleted: true, scanScore: 80, scanRiskLevel: 'high', leadScore: 'HOT' }, 80, 'smb') === 149, 'SMB healthcare gets Growth not Agency');

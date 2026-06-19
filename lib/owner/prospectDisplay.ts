@@ -3,6 +3,7 @@ import {
   computePlanFit,
   conversionLikelihoodFromScore,
 } from './salesIntelligence';
+import { isOutreachReadyContact } from './prospectQualityBrain';
 import { AGENCY_PLAN_PRICE } from './agency/agencyScore';
 import type { OwnerProspect } from './types';
 import type { ContactSignals } from './contactDiscovery';
@@ -16,6 +17,7 @@ function signalsFromProspect(p: OwnerProspect): ContactSignals {
     contact_email: p.contact_email ?? null,
     contact_phone: p.contact_phone ?? null,
     contact_linkedin: p.contact_linkedin ?? null,
+    contact_confidence: (p.contact_confidence as ContactSignals['contact_confidence']) ?? 'no_contact',
   };
 }
 
@@ -78,7 +80,8 @@ export function resolveProspectList(prospects: OwnerProspect[]): OwnerProspect[]
 }
 
 export function hasOutreachContact(p: OwnerProspect): boolean {
-  return Boolean(p.contact_email?.trim());
+  if (!p.contact_email?.trim()) return false;
+  return isOutreachReadyContact(p.contact_confidence as never);
 }
 
 export function effectiveOutreachEmail(
@@ -90,7 +93,14 @@ export function effectiveOutreachEmail(
 
 export function isTrulyOutreachReady(p: OwnerProspect): boolean {
   const state = p.pipeline_state ?? 'new_discovery';
-  return state === 'outreach_ready' && hasOutreachContact(p);
+  const label = p.quality_label;
+  const qualityOk = label === 'HOT' || label === 'WARM' || !label;
+  return (
+    state === 'outreach_ready' &&
+    hasOutreachContact(p) &&
+    qualityOk &&
+    p.scan_status === 'completed'
+  );
 }
 
 /** Founder OS prospect segmentation: SMB pipeline vs Agency pipeline. */

@@ -2,8 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { runScan } from '@/lib/scanner/runScan';
 import { computeLeadScore } from '@/lib/owner/leadScore';
 import { enrichProspect } from '@/lib/owner/prospectEnrichment';
-import { pipelineStateFromScan, topIssueFromFindings } from '@/lib/owner/pipeline';
+import { topIssueFromFindings } from '@/lib/owner/pipeline';
 import { ensureOutreachDraft } from '@/lib/owner/ensureOutreachDraft';
+import { canCreateOutreachDraft } from '@/lib/owner/prospectQualityBrain';
 
 export async function applyProspectScan(
   admin: SupabaseClient,
@@ -31,23 +32,12 @@ export async function applyProspectScan(
       http_valid: prospect.http_valid as boolean | null,
       scan_findings: { issues: result.issues },
       skipContactFetch: false,
+      prospect_kind: (prospect.prospect_kind as 'smb' | 'agency' | null) ?? 'smb',
+      agency_score: prospect.agency_opportunity_score as number | null,
+      agency_label: prospect.agency_label as never,
     });
 
-    const pipeline_state = pipelineStateFromScan({
-      scanStatus: 'completed',
-      leadScore,
-      currentState: prospect.pipeline_state as never,
-      opportunityScore: enrichment.opportunity_score,
-      hasContactEmail: Boolean(enrichment.contact_email),
-      scanIssues: result.issues,
-    });
-
-    const resolvedPipeline =
-      !enrichment.contact_email && pipeline_state === 'needs_contact'
-        ? enrichment.contact_page_found
-          ? 'needs_contact'
-          : 'no_contact_found'
-        : pipeline_state;
+    const resolvedPipeline = enrichment.pipeline_state;
 
     const { data: updated, error } = await admin
       .from('owner_prospects')
@@ -76,8 +66,14 @@ export async function applyProspectScan(
         contact_email: enrichment.contact_email,
         contact_phone: enrichment.contact_phone,
         contact_linkedin: enrichment.contact_linkedin,
+        contact_confidence: enrichment.contact_confidence,
         qualification_reasons: enrichment.qualification_reasons,
         selection_reason: enrichment.selection_reason,
+        quality_label: enrichment.quality_label,
+        quality_stage: enrichment.quality_stage,
+        rejection_reason: enrichment.rejection_reason,
+        buying_trigger: enrichment.buying_trigger,
+        why_now: enrichment.why_now,
         pipeline_state: resolvedPipeline,
         top_issue: topIssueFromFindings({ issues: result.issues }),
       })
@@ -87,14 +83,7 @@ export async function applyProspectScan(
 
     if (error) return { ok: false };
 
-    if (updated && resolvedPipeline === 'outreach_ready' && enrichment.contact_email) {
-      await ensureOutreachDraft(admin, updated);
-    } else if (
-      updated &&
-      resolvedPipeline === 'qualified' &&
-      enrichment.contact_email &&
-      (enrichment.opportunity_score ?? 0) >= 50
-    ) {
+    if (updated && canCreateOutreachDraft(updated as never)) {
       await ensureOutreachDraft(admin, updated);
     }
 

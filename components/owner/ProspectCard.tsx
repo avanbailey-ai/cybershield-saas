@@ -11,9 +11,10 @@ import {
   confidenceLabel,
   contactStatusLabel,
 } from '@/lib/owner/pipeline';
-import { hasOutreachContact, isAgencyKind } from '@/lib/owner/prospectDisplay';
+import { hasOutreachContact, isAgencyKind, isTrulyOutreachReady } from '@/lib/owner/prospectDisplay';
 import { agencyTypeLabel } from '@/lib/owner/agency/agencyTypes';
 import { AGENCY_PLAN_PRICE } from '@/lib/owner/agency/agencyScore';
+import { rejectionReasonLabel } from '@/lib/owner/prospectQualityBrain';
 import type { OwnerProspect } from '@/lib/owner/types';
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -33,6 +34,35 @@ const SERVICE_LABELS: Record<string, string> = {
   branding: 'Branding',
   ecommerce: 'Ecommerce',
 };
+
+function qualityLabelStyle(label: string | null | undefined): string {
+  switch (label) {
+    case 'HOT':
+      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+    case 'WARM':
+      return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+    case 'LOW':
+      return 'border-gray-600/40 bg-white/[0.03] text-gray-300';
+    case 'NEEDS REVIEW':
+      return 'border-orange-500/40 bg-orange-500/10 text-orange-200';
+    case 'REJECTED':
+      return 'border-red-500/30 bg-red-500/5 text-red-300';
+    default:
+      return 'border-white/10 bg-white/[0.02] text-gray-400';
+  }
+}
+
+function contactConfidenceLabel(confidence: string | null | undefined): string {
+  const map: Record<string, string> = {
+    verified_public_email: 'Verified public email',
+    likely_business_email: 'Likely business email',
+    generic_public_inbox: 'Generic public inbox',
+    personal_public_contact: 'Personal (published)',
+    unverified_guess: 'Unverified guess',
+    no_contact: 'No contact',
+  };
+  return confidence ? (map[confidence] ?? confidence) : '—';
+}
 
 function agencyLabelStyle(label: string | null | undefined): string {
   switch (label) {
@@ -85,7 +115,7 @@ export default function ProspectCard({
   const reasons = Array.isArray(p.qualification_reasons) ? p.qualification_reasons : [];
   const contact = contactStatusLabel(p);
   const confidence = confidenceLabel(p.conversion_likelihood, p.opportunity_score);
-  const canGenerateOutreach = hasOutreachContact(p) && p.scan_status === 'completed';
+  const canGenerateOutreach = isTrulyOutreachReady(p);
   const isAgency = isAgencyKind(p);
   const detectedServices = Array.isArray(p.detected_services) ? p.detected_services : [];
 
@@ -111,6 +141,15 @@ export default function ProspectCard({
               </a>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
+              {p.quality_label && (
+                <span
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${qualityLabelStyle(
+                    p.quality_label,
+                  )}`}
+                >
+                  {p.quality_label}
+                </span>
+              )}
               {isAgency ? (
                 <ScorePill
                   label="Agency Score"
@@ -183,16 +222,66 @@ export default function ProspectCard({
             </div>
           )}
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {planFit && (
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-                <p className="text-[10px] uppercase text-gray-500">Recommended plan</p>
+                <p className="text-[10px] uppercase text-gray-500">Plan fit</p>
                 <p className="text-sm font-medium text-emerald-300">{planFit}</p>
               </div>
             )}
             <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-              <p className="text-[10px] uppercase text-gray-500">Confidence</p>
+              <p className="text-[10px] uppercase text-gray-500">Fit score</p>
+              <p className="text-sm font-medium text-white">{opportunityScoreLabel(p)}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Contact confidence</p>
+              <p className="text-sm font-medium text-white">{contactConfidenceLabel(p.contact_confidence)}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Est. MRR</p>
+              <p className="text-sm font-medium text-white">
+                {p.estimated_mrr ? `$${p.estimated_mrr}/mo` : '—'}
+              </p>
+            </div>
+          </div>
+
+          {(p.buying_trigger || p.why_now || p.selection_reason) && (
+            <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm text-gray-300">
+              {p.selection_reason && (
+                <p>
+                  <span className="font-medium text-gray-400">Why selected: </span>
+                  {p.selection_reason}
+                </p>
+              )}
+              {p.buying_trigger && (
+                <p className="mt-2">
+                  <span className="font-medium text-gray-400">Buying trigger: </span>
+                  {p.buying_trigger}
+                </p>
+              )}
+              {p.why_now && (
+                <p className="mt-2">
+                  <span className="font-medium text-gray-400">Why now: </span>
+                  {p.why_now}
+                </p>
+              )}
+            </div>
+          )}
+
+          {p.rejection_reason && (
+            <p className="mt-3 text-xs text-red-300">
+              Rejected: {rejectionReasonLabel(p.rejection_reason)}
+            </p>
+          )}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Conversion confidence</p>
               <p className="text-sm font-medium text-white">{confidence}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Next action</p>
+              <p className="text-sm font-medium text-violet-300">{nextStep}</p>
             </div>
             <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
               <p className="text-[10px] uppercase text-gray-500">Contact</p>

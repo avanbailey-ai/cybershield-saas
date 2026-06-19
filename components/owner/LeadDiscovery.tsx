@@ -51,6 +51,16 @@ interface DiscoveryRunResponse {
   outreachReady?: number;
   estimatedOpportunityMrr?: number;
   providerDiagnostics?: ProviderDiagnostic[];
+  breakdown?: {
+    rawResults: number;
+    duplicatesSkipped: number;
+    rejectedLowFit: number;
+    missingContact: number;
+    qualified: number;
+    outreachReady: number;
+    needsReview: number;
+  };
+  summaryMessage?: string;
 }
 
 function providerDisplayName(id: string): string {
@@ -402,18 +412,33 @@ export default function LeadDiscovery({
           <p className="text-sm font-semibold text-white">Discovery run complete</p>
           {(() => {
             const o = runOutcomes(lastRun);
+            const b = lastRun.breakdown;
             const inserted =
               'inserted' in lastRun ? (lastRun.inserted ?? o.discovered) : o.discovered;
             return (
               <div className="mt-2 space-y-1 text-sm text-gray-300">
-                <p>
-                  {inserted} new prospect{inserted === 1 ? '' : 's'} found. Your existing pipeline
-                  still has {prospects.length} prospect{prospects.length === 1 ? '' : 's'}.
-                </p>
-                <p>
-                  {o.qualified} qualified · {o.outreachReady} outreach-ready · {o.skipped} skipped
-                  · {o.scanned} scanned
-                </p>
+                {lastRun.summaryMessage ? (
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-300">
+                    {lastRun.summaryMessage}
+                  </pre>
+                ) : (
+                  <>
+                    <p>
+                      {inserted} new prospect{inserted === 1 ? '' : 's'} found. Your existing pipeline
+                      still has {prospects.length} prospect{prospects.length === 1 ? '' : 's'}.
+                    </p>
+                    <p>
+                      {o.qualified} qualified · {o.outreachReady} outreach-ready · {o.skipped} skipped
+                      · {o.scanned} scanned
+                    </p>
+                  </>
+                )}
+                {b && (
+                  <p className="text-xs text-gray-500">
+                    {b.rawResults} raw · {b.duplicatesSkipped} duplicates · {b.rejectedLowFit} rejected
+                    · {b.missingContact} missing contact · {b.needsReview} need review
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">
                   Run type: {agencyMode ? `Agency (${agencyType.replace(/_/g, ' ')})` : 'SMB'} ·
                   Location: {settings.location || 'default'}

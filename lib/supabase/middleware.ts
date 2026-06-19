@@ -93,13 +93,42 @@ function isPublicPath(pathname: string): boolean {
 export async function updateSession(request: NextRequest) {
 
   const supabaseEnv = getSupabasePublicEnv();
+  const pathname = request.nextUrl.pathname;
 
   if (!supabaseEnv) {
+    console.error('[middleware] Supabase env vars missing — failing closed on protected routes');
 
-    console.log('[middleware] Supabase env vars missing — passing through');
+    if (isOwnerOnlyPath(pathname)) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
 
-    return NextResponse.next({ request });
+    const isProtectedWithoutAuth =
+      pathname.startsWith('/app') ||
+      pathname.startsWith('/enterprise/portal') ||
+      pathname.startsWith('/enterprise/onboarding') ||
+      pathname.startsWith('/report/') ||
+      pathname === '/onboarding' ||
+      pathname.startsWith('/onboarding/');
 
+    if (isProtectedWithoutAuth) {
+      const url = request.nextUrl.clone();
+      url.pathname =
+        pathname.startsWith('/enterprise/portal') || pathname.startsWith('/enterprise/onboarding')
+          ? '/enterprise/login'
+          : '/login';
+      return NextResponse.redirect(url);
+    }
+
+    if (isPublicPath(pathname)) {
+      return NextResponse.next({ request });
+    }
+
+    return NextResponse.json({ error: 'Service unavailable' }, { status: 503 });
   }
 
 

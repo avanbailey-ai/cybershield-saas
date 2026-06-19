@@ -21,5 +21,5 @@ export default async function CeoDashboardPage() {
     redirect('/login');
   }
 
-  redirect('/dashboard/admin/owner#insights');
+  redirect('/dashboard/admin/owner');
 }

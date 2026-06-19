@@ -453,15 +453,15 @@ export function buildThirtyDayPlan(findingViews: FindingExecutiveView[]): Weekly
 
 function percentileContextForScore(score: number): string {
   if (score >= 90) {
-    return 'Your score ranks among the strongest sites CyberShield monitors — roughly top 15% of small business websites.';
+    return 'Your score is excellent — an estimated strong result based on this scan, not a live peer benchmark.';
   }
   if (score >= 70) {
-    return 'Your score is above the typical small business range (55–75). A few targeted fixes could reach excellent territory.';
+    return 'Your score is solid for a small business site. A few targeted fixes could reach excellent territory.';
   }
   if (score >= 50) {
-    return 'Your score sits below the typical small business range (55–75). Most gaps are configuration-related, not signs of active compromise.';
+    return 'Your score has room to improve. Most gaps are configuration-related, not signs of active compromise.';
   }
-  return 'Your score is well below peers. Prioritize connection security and browser protections this week.';
+  return 'Your score needs attention. Prioritize connection security and browser protections this week.';
 }
 
 export function buildSecurityScoreExplanation(

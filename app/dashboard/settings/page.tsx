@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -18,7 +18,7 @@ import { userCanChangePassword, userUsesGoogleSignIn } from "@/lib/auth/provider
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Settings â€” CyberShield",
+  title: "Settings - CyberShield",
 };
 
 export default async function SettingsPage({
@@ -100,7 +100,7 @@ export default async function SettingsPage({
                   <p className="text-sm text-gray-300">{memberSince}</p>
                 </div>
                 <p className="rounded-lg border border-gray-700/50 bg-gray-800/30 px-3 py-2 text-xs text-gray-500">
-                  Name and profile photo editing coming soon â€” your email is managed through your login provider.
+                  Name and profile photo editing coming soon - your email is managed through your login provider.
                 </p>
               </div>
             </CardContent>
@@ -162,7 +162,7 @@ export default async function SettingsPage({
                       <p className="text-sm font-medium text-gray-200">Delete Account</p>
                       <p className="mt-0.5 text-xs text-gray-500">Permanently remove your account and all data.</p>
                       <p className="mt-1 text-xs text-gray-600">
-                        Account deletion is handled by support â€” email{' '}
+                        Account deletion is handled by support - email{' '}
                         <a href="mailto:support@cybershield.app" className="text-blue-400 underline hover:text-blue-300">
                           support@cybershield.app
                         </a>
