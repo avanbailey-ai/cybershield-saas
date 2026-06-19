@@ -8,6 +8,8 @@ import FounderInboxSection from '../dashboard/FounderInboxSection';
 import RevenueOpportunitiesSection from '../dashboard/RevenueOpportunitiesSection';
 import CustomerRiskExpansionSection from '../dashboard/CustomerRiskExpansionSection';
 import AutomationHealthSection from '../dashboard/AutomationHealthSection';
+import EmailHealthSection from '../dashboard/EmailHealthSection';
+import EmailIntelligenceSection from '../dashboard/EmailIntelligenceSection';
 
 export default function FounderHomeView() {
   const { founderData: data, refreshFounderData } = useFounderNav();
@@ -83,6 +85,8 @@ export default function FounderHomeView() {
         revenue={v6.revenueAtRisk}
       />
       <AutomationHealthSection health={v6.automationHealth} />
+      <EmailIntelligenceSection intel={v6.emailIntelligence} />
+      <EmailHealthSection health={v6.emailHealth} />
     </div>
   );
 }

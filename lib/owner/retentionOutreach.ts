@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email';
+import { buildEmailDocument } from '@/lib/email/template';
 import { logOutreachEvent } from './outreachEvents';
 import { resolveSiteUrl } from '@/lib/site/getSiteUrl';
 
@@ -19,62 +20,58 @@ export interface RetentionEmailInput {
   toPlan?: string;
 }
 
-function retentionHtml(template: RetentionTemplateType, input: RetentionEmailInput): {
-  subject: string;
-  html: string;
-} {
+function retentionContent(
+  template: RetentionTemplateType,
+  input: RetentionEmailInput,
+): { subject: string; title: string; bodyHtml: string; bodyText: string; cta: string; href: string; category: 'onboarding' | 'retention' | 'upgrade' | 'report' } {
   const site = resolveSiteUrl();
   const domain = input.domain ?? 'your site';
 
-  const templates: Record<
-    RetentionTemplateType,
-    { subject: string; title: string; body: string; cta: string; href: string }
-  > = {
+  const map = {
     onboarding: {
-      subject: 'Welcome to CyberShield — your first scan',
-      title: 'Get the most from CyberShield',
-      body: `Your account is active. Add ${domain} and run your first security scan to establish a baseline score.`,
+      subject: 'Welcome to CyberShield — set up your first scan',
+      title: 'Get started with CyberShield Cloud',
+      body: `Your account is ready. Add ${domain} and run your first security scan to establish a baseline score and enable monitoring alerts.`,
       cta: 'Open dashboard',
       href: `${site}/dashboard`,
+      category: 'onboarding' as const,
     },
     re_engagement: {
-      subject: 'We noticed you have been away',
-      title: 'Your security posture may have changed',
-      body: `It's been a while since your last activity. New vulnerabilities are discovered daily — verify ${domain} is still protected.`,
+      subject: 'Your site security may have changed',
+      title: 'Time for a fresh security check',
+      body: `We have not seen recent activity on your account. SSL certificates, headers, and vulnerabilities change — verify ${domain} is still protected.`,
       cta: 'Run a fresh scan',
       href: `${site}/dashboard`,
+      category: 'retention' as const,
     },
     upgrade: {
-      subject: 'You may be ready for more coverage',
+      subject: 'More coverage for your growing footprint',
       title: 'Upgrade recommendation',
-      body: `Based on your usage, ${input.toPlan ?? 'Growth'} would give you more sites and faster alerts${input.mrrGain ? ` (+$${input.mrrGain}/mo)` : ''}.`,
+      body: `Based on your usage, ${input.toPlan ?? 'Growth'} adds more monitored sites and faster alerts${input.mrrGain ? ` (+$${input.mrrGain}/mo)` : ''}.`,
       cta: 'View plans',
       href: `${site}/dashboard/billing`,
+      category: 'upgrade' as const,
     },
     report_summary: {
       subject: `Security summary for ${domain}`,
-      title: 'Your monthly security snapshot',
-      body: `Here's your latest monitoring summary for ${domain}. Review findings and share with your team.`,
-      cta: 'View report',
+      title: 'Your monitoring summary',
+      body: `Your latest security snapshot for ${domain} is ready. Review findings and share with your team.`,
+      cta: 'View dashboard',
       href: `${site}/dashboard`,
+      category: 'report' as const,
     },
   };
 
-  const t = templates[template];
-  const html = `<!DOCTYPE html>
-<html><body style="font-family:system-ui,sans-serif;background:#f9fafb;margin:0;padding:20px;">
-  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
-    <div style="background:#0f172a;padding:24px 32px;">
-      <h1 style="color:#fff;margin:0;font-size:22px;">${t.title}</h1>
-    </div>
-    <div style="padding:32px;">
-      <p style="color:#374151;font-size:16px;line-height:1.6;">${t.body}</p>
-      <a href="${t.href}" style="display:block;margin-top:24px;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">${t.cta} →</a>
-    </div>
-  </div>
-</body></html>`;
-
-  return { subject: t.subject, html };
+  const t = map[template];
+  return {
+    subject: t.subject,
+    title: t.title,
+    bodyHtml: `<p style="margin:0;">${t.body}</p>`,
+    bodyText: t.body,
+    cta: t.cta,
+    href: t.href,
+    category: t.category,
+  };
 }
 
 export async function sendRetentionEmail(
@@ -86,8 +83,32 @@ export async function sendRetentionEmail(
     return { ok: false, error: 'Approval required before send' };
   }
 
-  const { subject, html } = retentionHtml(input.template, input);
-  const result = await sendEmail({ to: input.email, subject, html });
+  const content = retentionContent(input.template, input);
+  const doc = buildEmailDocument({
+    title: content.title,
+    bodyHtml: content.bodyHtml,
+    bodyText: content.bodyText,
+    category: content.category,
+    reason:
+      input.template === 'onboarding'
+        ? 'You created a CyberShield Cloud account.'
+        : 'You are an active CyberShield Cloud customer.',
+    ctaLabel: content.cta,
+    ctaHref: content.href,
+    includeUnsubscribe: input.template !== 'onboarding',
+  });
+
+  const result = await sendEmail({
+    to: input.email,
+    subject: content.subject,
+    html: doc.html,
+    text: doc.text,
+    category: content.category,
+    template: input.template,
+    userId: input.userId,
+    trackOpens: true,
+    trackClicks: true,
+  });
 
   if (!result.success) {
     return { ok: false, error: result.error ?? 'Send failed' };
@@ -97,9 +118,9 @@ export async function sendRetentionEmail(
     event_type: 'retention_sent',
     recipient_email: input.email,
     resend_message_id: result.messageId ?? null,
-    subject,
+    subject: content.subject,
     detail: `Retention: ${input.template}`,
-    metadata: { user_id: input.userId, template: input.template },
+    metadata: { user_id: input.userId, template: input.template, delivery_id: result.deliveryId },
   });
 
   await admin.from('email_queue').insert({

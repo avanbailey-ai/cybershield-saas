@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email';
+import { buildEmailDocument } from '@/lib/email/template';
 import { isInternalCustomerEmail } from './founderCustomerFilters';
 import { getOutreachSettings } from './outreachSettings';
 import { scheduleFollowUps } from './followUpScheduler';
@@ -40,9 +41,11 @@ function parseDraftContent(content: string, businessName: string): { subject: st
   };
 }
 
-function toHtml(body: string): string {
-  if (body.includes('<')) return body;
-  return `<pre style="font-family:system-ui,sans-serif;white-space:pre-wrap;line-height:1.5">${body.replace(/</g, '&lt;')}</pre>`;
+function bodyToHtmlParagraphs(body: string): string {
+  return body
+    .split(/\n\n+/)
+    .map((p) => `<p style="margin:0 0 16px;">${p.replace(/\n/g, '<br/>')}</p>`)
+    .join('');
 }
 
 async function isCustomerEmail(admin: SupabaseClient, email: string): Promise<boolean> {
@@ -178,21 +181,58 @@ export async function sendApprovedOutreach(
     (draft.business_name as string) ?? (prospect?.business_name as string) ?? 'your business';
   let { subject, body } = parseDraftContent(String(draft.content), businessName);
 
-  if (draft.prospect_id && draft.outreach_type !== 'follow_up') {
+  let attributionToken: string | undefined;
+
+  if (draft.prospect_id) {
     try {
-      const token = await getOrCreateAttributionToken(admin, {
+      attributionToken = await getOrCreateAttributionToken(admin, {
         prospectId: draft.prospect_id as string,
         draftId: draftId,
       });
-      body = appendAttributionLink(body, buildAttributionSignupUrl(token));
+      const signupUrl = buildAttributionSignupUrl(attributionToken);
+      if (!body.includes(signupUrl)) {
+        body = appendAttributionLink(body, signupUrl);
+      }
+      await admin
+        .from('owner_prospect_attributions')
+        .update({
+          source_template: draft.outreach_type,
+          source_email_category: draft.outreach_type === 'follow_up' ? 'follow_up' : 'outreach',
+          source_campaign: 'founder_outreach',
+        })
+        .eq('token', attributionToken);
     } catch {
-      /* attribution optional — still send */
+      /* attribution optional */
     }
   }
 
-  const html = toHtml(body);
+  const category = draft.outreach_type === 'follow_up' ? 'follow_up' : 'outreach';
+  const doc = buildEmailDocument({
+    title: subject,
+    bodyHtml: bodyToHtmlParagraphs(body),
+    bodyText: body,
+    category,
+    reason: `You were contacted because our security scan identified actionable findings for ${businessName}.`,
+    includeUnsubscribe: true,
+  });
 
-  const result = await sendEmail({ to: toEmail, subject, html });
+  const result = await sendEmail({
+    to: toEmail,
+    subject,
+    html: doc.html,
+    text: doc.text,
+    category,
+    template: String(draft.outreach_type ?? 'cold_email'),
+    prospectId: (draft.prospect_id as string) || undefined,
+    draftId,
+    attributionToken,
+    trackOpens: true,
+    trackClicks: true,
+    tags: [
+      { name: 'category', value: category },
+      { name: 'template', value: String(draft.outreach_type ?? 'cold_email') },
+    ],
+  });
   const now = new Date().toISOString();
 
   if (!result.success) {

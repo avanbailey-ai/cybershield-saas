@@ -12,6 +12,8 @@ import { getActivityFeed } from './activityFeed';
 import { getDueFollowUps } from './followUpScheduler';
 import { getBusinessHealthMetrics, type BusinessHealthMetrics } from './businessHealthMetrics';
 import { getAutomationHealth, type AutomationHealthSummary } from './automationHealth';
+import { getEmailHealth, type EmailHealthSummary } from './emailHealth';
+import { getEmailIntelligence, type EmailIntelligenceSummary } from './emailIntelligence';
 import {
   buildRevenueOpportunities,
   type RevenueOpportunityItem,
@@ -52,6 +54,8 @@ export interface FounderOsV6Data extends FounderOsV5Data {
     };
     businessHealth: BusinessHealthMetrics;
     automationHealth: AutomationHealthSummary;
+    emailHealth: EmailHealthSummary;
+    emailIntelligence: EmailIntelligenceSummary;
     revenueOpportunities: RevenueOpportunityItem[];
   };
 }
@@ -117,6 +121,23 @@ export const EMPTY_FOUNDER_OS_V6: FounderOsV6Data = {
       generatedAt: new Date(0).toISOString(),
       overall: 'healthy',
       checks: [],
+    },
+    emailHealth: {
+      generatedAt: new Date(0).toISOString(),
+      overall: 'healthy',
+      sendingDomain: 'mail.cybershieldcloud.com',
+      checks: [],
+    },
+    emailIntelligence: {
+      generatedAt: new Date(0).toISOString(),
+      sentToday: 0,
+      delivered: 0,
+      opened: 0,
+      clicked: 0,
+      bounced: 0,
+      conversions: 0,
+      topTemplates: [],
+      topCategories: [],
     },
     revenueOpportunities: [],
   },
@@ -398,7 +419,7 @@ export async function getFounderOsV6(input?: {
         .not('pipeline_state', 'eq', 'ignore_forever')
         .then((r) => (r.data ?? []) as OwnerProspect[]);
 
-  const [base, customerHealth, revenueAtRisk, expansion, activityFeed, prospects, businessHealth, automationHealth] =
+  const [base, customerHealth, revenueAtRisk, expansion, activityFeed, prospects, businessHealth, automationHealth, emailHealth, emailIntelligence] =
     await Promise.all([
       getFounderOsV5(input),
       getCustomerHealth(),
@@ -408,6 +429,8 @@ export async function getFounderOsV6(input?: {
       prospectsPromise,
       getBusinessHealthMetrics(),
       getAutomationHealth(),
+      getEmailHealth(),
+      getEmailIntelligence(),
     ]);
 
   const signups24 = activityFeed.events.filter((e) => e.type === 'signup').length;
@@ -537,6 +560,8 @@ export async function getFounderOsV6(input?: {
       executionStats,
       businessHealth,
       automationHealth,
+      emailHealth,
+      emailIntelligence,
       revenueOpportunities,
     },
   };

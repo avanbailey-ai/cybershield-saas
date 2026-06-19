@@ -7,6 +7,7 @@ export interface OutreachInput {
   riskLevel?: string;
   issues?: string[];
   contactName?: string;
+  signupUrl?: string;
 }
 
 export type OutreachType =
@@ -17,68 +18,81 @@ export type OutreachType =
   | 'agency_pitch'
   | 'audit_summary';
 
+function findingLine(input: OutreachInput): string {
+  if (input.issues?.length) {
+    const top = input.issues.slice(0, 2).join(' and ');
+    return `Our scan of ${input.website} flagged ${top}.`;
+  }
+  if (input.scanScore !== undefined && input.scanScore < 70) {
+    return `Our scan of ${input.website} scored ${input.scanScore}/100 — there are fixes worth addressing before they become incidents.`;
+  }
+  return `We reviewed ${input.website} and found configuration gaps that are common before a security incident.`;
+}
+
 const TEMPLATES: Record<OutreachType, (input: OutreachInput) => string> = {
-  cold_email: (i) => `Subject: Quick security note for ${i.businessName}
+  cold_email: (i) => {
+    const finding = findingLine(i);
+    const cta = i.signupUrl
+      ? `See your score and start monitoring: ${i.signupUrl}`
+      : 'Reply if you want the full scan summary — happy to walk through it in 10 minutes.';
+    return `Subject: ${i.businessName} — security scan findings
 
 Hi${i.contactName ? ` ${i.contactName}` : ''},
 
-I ran a quick security check on ${i.website} and noticed ${i.issues?.length ? `several areas worth addressing (${i.issues.slice(0, 2).join(', ')})` : 'some configuration gaps'}.
+I'm reaching out because ${finding}
 
-CyberShield helps ${i.industry ?? 'businesses'} in ${i.city ?? 'your area'} monitor website security continuously — not just one-time scans.
+CyberShield Cloud monitors SSL, headers, and site changes continuously for ${i.industry ?? 'businesses'} like ${i.businessName} — not just one-time scans.
 
-Would a 15-minute walkthrough be useful this week?
+${cta}
 
-Best,
-[Your name]
-CyberShield`,
+— CyberShield Cloud
+Website security monitoring`;
+  },
 
-  linkedin: (i) => `Hi — I help ${i.industry ?? 'local businesses'} protect their websites from security blind spots.
+  follow_up: (i) => {
+    const finding =
+      i.scanScore !== undefined
+        ? `Your site scored ${i.scanScore}/100 on our last check.`
+        : `Our earlier note about ${i.website} is still relevant.`;
+    const cta = i.signupUrl
+      ? `Start a free scan: ${i.signupUrl}`
+      : 'Still open to a quick walkthrough if useful.';
+    return `Subject: Re: security monitoring for ${i.businessName}
 
-I noticed ${i.businessName}'s site (${i.website}) could benefit from continuous monitoring${i.riskLevel ? ` — current risk level: ${i.riskLevel}` : ''}.
+Hi${i.contactName ? ` ${i.contactName}` : ''},
 
-Happy to share a free audit summary if useful.`,
+Following up briefly — ${finding}
 
-  facebook: (i) => `Hey ${i.businessName} team 👋
+${cta}
 
-We work with ${i.industry ?? 'local businesses'} on website security. Quick scan of ${i.website} showed room for improvement.
+— CyberShield Cloud`;
+  },
 
-DM me if you'd like a free security snapshot — no pitch, just value.`,
+  linkedin: (i) => `Hi — I help ${i.industry ?? 'local businesses'} keep websites monitored between audits.
 
-  follow_up: (i) => `Hi${i.contactName ? ` ${i.contactName}` : ''},
+${findingLine(i)}
 
-Following up on the security note for ${i.businessName}. ${i.scanScore !== undefined ? `Your site scored ${i.scanScore}/100` : 'The initial scan flagged actionable items'}.
+Happy to share the scan summary for ${i.businessName} if useful.`,
 
-Still happy to walk through fixes — takes about 15 minutes.
+  facebook: (i) => `${i.businessName} team — quick note on ${i.website}.
 
-Best,
-[Your name]`,
+${findingLine(i)}
 
-  agency_pitch: (i) => `Partnership opportunity — CyberShield white-label security monitoring
+DM if you'd like the free scan summary.`,
 
-Target: ${i.businessName} (${i.website})
-Industry: ${i.industry ?? 'General'}
-Market: ${i.city ?? 'Regional'}
+  agency_pitch: (i) => `Partnership — white-label security monitoring for ${i.businessName}
 
-Offer: Add recurring security monitoring to your agency stack. We handle scans, alerts, and client reports — you keep the relationship.
+We handle continuous scans, alerts, and client reports. You keep the relationship.
+Site: ${i.website}`,
 
-Revenue share available. Let's connect.`,
-
-  audit_summary: (i) => `SECURITY AUDIT SUMMARY
-━━━━━━━━━━━━━━━━━━━━
-Business: ${i.businessName}
+  audit_summary: (i) => `SECURITY SUMMARY — ${i.businessName}
 Website: ${i.website}
 ${i.scanScore !== undefined ? `Score: ${i.scanScore}/100` : ''}
-${i.riskLevel ? `Risk Level: ${i.riskLevel.toUpperCase()}` : ''}
 
-KEY FINDINGS:
-${(i.issues ?? ['No critical issues detected in initial scan']).map((issue, idx) => `${idx + 1}. ${issue}`).join('\n')}
+Findings:
+${(i.issues ?? ['Review recommended']).map((issue, idx) => `${idx + 1}. ${issue}`).join('\n')}
 
-RECOMMENDED ACTIONS:
-• Enable continuous SSL & header monitoring
-• Set up automated weekly scans
-• Configure alert notifications for score drops
-
-Generated by CyberShield Founder OS`,
+CyberShield Cloud — continuous monitoring`,
 };
 
 export function generateOutreach(type: OutreachType, input: OutreachInput): string {
