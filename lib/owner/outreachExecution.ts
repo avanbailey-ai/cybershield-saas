@@ -41,10 +41,22 @@ function parseDraftContent(content: string, businessName: string): { subject: st
   };
 }
 
+/**
+ * Turn bare URLs into clickable anchors so the CTA link is clickable in HTML
+ * and gets wrapped by click tracking (which only rewrites href="..."). The href
+ * is intentionally left un-escaped so query separators survive tracking.
+ */
+function linkifyUrls(text: string): string {
+  return text.replace(
+    /(https?:\/\/[^\s<]+)/g,
+    (url) => `<a href="${url}" style="color:#2563eb;text-decoration:underline;">${url}</a>`,
+  );
+}
+
 function bodyToHtmlParagraphs(body: string): string {
   return body
     .split(/\n\n+/)
-    .map((p) => `<p style="margin:0 0 16px;">${p.replace(/\n/g, '<br/>')}</p>`)
+    .map((p) => `<p style="margin:0 0 16px;">${linkifyUrls(p).replace(/\n/g, '<br/>')}</p>`)
     .join('');
 }
 
