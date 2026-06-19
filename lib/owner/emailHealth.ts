@@ -3,9 +3,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkEmailDnsHealth, type DnsRecordCheck } from '@/lib/email/dnsHealth';
 import {
   EMAIL_LINKS_DOMAIN,
+  EMAIL_ROOT_DOMAIN,
   EMAIL_SENDING_DOMAIN,
   EMAIL_TRACK_DOMAIN,
   getResendFromAddress,
+  isMailSubdomainConfigured,
   isResendSandboxFrom,
 } from '@/lib/email/config';
 
@@ -54,33 +56,48 @@ export async function getEmailHealth(): Promise<EmailHealthSummary> {
   }
 
   const from = getResendFromAddress('outreach');
+  const hasApiKey = Boolean(process.env.RESEND_API_KEY);
+  const mailSubdomainConfigured = isMailSubdomainConfigured();
+  const onMailSubdomain = from.includes(EMAIL_SENDING_DOMAIN);
+
   if (isResendSandboxFrom(from)) {
+    // EMAIL_FROM missing / unverified — falling back to resend.dev sandbox.
     checks.push({
       id: 'resend_domain',
       label: 'Resend sending domain',
       status: 'critical',
-      detail: 'Using Resend sandbox — customer delivery blocked',
-      fixRecommendation: `Verify ${EMAIL_SENDING_DOMAIN} in Resend and set EMAIL_FROM=CyberShield <outreach@${EMAIL_SENDING_DOMAIN}>`,
+      detail: 'Using Resend sandbox — customer delivery blocked (EMAIL_FROM not set to a verified sender)',
+      fixRecommendation: `Set EMAIL_FROM=CyberShield <outreach@${EMAIL_ROOT_DOMAIN}> (root domain is verified in Resend).`,
     });
-  } else if (!from.includes(EMAIL_SENDING_DOMAIN)) {
+  } else if (!hasApiKey) {
+    checks.push({
+      id: 'resend_domain',
+      label: 'Resend sending domain',
+      status: 'critical',
+      detail: 'RESEND_API_KEY not configured',
+      fixRecommendation: 'Set RESEND_API_KEY in Vercel environment variables.',
+    });
+  } else if (mailSubdomainConfigured && !onMailSubdomain) {
+    // EMAIL_SENDING_DOMAIN is set but sends resolve to a different domain —
+    // the mail subdomain likely isn't verified, so config fell back to root.
     checks.push({
       id: 'resend_domain',
       label: 'Resend sending domain',
       status: 'warning',
-      detail: `Sender ${from} is not on mail subdomain`,
-      fixRecommendation: `Migrate to outreach@${EMAIL_SENDING_DOMAIN} for reputation isolation`,
+      detail: `EMAIL_SENDING_DOMAIN is set to ${EMAIL_SENDING_DOMAIN} but sends resolve to ${from}`,
+      fixRecommendation: `Verify ${EMAIL_SENDING_DOMAIN} in Resend, or unset EMAIL_SENDING_DOMAIN to use the verified root sender.`,
     });
   } else {
+    // Healthy: either sending on the verified mail subdomain, or using the
+    // verified root sender with the mail subdomain intentionally disabled.
     checks.push({
       id: 'resend_domain',
       label: 'Resend sending domain',
-      status: process.env.RESEND_API_KEY ? 'healthy' : 'critical',
-      detail: process.env.RESEND_API_KEY
+      status: 'healthy',
+      detail: onMailSubdomain
         ? `Sending from ${from}`
-        : 'RESEND_API_KEY not configured',
-      fixRecommendation: process.env.RESEND_API_KEY
-        ? null
-        : 'Set RESEND_API_KEY in Vercel environment variables.',
+        : `Using verified root sender: ${from}. Mail subdomain is optional and currently disabled.`,
+      fixRecommendation: null,
     });
   }
 
