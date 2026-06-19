@@ -23,6 +23,13 @@ import type { RevenueAtRiskSummary } from './revenueAtRisk';
 import type { CustomerExpansionSummary } from './customerExpansion';
 import type { ActivityFeedSummary } from './activityFeed';
 import type { OwnerProspect, OwnerCrmLead } from './types';
+import type { GrowthAutopilotSnapshot } from './growthAutopilot';
+import { buildGrowthAutopilotSnapshot } from './growthAutopilot';
+import {
+  filterBannedDemoInboxItems,
+  isBannedDemoProspect,
+  matchesBannedDemoPattern,
+} from './demoPatternFilter';
 
 export interface FounderAttentionItem {
   id: string;
@@ -57,6 +64,7 @@ export interface FounderOsV6Data extends FounderOsV5Data {
     emailHealth: EmailHealthSummary;
     emailIntelligence: EmailIntelligenceSummary;
     revenueOpportunities: RevenueOpportunityItem[];
+    growthAutopilot: GrowthAutopilotSnapshot;
   };
 }
 
@@ -142,6 +150,45 @@ export const EMPTY_FOUNDER_OS_V6: FounderOsV6Data = {
       topCategories: [],
     },
     revenueOpportunities: [],
+    growthAutopilot: {
+      mode: 'manual',
+      prepareOnly: true,
+      deliverabilityStatus: 'healthy',
+      deliverabilityReasons: [],
+      recommendedDailyCap: 10,
+      sendsToday: 0,
+      stages: [],
+      overnight: {
+        generatedAt: new Date(0).toISOString(),
+        periodHours: 24,
+        prospectsDiscovered: 0,
+        prospectsScanned: 0,
+        contactsFound: 0,
+        draftsCreated: 0,
+        emailsSent: 0,
+        opens: 0,
+        clicks: 0,
+        replies: 0,
+        signups: 0,
+        followUpsDue: 0,
+        failedActions: 0,
+        blockedItems: 0,
+        idleReasons: [],
+        summaryLine: 'No overnight activity yet.',
+      },
+      moneyMoves: [],
+      pipeline: {
+        smbProspects: 0,
+        agencyProspects: 0,
+        contacted: 0,
+        clicked: 0,
+        signedUp: 0,
+        paid: 0,
+        mrr: 0,
+        conversionRate: 0,
+      },
+      lastCronAt: null,
+    },
   },
 };
 
@@ -176,6 +223,7 @@ async function buildInbox(
   const seen = new Set<string>();
 
   const push = (item: FounderInboxItem) => {
+    if (matchesBannedDemoPattern(item.title) || matchesBannedDemoPattern(item.description)) return;
     if (seen.has(item.id) || dismissed.has(item.id)) return;
     seen.add(item.id);
     inbox.push(item);
@@ -205,6 +253,7 @@ async function buildInbox(
   }
 
   for (const p of prospects.filter((x) => x.pipeline_state === 'interested').slice(0, 3)) {
+    if (isBannedDemoProspect(p)) continue;
     push({
       id: `interested-${p.id}`,
       type: 'interested',
@@ -436,13 +485,8 @@ export async function getFounderOsV6(input?: {
     ]);
 
   const signups24 = activityFeed.events.filter((e) => e.type === 'signup').length;
-  const inbox = await buildInbox(
-    base,
-    customerHealth,
-    revenueAtRisk,
-    expansion,
-    signups24,
-    prospects,
+  const inbox = filterBannedDemoInboxItems(
+    await buildInbox(base, customerHealth, revenueAtRisk, expansion, signups24, prospects),
   );
   const attention = buildAttention(customerHealth, revenueAtRisk, expansion, inbox);
   const approvableTypes = new Set([
@@ -454,7 +498,6 @@ export async function getFounderOsV6(input?: {
     'signup',
   ]);
   const pendingApprovals = inbox.filter((i) => approvableTypes.has(i.type)).length;
-  const outreachDraftCount = inbox.filter((i) => i.type === 'outreach').length;
 
   const dayAgo = new Date(Date.now() - 86400000).toISOString();
   const [sent24Res, followDueRes] = await Promise.all([
@@ -515,6 +558,29 @@ export async function getFounderOsV6(input?: {
 
   const approvableItems = inbox.filter((i) => approvableTypes.has(i.type));
 
+  const smbCount = prospects.filter((p) => p.prospect_kind !== 'agency' && !isBannedDemoProspect(p)).length;
+  const agencyCount = prospects.filter((p) => p.prospect_kind === 'agency' && !isBannedDemoProspect(p)).length;
+  const contactedCount = prospects.filter(
+    (p) => !isBannedDemoProspect(p) && p.pipeline_state === 'contacted',
+  ).length;
+
+  const growthAutopilot = await buildGrowthAutopilotSnapshot(admin, {
+    pendingApprovals,
+    followUpsDue: followDueRes.count ?? 0,
+    mrr: businessHealth.mrr,
+    payingCustomers: businessHealth.payingCustomers,
+    smbCount,
+    agencyCount,
+    contactedCount,
+    inboxTopItems: inbox.slice(0, 5).map((i) => ({
+      id: i.id,
+      title: i.title,
+      why: i.whyItMatters ?? i.description,
+      revenueImpact: i.revenueImpact ?? null,
+      section: i.module === 'prospects' ? 'prospects' : i.module === 'success' ? 'success' : 'inbox',
+    })),
+  });
+
   return {
     ...base,
     chiefOfStaff: {
@@ -525,7 +591,7 @@ export async function getFounderOsV6(input?: {
     },
     inbox,
     autopilot: {
-      outreachDrafts: outreachDraftCount,
+      outreachDrafts: inbox.filter((i) => i.type === 'outreach').length,
       followUps: inbox.filter((i) => i.type === 'follow_up').length,
       expansionOpportunities: inbox.filter((i) => i.type === 'expansion').length,
       items: approvableItems,
@@ -565,6 +631,7 @@ export async function getFounderOsV6(input?: {
       emailHealth,
       emailIntelligence,
       revenueOpportunities,
+      growthAutopilot,
     },
   };
 }

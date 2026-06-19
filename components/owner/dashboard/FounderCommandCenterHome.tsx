@@ -16,6 +16,7 @@ import {
   explainLeadChoice,
 } from '@/lib/intelligence/founderRecommendations';
 import EmailHealthSection from './EmailHealthSection';
+import GrowthAutopilotHomePanel from './GrowthAutopilotHomePanel';
 
 type PriorityStatus = 'ready' | 'blocked' | 'needs_review';
 
@@ -242,6 +243,8 @@ export default function FounderCommandCenterHome() {
           )}
         </div>
       </section>
+
+      <GrowthAutopilotHomePanel growth={v6.growthAutopilot} />
 
       {revenueBlockers.length > 0 && (
         <section className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5 sm:p-6">

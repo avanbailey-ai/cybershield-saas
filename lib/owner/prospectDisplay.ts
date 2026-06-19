@@ -5,6 +5,7 @@ import {
 } from './salesIntelligence';
 import { isOutreachReadyContact } from './prospectQualityBrain';
 import { AGENCY_PLAN_PRICE } from './agency/agencyScore';
+import { filterBannedDemoProspects } from './demoPatternFilter';
 import type { OwnerProspect } from './types';
 import type { ContactSignals } from './contactDiscovery';
 
@@ -76,7 +77,7 @@ export function resolveProspectScores(p: OwnerProspect): OwnerProspect {
 }
 
 export function resolveProspectList(prospects: OwnerProspect[]): OwnerProspect[] {
-  return prospects.map(resolveProspectScores);
+  return filterBannedDemoProspects(prospects.map(resolveProspectScores));
 }
 
 export function hasOutreachContact(p: OwnerProspect): boolean {

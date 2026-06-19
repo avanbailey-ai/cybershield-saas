@@ -5,12 +5,19 @@ import Link from 'next/link';
 import { useFounderNav } from '../FounderNavContext';
 import type { AutoArchiveSettings } from '@/lib/owner/autoArchive';
 import type { OutreachExecutionSettings } from '@/lib/owner/outreachSettings';
+import {
+  AUTOPILOT_MODE_LABELS,
+  type GrowthAutopilotMode,
+  type GrowthAutopilotSettings,
+} from '@/lib/owner/growthAutopilotSettings';
 
 export default function SettingsView() {
-  const { email } = useFounderNav();
+  const { email, founderData } = useFounderNav();
   const [settings, setSettings] = useState<AutoArchiveSettings | null>(null);
   const [outreach, setOutreach] = useState<OutreachExecutionSettings | null>(null);
+  const [growthSettings, setGrowthSettings] = useState<GrowthAutopilotSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const growthStatus = founderData.v6.growthAutopilot;
 
   useEffect(() => {
     fetch('/api/owner/settings')
@@ -18,6 +25,7 @@ export default function SettingsView() {
       .then((d) => {
         if (d.settings) setSettings(d.settings);
         if (d.outreach) setOutreach(d.outreach);
+        if (d.growthAutopilot) setGrowthSettings(d.growthAutopilot);
       });
   }, []);
 
@@ -28,11 +36,16 @@ export default function SettingsView() {
       const res = await fetch('/api/owner/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings, outreach }),
+        body: JSON.stringify({
+          settings,
+          outreach,
+          growthAutopilot: growthSettings ?? undefined,
+        }),
       });
       const data = await res.json();
       if (data.settings) setSettings(data.settings);
       if (data.outreach) setOutreach(data.outreach);
+      if (data.growthAutopilot) setGrowthSettings(data.growthAutopilot);
     } finally {
       setSaving(false);
     }
@@ -59,6 +72,83 @@ export default function SettingsView() {
           </Link>
         </div>
       </div>
+
+      {growthSettings && (
+        <div className="space-y-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
+          <h2 className="text-lg font-medium text-white">Growth autopilot</h2>
+          <p className="text-sm text-gray-500">
+            Nightly discovery, scanning, and draft preparation. Sending always requires your
+            approval unless you explicitly enable limited autopilot with healthy deliverability.
+          </p>
+          <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/90">
+            Current status: {growthStatus.prepareOnly ? 'Prepare-only' : growthStatus.mode} ·{' '}
+            {growthStatus.deliverabilityStatus} deliverability ·{' '}
+            {growthStatus.sendsToday}/{growthStatus.recommendedDailyCap} sends today
+          </p>
+          <label className="block text-sm">
+            <span className="text-gray-400">Mode</span>
+            <select
+              value={growthSettings.mode}
+              onChange={(e) =>
+                setGrowthSettings({
+                  ...growthSettings,
+                  mode: e.target.value as GrowthAutopilotMode,
+                  limited_autopilot_sending: e.target.value === 'limited',
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
+            >
+              {(Object.keys(AUTOPILOT_MODE_LABELS) as GrowthAutopilotMode[]).map((mode) => (
+                <option key={mode} value={mode}>
+                  {AUTOPILOT_MODE_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              checked={growthSettings.prepare_only}
+              onChange={(e) =>
+                setGrowthSettings({ ...growthSettings, prepare_only: e.target.checked })
+              }
+            />
+            Prepare-only (discover/scan/draft — no automatic sends)
+          </label>
+          <label className="block text-sm">
+            <span className="text-gray-400">Warmup week (daily send cap)</span>
+            <select
+              value={growthSettings.warmup_week}
+              onChange={(e) =>
+                setGrowthSettings({
+                  ...growthSettings,
+                  warmup_week: Number(e.target.value) as 1 | 2 | 3,
+                })
+              }
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white"
+            >
+              <option value={1}>Week 1 — up to 10/day</option>
+              <option value={2}>Week 2 — up to 20/day</option>
+              <option value={3}>Week 3 — up to 30/day</option>
+            </select>
+          </label>
+          {growthSettings.mode === 'limited' && (
+            <label className="flex items-center gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={growthSettings.limited_autopilot_sending}
+                onChange={(e) =>
+                  setGrowthSettings({
+                    ...growthSettings,
+                    limited_autopilot_sending: e.target.checked,
+                  })
+                }
+              />
+              Enable limited autopilot sending (low-risk only, deliverability guard must pass)
+            </label>
+          )}
+        </div>
+      )}
 
       {outreach && (
         <div className="space-y-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
@@ -168,7 +258,7 @@ export default function SettingsView() {
         </div>
       )}
 
-      {(settings || outreach) && (
+      {(settings || outreach || growthSettings) && (
         <button
           type="button"
           onClick={saveAll}

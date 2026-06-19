@@ -1,8 +1,8 @@
 'use client';
 
 import type { FounderInboxItem } from '@/lib/owner/founderOsV5';
+import { resolveReviewSection } from '@/lib/owner/founderNav';
 import { useFounderNav } from './FounderNavContext';
-import type { FounderSectionId } from '@/lib/owner/founderNav';
 
 export default function AutopilotCommandCenter({
   autopilot,
@@ -148,7 +148,7 @@ export function FounderInboxList({
             )}
             <button
               type="button"
-              onClick={() => setSection(item.module as FounderSectionId)}
+              onClick={() => setSection(resolveReviewSection(item.module))}
               className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:border-violet-500/50"
             >
               Review

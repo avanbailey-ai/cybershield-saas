@@ -15,16 +15,23 @@ const INBOX_GROUPS: { id: string; label: string; types: FounderInboxItem['type']
 export default function FounderInboxView() {
   const { founderData: data, refreshFounderData } = useFounderNav();
   const [busy, setBusy] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
 
   async function postInbox(action: 'approve' | 'dismiss', id: string, meta?: Record<string, unknown>) {
     setBusy(true);
+    setLastError(null);
     try {
-      await fetch('/api/owner/inbox', {
+      const res = await fetch('/api/owner/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, ids: [id], meta }),
       });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLastError(typeof json.error === 'string' ? json.error : 'Inbox action failed.');
+        return;
+      }
       await refreshFounderData();
     } finally {
       setBusy(false);
@@ -51,10 +58,16 @@ export default function FounderInboxView() {
       <header>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Founder inbox</h1>
         <p className="mt-2 text-gray-500">
-          Real actions only — approve outreach, follow-ups, retention, and upgrades. Each approval
-          executes via Resend.
+          Real actions only — approve outreach, follow-ups, retention, and upgrades. Ready to send
+          after your approval via Resend.
         </p>
       </header>
+
+      {lastError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {lastError}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <FilterChip

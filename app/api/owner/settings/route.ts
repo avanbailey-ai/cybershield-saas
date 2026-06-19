@@ -16,6 +16,11 @@ import {
   saveOutreachSettings,
   type OutreachExecutionSettings,
 } from '@/lib/owner/outreachSettings';
+import {
+  getGrowthAutopilotSettings,
+  saveGrowthAutopilotSettings,
+  type GrowthAutopilotSettings,
+} from '@/lib/owner/growthAutopilotSettings';
 
 export async function GET() {
   const auth = await requireOwner();
@@ -24,10 +29,11 @@ export async function GET() {
   }
 
   const admin = createAdminClient();
-  const [autoArchive, discovery, outreach] = await Promise.all([
+  const [autoArchive, discovery, outreach, growthAutopilot] = await Promise.all([
     getAutoArchiveSettings(admin),
     getDiscoverySettings(admin),
     getOutreachSettings(admin),
+    getGrowthAutopilotSettings(admin),
   ]);
 
   return NextResponse.json({
@@ -35,6 +41,7 @@ export async function GET() {
     settings: autoArchive,
     discovery,
     outreach,
+    growthAutopilot,
   });
 }
 
@@ -48,6 +55,7 @@ export async function PUT(req: NextRequest) {
     settings?: Partial<AutoArchiveSettings>;
     discovery?: Partial<DiscoverySettings>;
     outreach?: Partial<OutreachExecutionSettings>;
+    growthAutopilot?: Partial<GrowthAutopilotSettings>;
   };
 
   const admin = createAdminClient();
@@ -90,6 +98,11 @@ export async function PUT(req: NextRequest) {
   if (body.outreach) {
     const outreach = await saveOutreachSettings(admin, body.outreach);
     results.outreach = outreach;
+  }
+
+  if (body.growthAutopilot) {
+    const growthAutopilot = await saveGrowthAutopilotSettings(admin, body.growthAutopilot);
+    results.growthAutopilot = growthAutopilot;
   }
 
   return NextResponse.json(results);

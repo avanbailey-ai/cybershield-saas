@@ -26,6 +26,16 @@ export function resolveFounderSection(value: string): FounderSectionId | null {
   return LEGACY_SECTION_MAP[value] ?? null;
 }
 
+/** Map inbox item modules to Founder OS nav sections for Review actions. */
+export function resolveReviewSection(
+  module: 'inbox' | 'prospects' | 'customers' | 'success' | 'outreach',
+): FounderSectionId {
+  if (module === 'prospects') return 'prospects';
+  if (module === 'customers') return 'customers';
+  if (module === 'success') return 'success';
+  return 'inbox';
+}
+
 export const BANNED_DEMO_PATTERNS = [
   'example-health.org',
   'example-sass.com',

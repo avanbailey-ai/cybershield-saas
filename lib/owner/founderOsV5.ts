@@ -5,6 +5,7 @@ import type { OwnerProspect, OwnerCrmLead } from './types';
 import { planFitDisplayName } from './salesIntelligence';
 import { hasOutreachContact, resolveProspectList } from './prospectDisplay';
 import { isInternalCustomerProfile } from './internalAccountFilters';
+import { filterBannedDemoInboxItems, isBannedDemoProspect, matchesBannedDemoPattern } from './demoPatternFilter';
 
 const DEFAULT_MRR_GOAL = 1000;
 
@@ -297,6 +298,7 @@ export async function getFounderOsV5(input?: {
   const resolvedProspects = resolveProspectList(prospects);
   const top = [...resolvedProspects]
     .filter((p) => {
+      if (isBannedDemoProspect(p)) return false;
       if (p.pipeline_state === 'archived' || p.pipeline_state === 'ignore_forever') return false;
       return (p.opportunity_score ?? 0) >= 25;
     })
@@ -430,6 +432,8 @@ export async function getFounderOsV5(input?: {
   const inbox: FounderInboxItem[] = [];
 
   for (const d of drafts.slice(0, 5)) {
+    const name = (d.business_name as string) ?? 'Prospect';
+    if (matchesBannedDemoPattern(name)) continue;
     inbox.push({
       id: `draft-${d.id}`,
       type: 'outreach',
@@ -557,6 +561,6 @@ export async function getFounderOsV5(input?: {
       avgSecurityScore:
         intelligence.avgRiskScore > 0 ? Math.round(intelligence.avgRiskScore) : null,
     },
-    inbox,
+    inbox: filterBannedDemoInboxItems(inbox),
   };
 }

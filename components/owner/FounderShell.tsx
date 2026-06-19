@@ -4,23 +4,44 @@ import Link from 'next/link';
 import LogoutButton from '@/components/dashboard/LogoutButton';
 import { FOUNDER_SECTIONS, useFounderNav } from './FounderNavContext';
 
+function sidebarStatusLabel(
+  inboxCount: number,
+  growth: { mode: string; prepareOnly: boolean; deliverabilityStatus: string } | undefined,
+): string {
+  if (inboxCount > 0) {
+    return `${inboxCount} need approval`;
+  }
+  if (
+    growth?.mode === 'limited' &&
+    !growth.prepareOnly &&
+    growth.deliverabilityStatus === 'healthy'
+  ) {
+    return 'Limited autopilot active';
+  }
+  if (growth?.mode === 'paused') {
+    return 'Autopilot paused';
+  }
+  return 'Manual approval required';
+}
+
 export default function FounderShell() {
   const { section, setSection, email, founderData } = useFounderNav();
   const inboxCount = founderData.inbox.length;
+  const growth = founderData.v6.growthAutopilot;
+  const statusLabel = sidebarStatusLabel(inboxCount, growth);
+  const showReadyDot =
+    growth?.mode === 'limited' &&
+    !growth.prepareOnly &&
+    growth.deliverabilityStatus === 'healthy' &&
+    inboxCount === 0;
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-white/[0.06] bg-[#080c18]">
       <div className="border-b border-white/[0.06] px-5 py-6">
         <p className="text-base font-semibold tracking-tight text-white">Founder OS</p>
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
-          {inboxCount > 0 ? (
-            <>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Autopilot active
-            </>
-          ) : (
-            'Business Autopilot'
-          )}
+          {showReadyDot && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+          {statusLabel}
         </p>
       </div>
 
