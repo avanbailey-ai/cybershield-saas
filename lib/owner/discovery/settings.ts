@@ -25,7 +25,7 @@ export interface DiscoverySettings {
   seedDirectoryUrl: string | null;
 }
 
-/** Preset search areas in miles → meters for geospatial providers */
+/** Preset search areas in miles → meters for geospatial providers (single-anchor SMB runs). */
 export const SCOPE_RADIUS_MILES: Record<Exclude<DiscoveryScope, 'custom'>, number> = {
   local: 25,
   regional: 100,
@@ -49,7 +49,7 @@ export const DISCOVERY_SCOPE_OPTIONS: { id: DiscoveryScope; label: string; hint:
   { id: 'local', label: 'Local', hint: '25 miles' },
   { id: 'regional', label: 'Regional', hint: '100 miles' },
   { id: 'statewide', label: 'Statewide', hint: 'State-wide search' },
-  { id: 'nationwide', label: 'Nationwide', hint: 'Broad US search' },
+  { id: 'nationwide', label: 'Nationwide', hint: 'Selected US metros (agency)' },
   { id: 'custom', label: 'Custom', hint: 'Advanced area' },
 ];
 
@@ -70,6 +70,20 @@ export const DEFAULT_DISCOVERY_SETTINGS: DiscoverySettings = {
   seedDirectoryUrl: null,
 };
 
+function normalizeLegacyScope(scope: unknown): DiscoveryScope {
+  if (scope === 'internet_wide') return 'regional';
+  if (
+    scope === 'local' ||
+    scope === 'regional' ||
+    scope === 'statewide' ||
+    scope === 'nationwide' ||
+    scope === 'custom'
+  ) {
+    return scope;
+  }
+  return DEFAULT_DISCOVERY_SETTINGS.discoveryScope;
+}
+
 export async function getDiscoverySettings(
   admin: SupabaseClient,
 ): Promise<DiscoverySettings> {
@@ -87,6 +101,7 @@ export async function getDiscoverySettings(
   const merged: DiscoverySettings = {
     ...DEFAULT_DISCOVERY_SETTINGS,
     ...raw,
+    discoveryScope: normalizeLegacyScope(raw.discoveryScope),
     providers: {
       ...DEFAULT_DISCOVERY_SETTINGS.providers,
       ...(raw.providers ?? {}),

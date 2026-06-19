@@ -11,6 +11,7 @@ import { classifyAgencyProspect } from '../agency/agencyEnrichment';
 import type { AgencyType } from '../agency/agencyTypes';
 import type { DiscoveryRunResult, RawDiscoveredBusiness } from './types';
 import type { ProviderDiagnostic, DiscoveryProvider } from './provider';
+import { skippedDiagnostic } from './provider';
 import {
   getDiscoverySettings,
   radiusForScope,
@@ -18,21 +19,15 @@ import {
   DEFAULT_DISCOVERY_SETTINGS,
 } from './settings';
 import { emptyDiscoveryBreakdown, formatDiscoverySummary } from '../prospectQualityBrain';
+import { buildAgencySearchPlan, AGENCY_SEARCH_SEEDS, isNationwideAgencyScope } from './agencyQueries';
+import { buildDiscoveryRunDiagnostics, formatZeroRawMessage } from './diagnostics';
+import { geocodeLocation } from './geocode';
 
-/** Nominatim search seed terms per agency type (keys exist in nominatimSearch). */
-const AGENCY_SEARCH_SEEDS: Record<AgencyType, string> = {
-  web_design: 'web_design_agency',
-  wordpress: 'wordpress_agency',
-  shopify: 'shopify_agency',
-  ecommerce: 'ecommerce_agency',
-  seo: 'seo_agency',
-  marketing: 'marketing_agency',
-  branding: 'branding_agency',
-  creative_studio: 'creative_agency',
-  dev_shop: 'dev_agency',
-  msp: 'msp_agency',
-  unknown: 'web_agency',
-};
+const ALL_PROVIDERS: DiscoveryProvider[] = [
+  openStreetMapProvider,
+  nominatimSearchProvider,
+  directorySeedProvider,
+];
 
 async function loadExistingHosts(admin: SupabaseClient): Promise<Set<string>> {
   const { data } = await admin
@@ -67,22 +62,18 @@ async function scanProspect(admin: SupabaseClient, prospectId: string): Promise<
   return result.ok;
 }
 
-function providersForSettings(settings: DiscoverySettings): DiscoveryProvider[] {
-  const all = [openStreetMapProvider, nominatimSearchProvider, directorySeedProvider];
-  return all.filter((p) => {
-    const key = p.name as keyof DiscoverySettings['providers'];
-    return settings.providers[key] !== false;
-  });
+function providerEnabled(settings: DiscoverySettings, name: string): boolean {
+  const key = name as keyof DiscoverySettings['providers'];
+  return settings.providers[key] !== false;
 }
 
 export async function runProspectDiscovery(options?: {
   settings?: Partial<DiscoverySettings>;
   autoScan?: boolean;
-  /** When true, discovered prospects are classified as agencies (Founder OS). */
   agencyMode?: boolean;
-  /** Preferred agency type for agency mode (also seeds the search terms). */
   agencyType?: AgencyType;
 }): Promise<DiscoveryRunResult> {
+  const startedAt = Date.now();
   const admin = createAdminClient();
   const baseSettings = await getDiscoverySettings(admin);
   const settings: DiscoverySettings = {
@@ -97,17 +88,21 @@ export async function runProspectDiscovery(options?: {
   const agencyMode = options?.agencyMode === true;
   const agencyType: AgencyType = options?.agencyType ?? 'unknown';
 
-  // In agency mode, drive the search with agency seed terms and prefer the
-  // free-text Nominatim provider (geospatial amenity filters don't model
-  // agencies well). SMB discovery is untouched.
+  let agencySearchPlan: ReturnType<typeof buildAgencySearchPlan> | null = null;
+  let searchQueries: string[] | undefined;
+
   if (agencyMode) {
     settings.industry = AGENCY_SEARCH_SEEDS[agencyType] ?? AGENCY_SEARCH_SEEDS.unknown;
     settings.providers = {
-      openstreetmap: false,
+      openstreetmap: true,
       nominatim_search: true,
       directory_seed: settings.providers.directory_seed === true,
       google_places: false,
     };
+    agencySearchPlan = buildAgencySearchPlan(agencyType, settings.location, {
+      discoveryScope: settings.discoveryScope,
+    });
+    searchQueries = agencySearchPlan.queries;
   }
 
   const maxInsert = Math.min(settings.maxProspectsPerRun, 50);
@@ -118,22 +113,57 @@ export async function runProspectDiscovery(options?: {
   const providerDiagnostics: ProviderDiagnostic[] = [];
   const errors: string[] = [];
   const raw: RawDiscoveredBusiness[] = [];
+  let rawResponseCount = 0;
+  let rawBeforeWebsiteFilter = 0;
+
+  const nationwideAgency =
+    agencyMode && isNationwideAgencyScope(settings.discoveryScope);
+  const location = settings.location.trim() || DEFAULT_DISCOVERY_SETTINGS.location;
+  const geo = await geocodeLocation(location);
 
   const params = {
-    location: settings.location || DEFAULT_DISCOVERY_SETTINGS.location,
+    location,
     industry: settings.industry || DEFAULT_DISCOVERY_SETTINGS.industry,
     radiusMeters: radiusForScope(settings),
     maxResults: maxInsert,
     seedDirectoryUrl: settings.seedDirectoryUrl,
+    searchQueries,
+    searchLocations: nationwideAgency ? agencySearchPlan?.osmSearchHubs : undefined,
   };
 
-  for (const provider of providersForSettings(settings)) {
+  for (const provider of ALL_PROVIDERS) {
+    const enabled = providerEnabled(settings, provider.name);
+    if (!enabled) {
+      providerDiagnostics.push(
+        skippedDiagnostic(provider.name, `${provider.name} disabled in discovery settings`, {
+          providerEnabled: false,
+        }).diagnostic,
+      );
+      continue;
+    }
+
+    if (provider.name === 'directory_seed' && !settings.seedDirectoryUrl?.trim()) {
+      providerDiagnostics.push(
+        skippedDiagnostic('directory_seed', 'No seed directory URL configured', {
+          providerEnabled: true,
+          providerCalled: false,
+        }).diagnostic,
+      );
+      continue;
+    }
+
     try {
       const { results, diagnostic } = await provider.discover(params);
-      providerDiagnostics.push(diagnostic);
+      providerDiagnostics.push({
+        ...diagnostic,
+        providerEnabled: true,
+        providerCalled: diagnostic.providerCalled ?? true,
+      });
       if (diagnostic.status === 'failed' && diagnostic.failureReason) {
         errors.push(`${diagnostic.provider}: ${diagnostic.failureReason}`);
       }
+      rawResponseCount += diagnostic.rawResponseCount ?? 0;
+      rawBeforeWebsiteFilter += diagnostic.rawBeforeWebsiteFilter ?? results.length;
       raw.push(...results);
     } catch (e) {
       const msg = e instanceof Error ? e.message : `${provider.name} failed`;
@@ -143,6 +173,9 @@ export async function runProspectDiscovery(options?: {
         status: 'failed',
         found: 0,
         failureReason: msg,
+        providerError: msg,
+        providerEnabled: true,
+        providerCalled: true,
       });
     }
   }
@@ -152,6 +185,7 @@ export async function runProspectDiscovery(options?: {
   let scanned = 0;
   let skipped = 0;
   let validated = 0;
+  let rejectedDns = 0;
 
   const pendingScanIds: string[] = [];
   const seenThisRun = new Set<string>();
@@ -179,6 +213,7 @@ export async function runProspectDiscovery(options?: {
     const validation = await validateProspectWebsite(item.website);
     if (validation.rejected || !validation.dns_valid) {
       skipped++;
+      rejectedDns++;
       continue;
     }
 
@@ -239,22 +274,12 @@ export async function runProspectDiscovery(options?: {
     pendingScanIds.push(data.id as string);
   }
 
-  // FIX 1 (HIGH): In agency mode we MUST classify each inserted prospect BEFORE
-  // the auto-scan step. applyProspectScan() (invoked by scanProspect during
-  // autoScan) calls ensureOutreachDraft(), which keys the draft type off
-  // prospect_kind. If classification ran after the scan, every agency prospect
-  // would still be prospect_kind='smb' at draft time and get an SMB cold_email
-  // draft; the later agency draft would then be skipped (a draft already exists).
-  // Classifying first sets prospect_kind='agency' (only for real agency fits —
-  // see decideProspectKind) so the scan's ensureOutreachDraft builds the agency
-  // draft, while NOT-AGENCY-FIT rows stay 'smb' and get the normal SMB draft.
-  // SMB discovery (agencyMode=false) is byte-for-byte unaffected.
   if (agencyMode) {
     for (const id of pendingScanIds) {
       try {
         await classifyAgencyProspect(admin, id, agencyType);
       } catch {
-        /* classification best-effort — never fail the whole run */
+        /* classification best-effort */
       }
     }
   }
@@ -283,26 +308,56 @@ export async function runProspectDiscovery(options?: {
     }
   }
 
-  const errorSummary = errors.length ? errors.join('; ') : null;
-
-  await admin.from('owner_discovery_runs').insert({
-    source: 'combined',
-    discovered_count: discovered,
-    inserted_count: inserted,
-    scanned_count: scanned,
-    skipped_count: skipped,
-    qualified_count: qualifiedCount,
-    outreach_ready_count: outreachReadyCount,
-    error_message: errorSummary,
-    provider_diagnostics: providerDiagnostics,
-  });
-
   const breakdown = emptyDiscoveryBreakdown();
   breakdown.rawResults = discovered;
   breakdown.duplicatesSkipped = skipped;
+  breakdown.rejectedLowFit = rejectedDns;
   breakdown.inserted = inserted;
   breakdown.qualified = qualifiedCount;
   breakdown.outreachReady = outreachReadyCount;
+
+  const runDiagnostics = buildDiscoveryRunDiagnostics({
+    runType: agencyMode ? 'agency' : 'smb',
+    agencyType: agencyMode ? agencyType : undefined,
+    location,
+    normalizedLocation: geo?.displayName ?? agencySearchPlan?.normalizedLocation ?? location,
+    searchScope: settings.discoveryScope,
+    locationExpansion: agencySearchPlan?.expansionNote ?? null,
+    metrosSearched: agencySearchPlan?.metrosSearched ?? [],
+    queriesByMetro: agencySearchPlan?.queriesByMetro ?? {},
+    providers: providerDiagnostics,
+    queriesAttempted: searchQueries ?? [],
+    rawResponseCount,
+    rawCandidatesBeforeFilters: discovered,
+    breakdown,
+    durationMs: Date.now() - startedAt,
+    envMissing: [],
+  });
+
+  const errorSummary = errors.length ? errors.join('; ') : null;
+
+  const { data: runRow } = await admin
+    .from('owner_discovery_runs')
+    .insert({
+      source: agencyMode ? `agency:${agencyType}` : 'combined',
+      discovered_count: discovered,
+      inserted_count: inserted,
+      scanned_count: scanned,
+      skipped_count: skipped,
+      qualified_count: qualifiedCount,
+      outreach_ready_count: outreachReadyCount,
+      error_message: errorSummary,
+      provider_diagnostics: providerDiagnostics,
+      discovery_breakdown: breakdown,
+      run_diagnostics: runDiagnostics,
+    })
+    .select('id')
+    .single();
+
+  const summaryMessage =
+    discovered === 0
+      ? formatZeroRawMessage(runDiagnostics)
+      : formatDiscoverySummary(breakdown, inserted);
 
   return {
     discovered,
@@ -316,7 +371,9 @@ export async function runProspectDiscovery(options?: {
     errors,
     providerDiagnostics,
     breakdown,
-    summaryMessage: formatDiscoverySummary(breakdown, inserted),
+    summaryMessage,
+    runDiagnostics,
+    runId: runRow?.id as string | undefined,
   };
 }
 

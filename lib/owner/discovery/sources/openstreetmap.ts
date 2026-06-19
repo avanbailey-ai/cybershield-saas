@@ -10,9 +10,14 @@ import {
 import type { RawDiscoveredBusiness } from '../types';
 import { geocodeLocation } from '../geocode';
 import { normalizeWebsiteUrl, nameFromWebsite } from '../normalize';
+import { isAgencyDiscoveryIndustry, NATIONWIDE_AGENCY_LIMITS } from '../agencyQueries';
 
 const OVERPASS_UA =
   'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com';
+
+const HUB_DELAY_MS = 500;
+const METRO_HUB_RADIUS_METERS = 35_000;
+const OVERPASS_TIMEOUT_MS = 22_000;
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -52,6 +57,13 @@ const INDUSTRY_OVERPASS_FILTERS: Record<string, string[]> = {
   general: ['["website"]'],
 };
 
+/** Geospatial filters for agency discovery (office/IT/marketing with website tags). */
+const AGENCY_OVERPASS_FILTERS = [
+  '["office"~"^(it|company|advertising_agency|marketing|design)$"]',
+  '["office"="telecommunication"]',
+  '["shop"="computer"]',
+];
+
 function inferIndustry(tags: Record<string, string>): string {
   for (const key of ['healthcare', 'office', 'shop', 'amenity', 'craft']) {
     const val = tags[key];
@@ -80,7 +92,9 @@ function buildOverpassQuery(
   industry: string,
   limit: number,
 ): string {
-  const filters = INDUSTRY_OVERPASS_FILTERS[industry.toLowerCase()] ?? INDUSTRY_OVERPASS_FILTERS.general;
+  const filters = isAgencyDiscoveryIndustry(industry)
+    ? AGENCY_OVERPASS_FILTERS
+    : (INDUSTRY_OVERPASS_FILTERS[industry.toLowerCase()] ?? INDUSTRY_OVERPASS_FILTERS.general);
   const capped = Math.min(Math.max(limit, 1), 50);
   const filterBlocks = filters
     .map(
@@ -117,6 +131,7 @@ async function callOverpass(query: string): Promise<{
         'User-Agent': OVERPASS_UA,
       },
       body: query,
+      signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
     });
 
     const text = await res.text();
@@ -167,19 +182,156 @@ function parseElements(
   return results;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function discoverSingleHub(
+  params: DiscoveryParams,
+  hubLabel: string,
+  perHubLimit: number,
+  radiusMeters: number,
+  seenWebsites: Set<string>,
+): Promise<{
+  results: RawDiscoveredBusiness[];
+  elementCount: number;
+  queryLabel: string;
+  snippet: string;
+  endpoint: string;
+  hash: string;
+  geoDisplayName: string;
+} | null> {
+  const geo = await geocodeLocation(hubLabel);
+  if (!geo) return null;
+
+  const query = buildOverpassQuery(
+    geo.lat,
+    geo.lon,
+    radiusMeters,
+    params.industry,
+    perHubLimit,
+  );
+  const hash = queryHash(query);
+  const response = await callOverpass(query);
+  if (!response.ok) {
+    return {
+      results: [],
+      elementCount: 0,
+      queryLabel: `Overpass around ${hubLabel}`,
+      snippet: response.snippet,
+      endpoint: response.endpoint,
+      hash,
+      geoDisplayName: geo.displayName,
+    };
+  }
+
+  const elementCount = response.data?.elements?.length ?? 0;
+  const parsed = parseElements(response.data?.elements, perHubLimit);
+  const results: RawDiscoveredBusiness[] = [];
+  for (const item of parsed) {
+    const host = item.website;
+    if (seenWebsites.has(host)) continue;
+    seenWebsites.add(host);
+    results.push(item);
+  }
+
+  return {
+    results,
+    elementCount,
+    queryLabel: `Overpass around ${hubLabel}`,
+    snippet: `endpoint=${response.endpoint} elements=${elementCount} with_website=${results.length}`,
+    endpoint: response.endpoint,
+    hash,
+    geoDisplayName: geo.displayName,
+  };
+}
+
+async function discoverFromMetroHubs(
+  params: DiscoveryParams,
+  hubs: string[],
+): Promise<ProviderResult> {
+  const limit = Math.min(params.maxResults, 50);
+  const cappedHubs = hubs.slice(0, NATIONWIDE_AGENCY_LIMITS.maxMetrosPerRun);
+  const perHubLimit = Math.max(2, Math.ceil(limit / cappedHubs.length));
+  const seenWebsites = new Set<string>();
+  const allResults: RawDiscoveredBusiness[] = [];
+  let rawResponseCount = 0;
+  const queriesAttempted: string[] = [];
+  const snippets: string[] = [];
+  const rawByMetro: Record<string, number> = {};
+  let lastHash = '';
+
+  for (let i = 0; i < cappedHubs.length; i++) {
+    if (allResults.length >= limit) break;
+    if (i > 0) await sleep(HUB_DELAY_MS);
+
+    const hub = cappedHubs[i]!;
+    try {
+      const hubResult = await discoverSingleHub(
+        params,
+        hub,
+        perHubLimit,
+        METRO_HUB_RADIUS_METERS,
+        seenWebsites,
+      );
+      if (!hubResult) {
+        queriesAttempted.push(`Overpass around ${hub} (geocode failed)`);
+        rawByMetro[hub] = 0;
+        continue;
+      }
+
+      lastHash = hubResult.hash;
+      rawResponseCount += hubResult.elementCount;
+      rawByMetro[hub] = hubResult.results.length;
+      queriesAttempted.push(hubResult.queryLabel);
+      snippets.push(`${hub}: ${hubResult.snippet}`);
+      allResults.push(...hubResult.results);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Overpass hub failed';
+      queriesAttempted.push(`Overpass around ${hub} (${msg})`);
+      snippets.push(`${hub}: error ${msg}`);
+      rawByMetro[hub] = 0;
+    }
+  }
+
+  const results = allResults.slice(0, limit);
+  return succeededDiagnostic('openstreetmap', results, {
+    queryHash: lastHash,
+    providerEnabled: true,
+    providerCalled: true,
+    queriesAttempted,
+    rawResponseCount,
+    rawBeforeWebsiteFilter: rawResponseCount,
+    normalizedLocation: 'United States (nationwide metros)',
+    metrosSearched: cappedHubs,
+    rawByMetro,
+    responseSnippet: snippets.join(' | ').slice(0, 900),
+    statusCode: 200,
+  });
+}
+
 export async function discoverFromOpenStreetMap(
   params: DiscoveryParams,
 ): Promise<ProviderResult> {
+  const hubs = params.searchLocations?.filter((h) => h.trim().length > 0);
+  if (hubs && hubs.length > 0) {
+    return discoverFromMetroHubs(params, hubs);
+  }
+
   const geo = await geocodeLocation(params.location);
   if (!geo) {
-    return failedDiagnostic('openstreetmap', `Could not geocode location: ${params.location}`);
+    return failedDiagnostic('openstreetmap', `Could not geocode location: ${params.location}`, {
+      providerEnabled: true,
+      providerCalled: true,
+      normalizedLocation: params.location,
+    });
   }
 
   const limit = Math.min(params.maxResults, 50);
   const query = buildOverpassQuery(
     geo.lat,
     geo.lon,
-    Math.min(params.radiusMeters, 25_000),
+    Math.min(params.radiusMeters, 40_000),
     params.industry,
     limit,
   );
@@ -191,13 +343,25 @@ export async function discoverFromOpenStreetMap(
       statusCode: response.status,
       responseSnippet: response.snippet,
       queryHash: hash,
+      providerEnabled: true,
+      providerCalled: true,
+      providerError: `Overpass HTTP ${response.status}`,
+      queriesAttempted: [query.slice(0, 120) + '…'],
+      normalizedLocation: geo.displayName,
     });
   }
 
+  const elementCount = response.data?.elements?.length ?? 0;
   const results = parseElements(response.data?.elements, limit);
   return succeededDiagnostic('openstreetmap', results, {
     queryHash: hash,
-    responseSnippet: `endpoint=${response.endpoint} elements=${response.data?.elements?.length ?? 0}`,
+    providerEnabled: true,
+    providerCalled: true,
+    queriesAttempted: [`Overpass around ${geo.displayName} (${params.industry})`],
+    rawResponseCount: elementCount,
+    rawBeforeWebsiteFilter: elementCount,
+    normalizedLocation: geo.displayName,
+    responseSnippet: `endpoint=${response.endpoint} elements=${elementCount} with_website=${results.length}`,
   });
 }
 

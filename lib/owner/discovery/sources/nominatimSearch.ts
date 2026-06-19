@@ -11,6 +11,8 @@ import { normalizeWebsiteUrl, nameFromWebsite } from '../normalize';
 const NOMINATIM_UA =
   'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com';
 
+const NOMINATIM_DELAY_MS = 1100;
+
 const INDUSTRY_SEARCH_TERMS: Record<string, string> = {
   healthcare: 'clinic doctor dentist hospital pharmacy',
   dental: 'dentist dental',
@@ -20,18 +22,17 @@ const INDUSTRY_SEARCH_TERMS: Record<string, string> = {
   hospitality: 'restaurant cafe',
   technology: 'software IT company',
   general: 'business',
-  // ── Agency Prospect System search seeds (Founder OS agency discovery) ──
   web_agency: 'web design agency',
-  web_design_agency: 'web design agency website developer',
+  web_design_agency: 'web design agency',
   wordpress_agency: 'wordpress web design agency',
   shopify_agency: 'shopify ecommerce agency',
-  ecommerce_agency: 'ecommerce web design agency online store',
+  ecommerce_agency: 'ecommerce web design agency',
   seo_agency: 'seo marketing agency',
-  marketing_agency: 'digital marketing agency advertising',
-  branding_agency: 'branding design agency studio',
+  marketing_agency: 'digital marketing agency',
+  branding_agency: 'branding design agency',
   creative_agency: 'creative design studio agency',
-  dev_agency: 'web development agency software studio',
-  msp_agency: 'managed it services provider web agency',
+  dev_agency: 'web development agency',
+  msp_agency: 'managed it services provider',
 };
 
 function inferIndustryFromClass(
@@ -45,58 +46,30 @@ function inferIndustryFromClass(
   if (/contract|electric|plumb/.test(lower)) return 'Contractors';
   if (/restaurant|cafe|food/.test(lower)) return 'Hospitality';
   if (/shop|store|retail/.test(lower)) return 'Retail';
-  if (/software|it|tech/.test(lower)) return 'Technology';
+  if (/software|it|tech|marketing|design|advert/.test(lower)) return 'Technology';
   return 'General';
 }
 
-/** Fallback OSM discovery via Nominatim search (no Overpass). */
-export async function discoverFromNominatimSearch(
-  params: DiscoveryParams,
-): Promise<ProviderResult> {
-  const industryTerm =
-    INDUSTRY_SEARCH_TERMS[params.industry.toLowerCase()] ?? INDUSTRY_SEARCH_TERMS.general;
-  const q = `${industryTerm} ${params.location}`.trim();
-  const limit = Math.min(params.maxResults, 50);
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  const url = new URL('https://nominatim.openstreetmap.org/search');
-  url.searchParams.set('q', q);
-  url.searchParams.set('format', 'json');
-  url.searchParams.set('limit', String(limit));
-  url.searchParams.set('extratags', '1');
-  url.searchParams.set('addressdetails', '1');
+type NominatimRow = {
+  display_name?: string;
+  type?: string;
+  extratags?: Record<string, string>;
+  address?: { city?: string; state?: string; country_code?: string };
+};
 
-  const res = await fetch(url.toString(), {
-    headers: { 'User-Agent': NOMINATIM_UA, Accept: 'application/json' },
-  });
-
-  const text = await res.text();
-  const snippet = text.slice(0, 300);
-  if (!res.ok) {
-    return failedDiagnostic('nominatim_search', `Nominatim error: ${res.status}`, {
-      statusCode: res.status,
-      responseSnippet: snippet,
-    });
-  }
-
-  let rows: Array<{
-    display_name?: string;
-    type?: string;
-    extratags?: Record<string, string>;
-    address?: { city?: string; state?: string; country_code?: string };
-  }>;
-
-  try {
-    rows = JSON.parse(text) as typeof rows;
-  } catch {
-    return failedDiagnostic('nominatim_search', 'Invalid Nominatim JSON', {
-      responseSnippet: snippet,
-    });
-  }
-
+function rowsToBusinesses(rows: NominatimRow[], seen: Set<string>): {
+  results: RawDiscoveredBusiness[];
+  rawBeforeWebsiteFilter: number;
+} {
   const results: RawDiscoveredBusiness[] = [];
-  const seen = new Set<string>();
+  let rawBeforeWebsiteFilter = 0;
 
   for (const row of rows) {
+    rawBeforeWebsiteFilter++;
     const raw =
       row.extratags?.website ??
       row.extratags?.['contact:website'] ??
@@ -125,8 +98,103 @@ export async function discoverFromNominatimSearch(
     });
   }
 
-  return succeededDiagnostic('nominatim_search', results, {
-    responseSnippet: `query=${q} hits=${rows.length} with_website=${results.length}`,
+  return { results, rawBeforeWebsiteFilter };
+}
+
+async function fetchNominatimQuery(q: string, limit: number): Promise<{
+  ok: boolean;
+  status: number;
+  rows: NominatimRow[];
+  snippet: string;
+}> {
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.searchParams.set('q', q);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('extratags', '1');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('countrycodes', 'us');
+
+  const res = await fetch(url.toString(), {
+    headers: { 'User-Agent': NOMINATIM_UA, Accept: 'application/json' },
+  });
+
+  const text = await res.text();
+  const snippet = text.slice(0, 300);
+  if (!res.ok) {
+    return { ok: false, status: res.status, rows: [], snippet };
+  }
+
+  try {
+    const rows = JSON.parse(text) as NominatimRow[];
+    return { ok: true, status: res.status, rows, snippet };
+  } catch {
+    return { ok: false, status: res.status, rows: [], snippet: `Invalid JSON: ${snippet}` };
+  }
+}
+
+/** Fallback OSM discovery via Nominatim search (no Overpass). Supports multi-query agency runs. */
+export async function discoverFromNominatimSearch(
+  params: DiscoveryParams,
+): Promise<ProviderResult> {
+  const industryTerm =
+    INDUSTRY_SEARCH_TERMS[params.industry.toLowerCase()] ?? INDUSTRY_SEARCH_TERMS.general;
+
+  const queries =
+    params.searchQueries && params.searchQueries.length > 0
+      ? params.searchQueries
+      : [`${industryTerm} ${params.location}`.trim()];
+
+  const limit = Math.min(params.maxResults, 50);
+  const seen = new Set<string>();
+  const allResults: RawDiscoveredBusiness[] = [];
+  let rawResponseCount = 0;
+  let rawBeforeWebsiteFilter = 0;
+  let lastSnippet = '';
+  let lastStatus = 200;
+  const querySnippets: string[] = [];
+
+  for (let i = 0; i < queries.length; i++) {
+    if (i > 0) await sleep(NOMINATIM_DELAY_MS);
+    const q = queries[i]!;
+    const response = await fetchNominatimQuery(q, limit);
+    lastSnippet = response.snippet;
+    lastStatus = response.status;
+
+    if (!response.ok) {
+      return failedDiagnostic('nominatim_search', `Nominatim error: ${response.status}`, {
+        statusCode: response.status,
+        responseSnippet: response.snippet,
+        providerEnabled: true,
+        providerCalled: true,
+        providerError: `HTTP ${response.status}`,
+        queriesAttempted: queries.slice(0, i + 1),
+        rawResponseCount,
+        rawBeforeWebsiteFilter,
+        normalizedLocation: params.location,
+      });
+    }
+
+    rawResponseCount += response.rows.length;
+    const parsed = rowsToBusinesses(response.rows, seen);
+    rawBeforeWebsiteFilter += parsed.rawBeforeWebsiteFilter;
+    allResults.push(...parsed.results);
+    querySnippets.push(`"${q}" → ${response.rows.length} hits, ${parsed.results.length} with website`);
+
+    if (allResults.length >= limit) break;
+  }
+
+  const capped = allResults.slice(0, limit);
+
+  return succeededDiagnostic('nominatim_search', capped, {
+    providerEnabled: true,
+    providerCalled: true,
+    queriesAttempted: queries,
+    rawResponseCount,
+    rawBeforeWebsiteFilter,
+    normalizedLocation: params.location,
+    responseSnippet: querySnippets.join(' | '),
+    statusCode: lastStatus,
   });
 }
 

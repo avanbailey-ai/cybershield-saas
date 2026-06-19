@@ -57,6 +57,8 @@ export interface DiscoveryBreakdownResult {
   rejectedInserted: number;
 }
 
+import type { DiscoveryRunDiagnostics } from './diagnostics';
+
 export interface DiscoveryRunResult {
   discovered: number;
   inserted: number;
@@ -67,7 +69,9 @@ export interface DiscoveryRunResult {
   outreachReady: number;
   estimatedOpportunityMrr: number;
   errors: string[];
-  providerDiagnostics: ProviderDiagnostic[];
+  providerDiagnostics: import('./provider').ProviderDiagnostic[];
   breakdown: DiscoveryBreakdownResult;
   summaryMessage?: string;
+  runDiagnostics?: DiscoveryRunDiagnostics;
+  runId?: string;
 }

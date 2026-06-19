@@ -28,6 +28,35 @@ interface ProviderDiagnostic {
   status: 'succeeded' | 'failed' | 'skipped';
   found: number;
   failureReason?: string;
+  providerEnabled?: boolean;
+  providerCalled?: boolean;
+  providerError?: string;
+  queriesAttempted?: string[];
+  rawResponseCount?: number;
+  rawBeforeWebsiteFilter?: number;
+  responseSnippet?: string;
+  normalizedLocation?: string;
+  metrosSearched?: string[];
+  rawByMetro?: Record<string, number>;
+}
+
+interface DiscoveryRunDiagnostics {
+  runType?: string;
+  agencyType?: string;
+  location?: string;
+  normalizedLocation?: string | null;
+  searchScope?: string;
+  locationExpansion?: string | null;
+  metrosSearched?: string[];
+  queriesByMetro?: Record<string, string[]>;
+  queriesAttempted?: string[];
+  rawResponseCount?: number;
+  rawCandidatesBeforeFilters?: number;
+  durationMs?: number;
+  zeroRawReason?: string | null;
+  nextRecommendedAction?: string | null;
+  envMissing?: string[];
+  providers?: ProviderDiagnostic[];
 }
 
 interface DiscoveryRun {
@@ -52,6 +81,8 @@ interface DiscoveryRunResponse {
   outreachReady?: number;
   estimatedOpportunityMrr?: number;
   providerDiagnostics?: ProviderDiagnostic[];
+  runDiagnostics?: DiscoveryRunDiagnostics;
+  runId?: string;
   breakdown?: {
     rawResults: number;
     duplicatesSkipped: number;
@@ -114,9 +145,13 @@ export default function LeadDiscovery({
 
   const agencyCount = useMemo(() => countAgencyProspects(prospects), [prospects]);
   const agencyDiscoveryStatus = agencyMode
-    ? agencyCount > 0
-      ? `Agency discovery enabled — ${agencyCount} agency prospect${agencyCount === 1 ? '' : 's'} in pipeline.`
-      : 'Agency discovery enabled — no agency prospects found yet. Click "Run agency discovery" to search.'
+    ? settings.discoveryScope === 'nationwide'
+      ? agencyCount > 0
+        ? `Nationwide agency discovery — ${agencyCount} agency prospect${agencyCount === 1 ? '' : 's'} in pipeline.`
+        : 'Nationwide agency discovery — searches selected US metro markets when you explicitly choose Nationwide scope.'
+      : agencyCount > 0
+        ? `Agency discovery (${settings.discoveryScope}) — ${agencyCount} agency prospect${agencyCount === 1 ? '' : 's'} in pipeline.`
+        : `Agency discovery (${settings.discoveryScope}) — uses your location (${settings.location || 'Medford, OR'}). Choose Nationwide only when you want US metro sampling.`
     : agencyCount > 0
       ? `${agencyCount} agency prospect${agencyCount === 1 ? '' : 's'} in pipeline. Toggle Agency discovery mode to search for more.`
       : 'Agency discovery paused — toggle on and run discovery to find web design, SEO, or marketing agencies.';
@@ -241,17 +276,101 @@ export default function LeadDiscovery({
     };
   }
 
-  function renderAdvancedDiagnostics(diagnostics: ProviderDiagnostic[] | null | undefined) {
-    if (!diagnostics?.length) return null;
+  function renderAdvancedDiagnostics(
+    diagnostics: ProviderDiagnostic[] | null | undefined,
+    runDiag?: DiscoveryRunDiagnostics | null,
+  ) {
+    const items = diagnostics ?? runDiag?.providers ?? [];
+    if (!items.length && !runDiag) return null;
+
     return (
-      <ul className="mt-2 space-y-1 rounded-lg border border-white/[0.04] bg-black/20 p-3 text-xs text-gray-500">
-        {diagnostics.map((d) => (
-          <li key={d.provider}>
-            {providerDisplayName(d.provider)}: {d.status === 'succeeded' ? 'success' : d.status}
-            {d.failureReason ? ` — ${d.failureReason}` : ''}
-          </li>
-        ))}
-      </ul>
+      <div className="mt-2 space-y-3 rounded-lg border border-white/[0.04] bg-black/20 p-3 text-xs text-gray-400">
+        {runDiag?.zeroRawReason && (
+          <p className="text-amber-200">{runDiag.zeroRawReason}</p>
+        )}
+        {runDiag?.nextRecommendedAction && (
+          <p className="text-violet-300">Recommended: {runDiag.nextRecommendedAction}</p>
+        )}
+        {runDiag?.locationExpansion && (
+          <p className="text-gray-500">{runDiag.locationExpansion}</p>
+        )}
+        {runDiag?.metrosSearched && runDiag.metrosSearched.length > 0 && (
+          <div>
+            <p className="font-medium text-gray-300">
+              Metros searched ({runDiag.metrosSearched.length})
+            </p>
+            <p className="mt-1 text-gray-500">{runDiag.metrosSearched.join(' · ')}</p>
+          </div>
+        )}
+        {runDiag?.queriesByMetro && Object.keys(runDiag.queriesByMetro).length > 0 && (
+          <div>
+            <p className="font-medium text-gray-300">Queries by metro</p>
+            <ul className="mt-1 max-h-32 list-inside list-disc overflow-y-auto text-gray-500">
+              {Object.entries(runDiag.queriesByMetro).map(([metro, qs]) => (
+                <li key={metro}>
+                  {metro}: {qs.length} quer{qs.length === 1 ? 'y' : 'ies'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {runDiag?.normalizedLocation && (
+          <p>Normalized location: {runDiag.normalizedLocation}</p>
+        )}
+        {runDiag?.queriesAttempted && runDiag.queriesAttempted.length > 0 && (
+          <div>
+            <p className="font-medium text-gray-300">Queries attempted ({runDiag.queriesAttempted.length})</p>
+            <ul className="mt-1 max-h-32 list-inside list-disc overflow-y-auto text-gray-500">
+              {runDiag.queriesAttempted.map((q) => (
+                <li key={q}>{q}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {runDiag?.rawResponseCount != null && (
+          <p>
+            Provider search hits: {runDiag.rawResponseCount} · Raw candidates with website:{' '}
+            {runDiag.rawCandidatesBeforeFilters ?? 0}
+          </p>
+        )}
+        {runDiag?.durationMs != null && <p>Duration: {runDiag.durationMs}ms</p>}
+        <ul className="space-y-2 border-t border-white/[0.04] pt-2">
+          {items.map((d) => (
+            <li key={d.provider}>
+              <p className="font-medium text-gray-300">
+                {providerDisplayName(d.provider)} — {d.status}
+                {d.providerEnabled === false ? ' (disabled)' : ''}
+                {d.providerCalled === false ? ' (not called)' : ''}
+              </p>
+              <p>
+                Found: {d.found}
+                {d.rawResponseCount != null ? ` · API hits: ${d.rawResponseCount}` : ''}
+                {d.rawBeforeWebsiteFilter != null
+                  ? ` · Before website filter: ${d.rawBeforeWebsiteFilter}`
+                  : ''}
+              </p>
+              {d.failureReason && <p className="text-amber-300">{d.failureReason}</p>}
+              {d.rawByMetro && Object.keys(d.rawByMetro).length > 0 && (
+                <p className="mt-1 text-[10px] text-gray-600">
+                  Raw by metro:{' '}
+                  {Object.entries(d.rawByMetro)
+                    .map(([m, n]) => `${m.split(',')[0]}=${n}`)
+                    .join(', ')}
+                </p>
+              )}
+              {d.responseSnippet && (
+                <p className="mt-1 break-all text-[10px] text-gray-600">{d.responseSnippet}</p>
+              )}
+              {d.queriesAttempted && d.queriesAttempted.length > 0 && !runDiag?.queriesAttempted && (
+                <p className="mt-1 text-[10px] text-gray-600">
+                  Queries: {d.queriesAttempted.slice(0, 3).join(' · ')}
+                  {d.queriesAttempted.length > 3 ? '…' : ''}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   }
 
@@ -357,7 +476,11 @@ export default function LeadDiscovery({
           <h3 className="text-sm font-medium text-white">Search settings</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block text-xs">
-              <span className="text-gray-400">Location</span>
+              <span className="text-gray-400">
+                {agencyMode && settings.discoveryScope === 'nationwide'
+                  ? 'Anchor location (optional for nationwide)'
+                  : 'Location'}
+              </span>
               <input
                 value={settings.location}
                 onChange={(e) => setSettings({ ...settings, location: e.target.value })}
@@ -384,13 +507,28 @@ export default function LeadDiscovery({
           </div>
           <div className="mt-4">
             <p className="text-xs text-gray-400">Search area</p>
+            {agencyMode && settings.discoveryScope === 'nationwide' && (
+              <p className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-100/90">
+                Nationwide discovery searches selected US metro markets. It may return more raw
+                results, but outreach still requires verified contacts, quality fit, and founder
+                approval.
+              </p>
+            )}
+            {agencyMode && settings.discoveryScope !== 'nationwide' && (
+              <p className="mt-1 text-[11px] text-gray-500">
+                Default is Local/Regional from your location. Choose Nationwide only when you want US
+                metro sampling.
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap gap-2">
               {DISCOVERY_SCOPE_OPTIONS.map((opt) => (
                 <label
                   key={opt.id}
                   className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
                     settings.discoveryScope === opt.id
-                      ? 'border-violet-500 bg-violet-500/10 text-white'
+                      ? opt.id === 'nationwide' && agencyMode
+                        ? 'border-amber-500 bg-amber-500/10 text-white'
+                        : 'border-violet-500 bg-violet-500/10 text-white'
                       : 'border-gray-700 text-gray-400'
                   }`}
                 >
@@ -442,8 +580,18 @@ export default function LeadDiscovery({
       )}
 
       {lastRun?.ok && (
-        <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-          <p className="text-sm font-semibold text-white">Discovery run complete</p>
+        <div
+          className={`mb-6 rounded-xl border p-5 ${
+            (lastRun.breakdown?.rawResults ?? lastRun.discovered ?? 0) === 0
+              ? 'border-amber-500/30 bg-amber-500/5'
+              : 'border-emerald-500/20 bg-emerald-500/5'
+          }`}
+        >
+          <p className="text-sm font-semibold text-white">
+            {(lastRun.breakdown?.rawResults ?? lastRun.discovered ?? 0) === 0
+              ? 'Discovery finished — no raw candidates'
+              : 'Discovery run complete'}
+          </p>
           {(() => {
             const o = runOutcomes(lastRun);
             const b = lastRun.breakdown;
@@ -475,7 +623,9 @@ export default function LeadDiscovery({
                 )}
                 <p className="text-xs text-gray-500">
                   Run type: {agencyMode ? `Agency (${agencyType.replace(/_/g, ' ')})` : 'SMB'} ·
-                  Location: {settings.location || 'default'}
+                  Scope: {settings.discoveryScope}
+                  {settings.discoveryScope !== 'nationwide' &&
+                    ` · Location: ${settings.location || 'default'}`}
                 </p>
                 {o.mrr > 0 && (
                   <p className="text-emerald-300">
@@ -485,7 +635,7 @@ export default function LeadDiscovery({
               </div>
             );
           })()}
-          {lastRun.providerDiagnostics && lastRun.providerDiagnostics.length > 0 && (
+          {(lastRun.providerDiagnostics?.length || lastRun.runDiagnostics) && (
             <button
               type="button"
               onClick={() => setShowAdvancedDiag(showAdvancedDiag === 'last' ? null : 'last')}
@@ -494,7 +644,8 @@ export default function LeadDiscovery({
               {showAdvancedDiag === 'last' ? 'Hide' : 'Show'} advanced diagnostics
             </button>
           )}
-          {showAdvancedDiag === 'last' && renderAdvancedDiagnostics(lastRun.providerDiagnostics)}
+          {showAdvancedDiag === 'last' &&
+            renderAdvancedDiagnostics(lastRun.providerDiagnostics, lastRun.runDiagnostics)}
         </div>
       )}
 

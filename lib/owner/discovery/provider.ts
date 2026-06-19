@@ -6,6 +6,10 @@ export interface DiscoveryParams {
   radiusMeters: number;
   maxResults: number;
   seedDirectoryUrl?: string | null;
+  /** When set, Nominatim runs each query (agency discovery). */
+  searchQueries?: string[];
+  /** When set, OpenStreetMap samples each metro hub (internet-wide agency discovery). */
+  searchLocations?: string[];
 }
 
 export interface ProviderDiagnostic {
@@ -16,6 +20,15 @@ export interface ProviderDiagnostic {
   responseSnippet?: string;
   queryHash?: string;
   failureReason?: string;
+  providerEnabled?: boolean;
+  providerCalled?: boolean;
+  providerError?: string;
+  queriesAttempted?: string[];
+  rawResponseCount?: number;
+  rawBeforeWebsiteFilter?: number;
+  normalizedLocation?: string;
+  metrosSearched?: string[];
+  rawByMetro?: Record<string, number>;
 }
 
 export interface ProviderResult {
@@ -62,7 +75,11 @@ export function succeededDiagnostic(
   };
 }
 
-export function skippedDiagnostic(provider: string, reason: string): ProviderResult {
+export function skippedDiagnostic(
+  provider: string,
+  reason: string,
+  extra?: Partial<ProviderDiagnostic>,
+): ProviderResult {
   return {
     results: [],
     diagnostic: {
@@ -70,6 +87,9 @@ export function skippedDiagnostic(provider: string, reason: string): ProviderRes
       status: 'skipped',
       found: 0,
       failureReason: reason,
+      providerEnabled: false,
+      providerCalled: false,
+      ...extra,
     },
   };
 }
