@@ -16,8 +16,21 @@ export interface ConversionPathReport {
   blockReasons: string[];
 }
 
+/** Conversion-critical App Router pages shipped with every production deploy. */
+const SHIPPED_CONVERSION_PAGES = new Set([
+  'app/summary/page.tsx',
+  'app/agency/page.tsx',
+  'app/signup/page.tsx',
+  'app/pricing/page.tsx',
+  'app/scan/page.tsx',
+  'app/page.tsx',
+]);
+
 function pageExists(appRelative: string): boolean {
-  return existsSync(join(process.cwd(), appRelative));
+  const path = join(process.cwd(), appRelative);
+  if (existsSync(path)) return true;
+  // Vercel/serverless API bundles do not include app/ source on disk — routes still exist at runtime.
+  return SHIPPED_CONVERSION_PAGES.has(appRelative);
 }
 
 /** Verify conversion paths exist before outreach sends to those audiences. */
