@@ -74,51 +74,127 @@ export function selectOutreachVariant(input: OutreachInput): OutreachVariant {
   if (/agency|agencies|marketing firm|web design|digital agency|creative agency/.test(key)) {
     return 'agency';
   }
-  if (/healthcare|medical|dental|clinic|hospital|pharmacy|doctor|physician|health care/.test(key)) {
+  if (
+    /health\s?care|\bmedical\b|\bdental\b|\bclinic\b|\bhospital\b|pharmacy|\bdoctor\b|physician/.test(
+      key,
+    )
+  ) {
     return 'healthcare';
   }
-  if (/saas|software|startup|platform|tech company|app company|b2b software/.test(key)) {
+  if (/\bsaas\b|software|startup|\bplatform\b|tech company|app company|b2b software/.test(key)) {
     return 'saas';
   }
 
   return 'smb';
 }
 
-function translateIssueToBusiness(issue: string): string {
+/**
+ * Calm reassurance so a non-technical owner does not read the email as an
+ * accusation that they were hacked. Required in every findings-based email.
+ */
+export const SAFETY_DISCLAIMER =
+  'Nothing here means your site is hacked or compromised. These are public website configuration items that are worth reviewing.';
+
+/** Plain-English explanation of what CyberShield Cloud actually does. */
+export const PRODUCT_EXPLANATION =
+  'CyberShield Cloud monitors business websites for security settings, SSL certificate issues, domain problems, uptime changes, and unexpected website changes, so owners know when something important changes.';
+
+export interface FindingTranslation {
+  /** Plain-English, business-owner-facing description. No jargon. */
+  business: string;
+  /** Optional technical note for whoever manages the site. */
+  technical: string;
+}
+
+/**
+ * Translate a raw scanner finding into a business-first description plus an
+ * optional technical note. Never returns raw severity tags or scanner strings.
+ */
+export function translateFinding(issue: string): FindingTranslation {
   const lower = issue.toLowerCase();
 
   if (/content-security-policy|\bcsp\b/.test(lower)) {
-    return 'Your site may not have clear rules about which scripts and resources are allowed to run — which can leave visitors more exposed if something malicious gets injected.';
+    return {
+      business:
+        'Your site does not have a strong browser rule limiting which scripts and third-party resources can run.',
+      technical:
+        'Content-Security-Policy (CSP) helps reduce the impact of injected scripts and unsafe third-party resources.',
+    };
   }
   if (/strict-transport-security|\bhsts\b/.test(lower)) {
-    return 'Visitors may not always be directed to the secure version of your site, which can create windows where traffic is more vulnerable.';
-  }
-  if (/x-frame-options|clickjack/.test(lower)) {
-    return 'Your site may be easier to embed on untrusted pages, which can put visitors at risk of deceptive interactions.';
-  }
-  if (/x-content-type|content-type-options/.test(lower)) {
-    return 'Browsers may not be given enough guidance to treat uploaded or linked files safely, which can increase exposure to certain attacks.';
+    return {
+      business: 'Your site may not be forcing browsers to stay on the secure HTTPS version.',
+      technical: 'HSTS tells browsers to always use HTTPS after the first secure visit.',
+    };
   }
   if (/referrer-policy/.test(lower)) {
-    return 'Information about where visitors came from may leak more than intended when they move between pages.';
+    return {
+      business:
+        'Your site may be sharing more page information with outside websites than necessary.',
+      technical: 'Referrer-Policy controls how much URL/referrer data is sent to third-party sites.',
+    };
   }
   if (/permissions-policy/.test(lower)) {
-    return 'Your site may not be limiting access to sensitive browser features that third-party scripts could misuse.';
+    return {
+      business:
+        'Your site has not clearly limited which browser features outside scripts can request.',
+      technical:
+        'Permissions-Policy can restrict browser APIs such as camera, microphone, geolocation, and payment features.',
+    };
+  }
+  if (/x-frame-options|clickjack|frame-ancestors/.test(lower)) {
+    return {
+      business: 'Your site may be easy to embed on untrusted pages, which can mislead visitors.',
+      technical:
+        'X-Frame-Options / frame-ancestors restricts which sites can embed your pages, reducing clickjacking risk.',
+    };
+  }
+  if (/x-content-type|content-type-options/.test(lower)) {
+    return {
+      business: 'Browsers may not be told clearly how to handle certain files on your site.',
+      technical:
+        'X-Content-Type-Options: nosniff stops browsers from guessing (MIME-sniffing) file types.',
+    };
   }
   if (/ssl|https|certificate|tls/.test(lower)) {
     if (/expir/.test(lower)) {
-      return 'Your security certificate timing may leave a window where browsers warn visitors — which can erode trust and interrupt bookings or purchases.';
+      return {
+        business:
+          'Your security certificate timing may leave a window where browsers warn visitors, which can erode trust.',
+        technical: 'An expiring or expired TLS certificate triggers browser warnings until it is renewed.',
+      };
     }
     if (/no https|plaintext/.test(lower)) {
-      return 'Traffic to your site may not always be encrypted, which can expose customer information and trigger browser warnings.';
+      return {
+        business:
+          'Traffic to your site may not always be encrypted, which can expose information and trigger browser warnings.',
+        technical: 'Pages served without HTTPS leave traffic unencrypted and flagged as "Not secure".',
+      };
     }
-    return 'Certificate or encryption settings may need attention before they affect customer trust or site availability.';
+    return {
+      business:
+        'Your secure-connection settings may need attention before they affect customer trust or availability.',
+      technical: 'TLS/SSL configuration affects whether connections are encrypted and trusted by browsers.',
+    };
   }
   if (/could not reach|unreachable|server error|client error|http [45]/.test(lower)) {
-    return 'There may be reliability issues affecting whether customers can reach your site consistently.';
+    return {
+      business:
+        'Your site may have reliability issues that affect whether customers can reach it consistently.',
+      technical: 'HTTP 4xx/5xx responses or reachability failures were observed during the scan.',
+    };
   }
 
-  return 'This is a configuration gap that often goes unnoticed until it affects customers, uptime, or trust.';
+  return {
+    business:
+      'This is a public website configuration item worth reviewing before it affects customers, uptime, or trust.',
+    // Strip any leading "[SEVERITY]" tag so raw scanner output never leaks through.
+    technical: issue.replace(/^\s*\[[A-Za-z]+\]\s*/, '').trim() || 'Configuration item flagged during the scan.',
+  };
+}
+
+function translateIssueToBusiness(issue: string): string {
+  return translateFinding(issue).business;
 }
 
 function businessFindingSummary(input: OutreachInput): string {
@@ -147,17 +223,51 @@ function businessImpactLines(input: OutreachInput, max = 2): string[] {
 
 function lowPressureCta(input: OutreachInput): string {
   if (input.signupUrl) {
-    return `Would you like the full scan summary? You can review what was flagged here: ${input.signupUrl}`;
+    return `Would you like me to send over the short scan summary? You can also review what was flagged here: ${input.signupUrl}`;
   }
-  return "Happy to send over the full scan summary if you'd like to see what was flagged — no pressure either way.";
+  return 'Want me to send the quick summary so whoever manages the site can review it? No pressure either way.';
 }
 
 function monitoringPitch(): string {
   return (
-    'CyberShield provides continuous website monitoring — not a one-time scan. ' +
-    'We watch security settings, SSL certificates, uptime, header changes, domain expiration, and new risks as they appear. ' +
-    'We help businesses know when something changes before it becomes a problem.'
+    `${PRODUCT_EXPLANATION} ` +
+    "It's continuous monitoring — not a one-time scan — so you find out when something changes before it becomes a problem."
   );
+}
+
+/**
+ * Top findings translated into plain, non-technical language, followed by the
+ * calm "not hacked" disclaimer. Returns '' when there are no specific findings.
+ */
+function translatedFindingsBlock(input: OutreachInput, max = 3): string {
+  const issues = input.issues ?? [];
+  if (issues.length === 0) return '';
+  const seen = new Set<string>();
+  const bullets: string[] = [];
+  for (const issue of issues) {
+    const line = translateFinding(issue).business;
+    if (seen.has(line)) continue;
+    seen.add(line);
+    bullets.push(`• ${line}`);
+    if (bullets.length >= max) break;
+  }
+  return `In plain terms, here is what stood out:\n${bullets.join('\n')}`;
+}
+
+/** Optional technical detail section — translated notes, never raw scanner tags. */
+function optionalTechnicalNotes(input: OutreachInput, max = 6): string {
+  const issues = input.issues ?? [];
+  if (issues.length === 0) return '';
+  const seen = new Set<string>();
+  const notes: string[] = [];
+  for (const issue of issues) {
+    const note = translateFinding(issue).technical;
+    if (seen.has(note)) continue;
+    seen.add(note);
+    notes.push(`${notes.length + 1}. ${note}`);
+    if (notes.length >= max) break;
+  }
+  return `Optional technical detail (for whoever manages the site):\n${notes.join('\n')}`;
 }
 
 function continuousMonitoringWhy(): string {
@@ -184,14 +294,11 @@ function buildSubject(variant: OutreachVariant, input: OutreachInput): string {
 }
 
 function buildTechnicalFindingsBlock(input: OutreachInput): string {
-  const issues = input.issues ?? [];
-  if (issues.length === 0) return '';
-
-  const lines = issues.slice(0, 6).map((issue, idx) => `${idx + 1}. ${issue}`);
+  const notes = optionalTechnicalNotes(input);
+  if (!notes) return '';
   const scoreLine =
     input.scanScore !== undefined ? `\nOverall scan score: ${input.scanScore}/100` : '';
-
-  return `\n--- Technical findings (for your reference) ---\n${lines.join('\n')}${scoreLine}`;
+  return `${notes}${scoreLine}`;
 }
 
 type VariantCopy = {
@@ -204,142 +311,107 @@ type VariantCopy = {
 const VARIANT_COPY: Record<OutreachVariant, VariantCopy> = {
   smb: {
     whyReachingOut: (input) =>
-      `I'm reaching out because CyberShield recently reviewed ${input.website} as part of our work helping local businesses understand their website health. ` +
-      `Our scan identified ${businessFindingSummary(input)}.`,
-    whyItMatters: (input) => {
-      const impacts = businessImpactLines(input);
-      return (
-        'Why it matters:\n' +
-        impacts
-          .map(
-            (line) =>
-              `${line} For a business like ${input.businessName}, that can mean lost leads, interrupted online orders, or customers seeing browser warnings before they ever reach you.`,
-          )
-          .join('\n\n')
-      );
-    },
+      `I'm reaching out because CyberShield Cloud recently reviewed ${input.website} as part of our work helping local businesses keep an eye on their website health. ` +
+      `The review surfaced ${businessFindingSummary(input)}.`,
+    whyItMatters: (input) =>
+      `For a business like ${input.businessName}, small website issues like these usually show up as lost leads, interrupted online orders, or customers seeing browser warnings before they ever reach you — and they often go unnoticed until they become a problem.`,
     whatCyberShieldDoes: () => monitoringPitch(),
     whyDifferent: () => continuousMonitoringWhy(),
   },
 
   healthcare: {
     whyReachingOut: (input) =>
-      `I'm reaching out because CyberShield reviewed ${input.website} while helping practices and healthcare organizations monitor their public web presence. ` +
-      `Our scan identified ${businessFindingSummary(input)}.`,
-    whyItMatters: (input) => {
-      const impacts = businessImpactLines(input);
-      return (
-        'Why it matters:\n' +
-        impacts
-          .map(
-            (line) =>
-              `${line} For ${input.businessName}, website reliability and trust affect whether patients feel confident booking online, completing forms, or returning to your site.`,
-          )
-          .join('\n\n')
-      );
-    },
+      `I'm reaching out because CyberShield Cloud reviewed ${input.website} while helping practices and healthcare organizations keep an eye on their public website. ` +
+      `The review surfaced ${businessFindingSummary(input)}.`,
+    whyItMatters: (input) =>
+      `For ${input.businessName}, website reliability and trust affect whether patients feel confident booking online, completing forms, or coming back to your site — so quiet configuration issues can quietly cost you appointments.`,
     whatCyberShieldDoes: () =>
       monitoringPitch() +
-      ' For healthcare organizations, that means fewer surprises around site availability, certificate expiration, and security settings that patients never see — but that affect their experience.',
+      ' For practices, that means fewer surprises around site availability, certificate expiration, and settings patients never see but still feel.',
     whyDifferent: () =>
       continuousMonitoringWhy() +
-      ' In healthcare, those changes often surface only after a patient reports trouble or an online workflow stops working.',
+      ' In healthcare, those changes often surface only after a patient reports trouble or an online form stops working.',
   },
 
   agency: {
     whyReachingOut: (input) =>
-      `I'm reaching out because CyberShield reviewed ${input.website} while working with agencies that manage websites for multiple clients. ` +
-      `Our scan identified ${businessFindingSummary(input)}.`,
-    whyItMatters: (input) => {
-      const impacts = businessImpactLines(input);
-      return (
-        'Why it matters:\n' +
-        impacts
-          .map(
-            (line) =>
-              `${line} For an agency like ${input.businessName}, gaps like these can become client escalations, renewal risk, or fire drills that pull your team away from billable work.`,
-          )
-          .join('\n\n')
-      );
-    },
+      `I'm reaching out because CyberShield Cloud reviewed ${input.website} while working with agencies that manage websites for multiple clients. ` +
+      `The review surfaced ${businessFindingSummary(input)}.`,
+    whyItMatters: (input) =>
+      `For an agency like ${input.businessName}, issues like these can turn into client escalations, renewal risk, or fire drills that pull your team away from billable work — usually at the worst possible time.`,
     whatCyberShieldDoes: () =>
       monitoringPitch() +
-      ' Agencies use CyberShield to watch client sites continuously — SSL, uptime, header changes, and new risks — without waiting for the next manual audit.',
+      ' Agencies use it to keep an eye on client sites continuously, without waiting for the next manual audit.',
     whyDifferent: () =>
-      'Most agencies only catch website drift when a client reports an issue, a certificate expires, or a launch changes settings without anyone noticing. ' +
-      'CyberShield watches continuously across sites so your team sees changes early.',
+      'Most agencies only catch website drift when a client reports an issue, a certificate expires, or a launch changes a setting without anyone noticing. ' +
+      'Continuous monitoring means your team sees those changes early.',
   },
 
   saas: {
     whyReachingOut: (input) =>
-      `I'm reaching out because CyberShield reviewed ${input.website} as part of our work with software and SaaS companies monitoring their public-facing properties. ` +
-      `Our scan identified ${businessFindingSummary(input)}.`,
-    whyItMatters: (input) => {
-      const impacts = businessImpactLines(input);
-      return (
-        'Why it matters:\n' +
-        impacts
-          .map(
-            (line) =>
-              `${line} For ${input.businessName}, public-site reliability and security posture affect signup conversion, customer trust, and how quickly your team learns about regressions after releases or vendor changes.`,
-          )
-          .join('\n\n')
-      );
-    },
+      `I'm reaching out because CyberShield Cloud reviewed ${input.website} as part of our work with software and SaaS companies keeping an eye on their public-facing sites. ` +
+      `The review surfaced ${businessFindingSummary(input)}.`,
+    whyItMatters: (input) =>
+      `For ${input.businessName}, your public site affects signup conversion and customer trust — and issues like these often surface from a prospect or a support ticket long before anyone on the team notices.`,
     whatCyberShieldDoes: () =>
       monitoringPitch() +
-      ' For SaaS teams, that means catching certificate, header, and uptime changes outside your normal deploy cycle — before they show up in support tickets.',
+      ' For SaaS teams, that means catching certificate, settings, and uptime changes outside your normal deploy cycle.',
     whyDifferent: () =>
       continuousMonitoringWhy() +
-      ' Product teams often discover public-site issues from a prospect, a customer screenshot, or an expired certificate — not from proactive monitoring.',
+      ' Product teams often learn about public-site issues from a prospect, a screenshot, or an expired certificate — not from proactive monitoring.',
   },
 
   technical: {
     whyReachingOut: (input) =>
-      `I'm reaching out because CyberShield scanned ${input.website} and identified ${businessFindingSummary(input)}. ` +
-      `I'm leading with the business impact first; technical details are included below for your reference.`,
-    whyItMatters: (input) => {
-      const impacts = businessImpactLines(input, 3);
-      return (
-        'Why it matters (business impact):\n' +
-        impacts
-          .map(
-            (line) =>
-              `${line} Even when the underlying fix is technical, the business outcome is usually downtime risk, trust erosion, or slower incident response.`,
-          )
-          .join('\n\n')
-      );
-    },
+      `I'm reaching out because CyberShield Cloud reviewed ${input.website} and surfaced ${businessFindingSummary(input)}. ` +
+      `I'll keep the business impact up top and put the technical notes lower down for whoever manages the site.`,
+    whyItMatters: (input) =>
+      `For ${input.businessName}, even when the underlying fix is technical, the business outcome is usually downtime risk, trust erosion, or slower incident response if it goes unnoticed.`,
     whatCyberShieldDoes: () =>
       monitoringPitch() +
-      ' You get continuous visibility into SSL, headers, uptime, domain expiration, and configuration drift — with alerts when something changes.',
+      ' You get continuous visibility into SSL, settings, uptime, domain expiration, and configuration drift, with alerts when something changes.',
     whyDifferent: () =>
-      'Most teams only revisit public-site security during launches, audits, or incidents. CyberShield monitors continuously so drift and expiration do not depend on someone remembering to check.',
+      'Most teams only revisit public-site security during launches, audits, or incidents. Continuous monitoring means drift and expiration do not depend on someone remembering to check.',
   },
 };
 
 function buildColdEmail(variant: OutreachVariant, input: OutreachInput): string {
   const copy = VARIANT_COPY[variant];
   const greeting = `Hi${input.contactName ? ` ${input.contactName}` : ''},`;
+  const findingsBlock = translatedFindingsBlock(input);
   const technicalBlock = variant === 'technical' ? buildTechnicalFindingsBlock(input) : '';
 
   const body = [
     greeting,
     '',
+    // 1. Simple reason for reaching out
     copy.whyReachingOut(input),
     '',
+    // 2. Plain-English business impact
     copy.whyItMatters(input),
     '',
+    // 3. What CyberShield Cloud does
     copy.whatCyberShieldDoes(input),
     '',
+    // 4. Why continuous monitoring matters
     copy.whyDifferent(input),
     '',
-    lowPressureCta(input),
+    // 5. Top findings translated into non-technical language
+    findingsBlock,
+    findingsBlock ? '' : null,
+    // Calm reassurance — always included
+    SAFETY_DISCLAIMER,
+    '',
+    // 6. Optional technical detail section (technical recipients only)
     technicalBlock,
+    technicalBlock ? '' : null,
+    // 7. Low-pressure CTA
+    lowPressureCta(input),
     '',
     '— CyberShield Cloud',
     'Website monitoring & security intelligence',
   ]
+    .filter((section): section is string => section !== null && section !== undefined)
     .filter((section, idx, arr) => !(section === '' && arr[idx - 1] === ''))
     .join('\n');
 
@@ -353,19 +425,17 @@ function buildFollowUp(input: OutreachInput, variant: OutreachVariant): string {
       ? `Your site scored ${input.scanScore}/100 on our last review — a few items are still worth addressing before they affect customers or uptime.`
       : `Wanted to follow up briefly on our note about ${input.website}. The findings are still relevant.`;
 
-  const cta = input.signupUrl
-    ? `Would you like the full scan summary? ${input.signupUrl}`
-    : "Happy to send the full scan summary if you'd like to see what was flagged.";
-
   return `Subject: Re: ${input.businessName} — website monitoring
 
-${greeting},
+${greeting}
 
 Following up briefly — ${reminder}
 
 ${monitoringPitch()}
 
-${cta}
+${SAFETY_DISCLAIMER}
+
+${lowPressureCta(input)}
 
 — CyberShield Cloud`;
 }
@@ -394,11 +464,13 @@ function buildAgencyPitch(input: OutreachInput): string {
 
 Hi${input.contactName ? ` ${input.contactName}` : ''},
 
-I'm reaching out because agencies like ${input.businessName} often manage dozens of client websites — and most only learn about certificate expiration, header drift, or downtime when a client calls.
+I'm reaching out because agencies like ${input.businessName} often manage dozens of client websites — and most only learn about an expiring certificate, a changed setting, or downtime when a client calls.
 
-CyberShield provides continuous website monitoring: SSL, security settings, uptime, domain expiration, and change detection across client sites. You keep the client relationship; we handle the ongoing watch.
+${monitoringPitch()} You keep the client relationship; we handle the ongoing watch across client sites.
 
 We reviewed ${input.website} and found ${businessFindingSummary(input)} as an example of what continuous monitoring catches early.
+
+${SAFETY_DISCLAIMER}
 
 ${lowPressureCta(input)}
 
@@ -408,11 +480,8 @@ Website monitoring & security intelligence`;
 
 function buildAuditSummary(input: OutreachInput): string {
   const impacts = businessImpactLines(input, 3);
-  const variant = selectOutreachVariant(input);
-  const technicalBlock =
-    variant === 'technical' || (input.issues?.length ?? 0) > 0
-      ? `\nTechnical findings:\n${(input.issues ?? ['Review recommended']).map((issue, idx) => `${idx + 1}. ${issue}`).join('\n')}`
-      : '';
+  const technical = optionalTechnicalNotes(input);
+  const technicalBlock = technical ? `\n${technical}\n` : '';
 
   return `WEBSITE REVIEW — ${input.businessName}
 Website: ${input.website}
@@ -421,6 +490,7 @@ ${input.scanScore !== undefined ? `Score: ${input.scanScore}/100` : ''}
 Business impact summary:
 ${impacts.map((line) => `• ${line}`).join('\n')}
 ${technicalBlock}
+${SAFETY_DISCLAIMER}
 
 CyberShield Cloud — continuous website monitoring & security intelligence`;
 }
