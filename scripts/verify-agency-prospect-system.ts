@@ -317,13 +317,21 @@ assert(
   decideProspectKind({ label: 'NOT AGENCY FIT', managesClientSites: true }) === 'smb',
   'FIX 2: decideProspectKind NOT AGENCY FIT -> smb (never enters agency segment)',
 );
-assert(
-  decideProspectKind({ label: 'AGENCY HOT', managesClientSites: null }) === 'agency' &&
-    decideProspectKind({ label: 'AGENCY WARM', managesClientSites: false }) === 'agency',
-  'FIX 2: decideProspectKind AGENCY HOT / AGENCY WARM -> agency',
+const evidenceSignals = detectAgencySignalsFromHtml(
+  '<html><body><h1>Web design agency</h1><p>We build websites for clients. Website care plans.</p></body></html>',
 );
 assert(
-  decideProspectKind({ label: 'AGENCY LOW', managesClientSites: true }) === 'agency' &&
+  decideProspectKind({ label: 'AGENCY HOT', managesClientSites: true, signals: evidenceSignals }) === 'agency' &&
+    decideProspectKind({ label: 'AGENCY WARM', managesClientSites: true, signals: evidenceSignals }) === 'agency',
+  'FIX 2: decideProspectKind AGENCY HOT / AGENCY WARM -> agency with service evidence',
+);
+assert(
+  decideProspectKind({ label: 'AGENCY HOT', managesClientSites: null }) === 'smb' &&
+    decideProspectKind({ label: 'AGENCY WARM', managesClientSites: false }) === 'smb',
+  'FIX 2: AGENCY HOT/WARM without service evidence stays SMB',
+);
+assert(
+  decideProspectKind({ label: 'AGENCY LOW', managesClientSites: true, signals: evidenceSignals }) === 'agency' &&
     decideProspectKind({ label: 'AGENCY LOW', managesClientSites: false }) === 'smb' &&
     decideProspectKind({ label: 'AGENCY LOW', managesClientSites: null }) === 'smb',
   'FIX 2: decideProspectKind AGENCY LOW -> agency only with real manages-client-sites evidence',
@@ -338,7 +346,7 @@ const notFitScore = scoreAgency({
   hasContactEmail: false,
 });
 assert(
-  notFitScore.label === 'NOT AGENCY FIT' && decideProspectKind(notFitScore) === 'smb',
+  notFitScore.label === 'NOT AGENCY FIT' && decideProspectKind({ ...notFitScore, signals: notFitSignals }) === 'smb',
   'FIX 2: a fully-scored NOT AGENCY FIT prospect resolves end-to-end to prospect_kind=smb',
 );
 

@@ -5,6 +5,8 @@
  * used by contactDiscovery (no new dependencies, polite UA, short timeout).
  *
  * IMPORTANT: This NEVER fabricates. Unknown => null / false / [].
+ * Website technology (WordPress, WooCommerce, SEO meta) is kept separate from
+ * business service evidence (web design agency, client websites, care plans).
  */
 
 import type { AgencySignals, AgencyType } from './agencyTypes';
@@ -13,22 +15,53 @@ import { isRejectedWebsite } from '../discovery/validate';
 const FETCH_UA = 'CyberShieldCloud/1.0 contact: support@cybershieldcloud.com';
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
-const SERVICE_PATTERNS: { service: string; re: RegExp }[] = [
-  { service: 'wordpress', re: /\bwordpress\b|wp-content|wp-includes/i },
-  { service: 'shopify', re: /\bshopify\b|cdn\.shopify\.com/i },
-  { service: 'webflow', re: /\bwebflow\b/i },
-  { service: 'wix', re: /\bwix\b|wixsite/i },
-  { service: 'squarespace', re: /\bsquarespace\b/i },
-  { service: 'woocommerce', re: /\bwoocommerce\b/i },
-  { service: 'seo', re: /\bseo\b|search engine optimization/i },
-  { service: 'hosting', re: /\bhosting\b|managed hosting|web hosting/i },
-  { service: 'maintenance', re: /\bmaintenance\b|website maintenance|site maintenance/i },
+/** Site tech footprint — cannot classify as agency on its own. */
+const WEBSITE_TECHNOLOGY_PATTERNS: { signal: string; re: RegExp }[] = [
+  { signal: 'wordpress', re: /wp-content|wp-includes|\bwordpress\b/i },
+  { signal: 'woocommerce', re: /\bwoocommerce\b|wc-cart/i },
+  { signal: 'shopify', re: /cdn\.shopify\.com/i },
+  { signal: 'webflow', re: /\bwebflow\b/i },
+  { signal: 'wix', re: /\bwix\b|wixsite/i },
+  { signal: 'squarespace', re: /\bsquarespace\b/i },
+  { signal: 'seo_metadata', re: /<meta[^>]+name=["']description["']|og:title|twitter:card/i },
+  { signal: 'third_party_scripts', re: /google-analytics|googletagmanager|facebook\.net|hotjar/i },
+  { signal: 'cdn_hosting', re: /cloudflare|amazonaws|fastly|akamai|vercel|netlify/i },
+  { signal: 'javascript_libs', re: /jquery|react|vue\.js|bootstrap/i },
+];
+
+/** Explicit client website service offerings — required for agency classification. */
+const BUSINESS_SERVICE_PATTERNS: { service: string; re: RegExp }[] = [
+  { service: 'web_design', re: /\bweb design\b|\bwebsite design\b/i },
+  { service: 'web_development', re: /\bweb development\b|\bwebsite development\b/i },
+  {
+    service: 'wordpress_development',
+    re: /wordpress (?:development|developer|agency|expert|specialist|services)/i,
+  },
+  {
+    service: 'shopify_development',
+    re: /shopify (?:development|developer|agency|partner|expert|services)/i,
+  },
+  { service: 'webflow_development', re: /webflow (?:development|developer|agency|expert|services)/i },
+  { service: 'website_maintenance', re: /website maintenance|site maintenance|maintain (?:your|client) websites?/i },
   { service: 'care_plan', re: /care plan|website care|support plan|retainer/i },
-  { service: 'security', re: /\bsecurity\b|malware|firewall|ssl/i },
-  { service: 'managed_sites', re: /managed (?:websites?|sites?)|we manage|ongoing management/i },
-  { service: 'digital_marketing', re: /digital marketing|ppc|google ads|social media marketing/i },
-  { service: 'branding', re: /\bbranding\b|brand identity|logo design/i },
-  { service: 'ecommerce', re: /\be-?commerce\b|online store|online shop/i },
+  { service: 'managed_websites', re: /managed (?:websites?|sites?)|we manage (?:your|client) websites?|ongoing (?:website )?management/i },
+  {
+    service: 'client_hosting',
+    re: /(?:hosting|managed hosting) (?:for|services for) (?:our )?clients?|we host (?:client|your) websites?/i,
+  },
+  {
+    service: 'client_seo',
+    re: /seo services (?:for|to) (?:our )?clients?|search engine optimization (?:for|services)/i,
+  },
+  {
+    service: 'digital_marketing_agency',
+    re: /digital marketing agency|marketing agency.*(?:web|website)/i,
+  },
+  { service: 'we_build_websites', re: /we build websites?|we design websites?|websites? we (?:built|designed|manage)/i },
+  { service: 'client_websites', re: /client websites?|client sites?|websites? for (?:our )?clients?/i },
+  { service: 'monthly_maintenance', re: /monthly maintenance|monthly (?:website )?support|monthly retainer/i },
+  { service: 'portfolio_clients', re: /portfolio of client|client (?:websites?|sites?|work|projects?)/i },
+  { service: 'case_studies_web', re: /case stud(?:y|ies).*(?:website|web design|web development)/i },
 ];
 
 const AGENCY_TYPE_PATTERNS: { type: AgencyType; re: RegExp }[] = [
@@ -39,7 +72,10 @@ const AGENCY_TYPE_PATTERNS: { type: AgencyType; re: RegExp }[] = [
   { type: 'marketing', re: /digital marketing (?:agency|firm)|marketing agency/i },
   { type: 'branding', re: /branding (?:agency|studio)|brand (?:agency|studio)/i },
   { type: 'creative_studio', re: /creative (?:studio|agency)|design studio/i },
-  { type: 'web_design', re: /web design|website design|web development (?:agency|company)|web design (?:agency|company)/i },
+  {
+    type: 'web_design',
+    re: /web design (?:agency|company|studio|services)|website design (?:agency|company|services)/i,
+  },
   { type: 'msp', re: /managed (?:it|service|services) provider|\bmsp\b|it services/i },
   { type: 'dev_shop', re: /software (?:agency|development|house)|development shop|web app development/i },
 ];
@@ -47,50 +83,76 @@ const AGENCY_TYPE_PATTERNS: { type: AgencyType; re: RegExp }[] = [
 const CLIENT_SITE_PATTERNS = [
   /our clients/i,
   /client (?:websites?|sites?|work|projects?)/i,
-  /portfolio/i,
-  /case stud(?:y|ies)/i,
   /websites? (?:we|i) (?:built|designed|manage)/i,
   /trusted by/i,
   /brands we(?:'ve| have) worked with/i,
 ];
 
-const PORTFOLIO_RE = /portfolio|our work|case stud(?:y|ies)|recent projects|featured work/i;
+const WEB_PORTFOLIO_RE =
+  /(?:web|website|digital) (?:portfolio|work|projects)|portfolio.*(?:websites?|web design)|our (?:web|website) work|case stud(?:y|ies).*(?:website|web)/i;
+const GENERIC_PORTFOLIO_RE = /portfolio|our work|case stud(?:y|ies)|recent projects|featured work/i;
 const TESTIMONIAL_RE = /testimonial|what our clients say|client reviews|5 ?stars?|★/i;
 const PACKAGE_RE = /pricing|packages?|plans?|\$\d{2,4}\s*(?:\/|per)\s*(?:mo|month|year)|starting at \$/i;
 const MAINTENANCE_RE = /care plan|website care|maintenance plan|support plan|monthly retainer|ongoing (?:support|maintenance)/i;
-const HOSTING_RE = /\bhosting\b|managed hosting|we host/i;
+const HOSTING_RE = /(?:hosting|managed hosting) (?:for|services for) (?:our )?clients?|we host (?:client|your) websites?/i;
 const LOCAL_RE = /local business|small business|local (?:companies|businesses)|in (?:your|our) (?:area|community)/i;
 const FREELANCER_RE = /\bi['' ]?m a (?:freelance|solo)|freelancer|one-?(?:man|person)|just me\b/i;
+
+export function hasClientWebsiteServiceEvidenceFromSignals(signals: AgencySignals): boolean {
+  return signals.hasClientWebsiteServiceEvidence;
+}
 
 export function detectAgencySignalsFromHtml(html: string): AgencySignals {
   const text = html.toLowerCase();
 
-  const detectedServices = SERVICE_PATTERNS.filter((p) => p.re.test(html)).map((p) => p.service);
+  const websiteTechnologySignals = WEBSITE_TECHNOLOGY_PATTERNS.filter((p) => p.re.test(html)).map(
+    (p) => p.signal,
+  );
+  const businessServiceSignals = BUSINESS_SERVICE_PATTERNS.filter((p) => p.re.test(html)).map(
+    (p) => p.service,
+  );
 
-  const clientSiteHits = CLIENT_SITE_PATTERNS.filter((re) => re.test(html)).length;
-  const hasPortfolio = PORTFOLIO_RE.test(html);
+  const hasClientWebsiteServiceEvidence = businessServiceSignals.length >= 1;
+
+  const clientSiteHits = hasClientWebsiteServiceEvidence
+    ? CLIENT_SITE_PATTERNS.filter((re) => re.test(html)).length
+    : 0;
+  const hasPortfolio = hasClientWebsiteServiceEvidence
+    ? WEB_PORTFOLIO_RE.test(html) ||
+      (GENERIC_PORTFOLIO_RE.test(html) && businessServiceSignals.length >= 1)
+    : false;
   const hasTestimonials = TESTIMONIAL_RE.test(html);
-  const hasServicePackages = PACKAGE_RE.test(html);
-  const mentionsMaintenanceOrCarePlans = MAINTENANCE_RE.test(html);
-  const mentionsHosting = HOSTING_RE.test(html);
-  const servesLocalBusinesses = LOCAL_RE.test(html);
+  const hasServicePackages =
+    hasClientWebsiteServiceEvidence &&
+    PACKAGE_RE.test(html) &&
+    /\b(?:web|website|design|development|maintenance|hosting|seo)\b/i.test(html);
+  const mentionsMaintenanceOrCarePlans =
+    hasClientWebsiteServiceEvidence && MAINTENANCE_RE.test(html);
+  const mentionsHosting = hasClientWebsiteServiceEvidence && HOSTING_RE.test(html);
+  const servesLocalBusinesses =
+    hasClientWebsiteServiceEvidence && LOCAL_RE.test(html);
   const publicContactEmail = EMAIL_RE.test(html) || /mailto:/i.test(html);
-  const freelancerOnly = FREELANCER_RE.test(html) && !/\bour team\b|\bwe are a team\b/i.test(html);
+  const freelancerOnly =
+    hasClientWebsiteServiceEvidence &&
+    FREELANCER_RE.test(html) &&
+    !/\bour team\b|\bwe are a team\b/i.test(html);
 
-  // managesClientSites: strong evidence -> true; clear absence of any web work -> false; otherwise null
   let managesClientSites: boolean | null = null;
-  if (clientSiteHits >= 1 || hasPortfolio || mentionsMaintenanceOrCarePlans) {
+  if (!hasClientWebsiteServiceEvidence) {
+    managesClientSites =
+      websiteTechnologySignals.length > 0 ||
+      GENERIC_PORTFOLIO_RE.test(html) ||
+      /\bweb\b|\bwebsite\b|\bdesign\b|\bdevelop/i.test(text)
+        ? false
+        : null;
+  } else if (clientSiteHits >= 1 || hasPortfolio || mentionsMaintenanceOrCarePlans) {
     managesClientSites = true;
-  } else if (
-    detectedServices.length === 0 &&
-    !/\bweb\b|\bwebsite\b|\bdesign\b|\bdevelop/i.test(text)
-  ) {
-    managesClientSites = false;
+  } else {
+    managesClientSites = true;
   }
 
-  // estimatedSiteCount: count distinct portfolio/case-study style references. null when no proof.
   let estimatedSiteCount: number | null = null;
-  if (hasPortfolio || clientSiteHits >= 1) {
+  if (hasClientWebsiteServiceEvidence && (hasPortfolio || clientSiteHits >= 1)) {
     const portfolioMatches = (html.match(/case stud(?:y|ies)|portfolio-item|project-card|work-item/gi) ?? [])
       .length;
     const plusMatch = html.match(/(\d{2,4})\s*\+?\s*(?:clients?|projects?|websites?|sites?)/i);
@@ -102,10 +164,15 @@ export function detectAgencySignalsFromHtml(html: string): AgencySignals {
   }
 
   const ownSiteSecuritySignals =
-    /http:\/\//i.test(html) && !/https:\/\//i.test(html) ? true : /copyright\s*©?\s*20(1[0-9]|2[0-3])/i.test(html);
+    /http:\/\//i.test(html) && !/https:\/\//i.test(html)
+      ? true
+      : /copyright\s*©?\s*20(1[0-9]|2[0-3])/i.test(html);
 
   return {
-    detectedServices,
+    websiteTechnologySignals,
+    businessServiceSignals,
+    hasClientWebsiteServiceEvidence,
+    detectedServices: businessServiceSignals,
     managesClientSites,
     hasPortfolio,
     hasTestimonials,
@@ -124,14 +191,22 @@ export function inferAgencyTypeFromHtml(
   html: string,
   fallback: AgencyType = 'unknown',
 ): AgencyType {
+  const signals = detectAgencySignalsFromHtml(html);
+  if (!signals.hasClientWebsiteServiceEvidence) return 'unknown';
+
   for (const { type, re } of AGENCY_TYPE_PATTERNS) {
     if (re.test(html)) return type;
   }
+  if (signals.businessServiceSignals.includes('web_design')) return 'web_design';
+  if (signals.businessServiceSignals.includes('web_development')) return 'web_design';
   return fallback;
 }
 
 export function emptyAgencySignals(): AgencySignals {
   return {
+    websiteTechnologySignals: [],
+    businessServiceSignals: [],
+    hasClientWebsiteServiceEvidence: false,
     detectedServices: [],
     managesClientSites: null,
     hasPortfolio: false,
@@ -154,8 +229,6 @@ export async function fetchAgencySignals(
   let url = website.trim();
   if (!url.startsWith('http')) url = `https://${url}`;
 
-  // Never fetch example/localhost/test hosts — mirror the discovery guard so we
-  // don't hit junk hosts during agency signal detection.
   if (isRejectedWebsite(url)) {
     return { signals: emptyAgencySignals(), agencyType: 'unknown' };
   }
@@ -173,7 +246,6 @@ export async function fetchAgencySignals(
 
     let html = (await res.text()).slice(0, 200_000);
 
-    // Best-effort: pull a services/about page for richer signals.
     for (const path of ['/services', '/work', '/portfolio']) {
       if (html.length > 160_000) break;
       try {

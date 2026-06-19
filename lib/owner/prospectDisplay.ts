@@ -7,6 +7,7 @@ import { isOutreachReadyContact } from './prospectQualityBrain';
 import { AGENCY_PLAN_PRICE } from './agency/agencyScore';
 import { filterBannedDemoProspects } from './demoPatternFilter';
 import { sanitizePhone } from './placeholderPhone';
+import { isRealAgencyLead } from './prospectVerdict';
 import type { OwnerProspect } from './types';
 import type { ContactSignals } from './contactDiscovery';
 
@@ -54,7 +55,7 @@ export function resolveProspectScores(p: OwnerProspect): OwnerProspect {
       ? p.opportunity_score
       : computeOpportunityScore(scoreInput);
 
-  const kind = p.prospect_kind === 'agency' ? 'agency' : 'smb';
+  const kind = p.prospect_kind === 'agency' && isRealAgencyLead(p) ? 'agency' : 'smb';
 
   let computedPlanFit: number | null;
   if (kind === 'agency') {
@@ -137,7 +138,7 @@ export function isTrulyOutreachReady(p: OwnerProspect): boolean {
 export type ProspectKindView = 'smb' | 'agency' | 'all';
 
 export function isAgencyKind(p: OwnerProspect): boolean {
-  return p.prospect_kind === 'agency';
+  return p.prospect_kind === 'agency' && isRealAgencyLead(p);
 }
 
 export function prospectMatchesKind(p: OwnerProspect, view: ProspectKindView): boolean {

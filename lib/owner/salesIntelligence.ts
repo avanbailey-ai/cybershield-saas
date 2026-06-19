@@ -212,18 +212,24 @@ export function contactStatusLabel(p: {
   contact_email_found?: boolean | null;
   contact_phone_found?: boolean | null;
   contact_page_found?: boolean | null;
+  contact_confidence?: string | null;
+  contact_phone?: string | null;
+  pipeline_state?: string | null;
 }): { label: string; available: boolean; emailReady: boolean } {
   if (p.contact_email?.trim()) {
     return { label: 'Email ready', available: true, emailReady: true };
   }
-  if (p.contact_phone_found) {
-    return { label: 'Phone only — need email', available: false, emailReady: false };
+  if (p.contact_phone_found || p.contact_phone) {
+    return { label: 'Phone only — find email', available: false, emailReady: false };
   }
   if (p.contact_page_found) {
-    return { label: 'Contact page — find email', available: false, emailReady: false };
+    return { label: 'Contact page ready — no email', available: false, emailReady: false };
   }
   if (p.contact_email_found) {
     return { label: 'Email flagged — re-run contact', available: false, emailReady: false };
+  }
+  if (p.pipeline_state === 'needs_contact') {
+    return { label: 'Needs contact', available: false, emailReady: false };
   }
   return { label: 'No contact found', available: false, emailReady: false };
 }

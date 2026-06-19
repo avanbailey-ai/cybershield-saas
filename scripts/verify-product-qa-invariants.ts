@@ -35,6 +35,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { decideProspectKind } from '../lib/owner/agency/agencyScore';
+import { detectAgencySignalsFromHtml } from '../lib/owner/agency/agencyDetect';
 
 // ── result tracking ──────────────────────────────────────────────────────────
 type Status = 'PASS' | 'FAIL' | 'MANUAL';
@@ -415,15 +416,24 @@ check(
   decideProspectKind({ label: 'NOT AGENCY FIT', managesClientSites: true }) === 'smb',
   'decideProspectKind("NOT AGENCY FIT", managesClientSites=true) === "smb" (runtime)',
 );
-check(
-  G6,
-  decideProspectKind({ label: 'AGENCY HOT', managesClientSites: null }) === 'agency' &&
-    decideProspectKind({ label: 'AGENCY WARM', managesClientSites: false }) === 'agency',
-  'decideProspectKind keeps AGENCY HOT / AGENCY WARM -> agency (runtime)',
+const qaAgencyEvidence = detectAgencySignalsFromHtml(
+  '<html><body><h1>Web design agency</h1><p>We build websites for clients. Website care plans.</p></body></html>',
 );
 check(
   G6,
-  decideProspectKind({ label: 'AGENCY LOW', managesClientSites: true }) === 'agency' &&
+  decideProspectKind({ label: 'AGENCY HOT', managesClientSites: true, signals: qaAgencyEvidence }) === 'agency' &&
+    decideProspectKind({ label: 'AGENCY WARM', managesClientSites: true, signals: qaAgencyEvidence }) === 'agency',
+  'decideProspectKind keeps AGENCY HOT / AGENCY WARM -> agency with service evidence (runtime)',
+);
+check(
+  G6,
+  decideProspectKind({ label: 'AGENCY HOT', managesClientSites: null }) === 'smb' &&
+    decideProspectKind({ label: 'AGENCY WARM', managesClientSites: false }) === 'smb',
+  'decideProspectKind AGENCY HOT/WARM without service evidence stays smb (runtime)',
+);
+check(
+  G6,
+  decideProspectKind({ label: 'AGENCY LOW', managesClientSites: true, signals: qaAgencyEvidence }) === 'agency' &&
     decideProspectKind({ label: 'AGENCY LOW', managesClientSites: false }) === 'smb' &&
     decideProspectKind({ label: 'AGENCY LOW', managesClientSites: null }) === 'smb',
   'decideProspectKind AGENCY LOW -> agency only with real manages-client-sites evidence (runtime)',

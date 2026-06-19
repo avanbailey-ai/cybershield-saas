@@ -278,7 +278,7 @@ export async function runRevenueEngine(
 
     if (agencyMode && prospect.prospect_kind !== 'agency') {
       try {
-        await classifyAgencyProspect(admin, prospectId, 'web_design');
+        await classifyAgencyProspect(admin, prospectId, null);
         const { data: refreshed } = await admin
           .from('owner_prospects')
           .select('*')

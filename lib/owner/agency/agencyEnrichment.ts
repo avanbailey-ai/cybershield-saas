@@ -39,9 +39,11 @@ export async function classifyAgencyProspect(
 
   const { signals, agencyType } = await fetchAgencySignals(prospect.website as string);
   const resolvedType: AgencyType =
-    preferredType && preferredType !== 'unknown'
-      ? preferredType
-      : agencyType;
+    agencyType !== 'unknown'
+      ? agencyType
+      : preferredType && preferredType !== 'unknown'
+        ? preferredType
+        : 'unknown';
 
   const result = scoreAgency({
     businessName: prospect.business_name as string,
@@ -54,8 +56,9 @@ export async function classifyAgencyProspect(
     dnsValid: prospect.dns_valid as boolean | null,
   });
 
-  const kind = decideProspectKind(result);
+  const kind = decideProspectKind({ ...result, signals });
   const isAgency = kind === 'agency';
+  const storedAgencyType: AgencyType = isAgency ? resolvedType : 'unknown';
 
   const enrichment = await enrichProspect({
     business_name: prospect.business_name as string,
@@ -117,7 +120,7 @@ export async function classifyAgencyProspect(
     .from('owner_prospects')
     .update({
       prospect_kind: kind,
-      agency_type: resolvedType,
+      agency_type: storedAgencyType,
       agency_opportunity_score: result.score,
       agency_label: result.label,
       detected_services: result.detectedServices,

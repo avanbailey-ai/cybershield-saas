@@ -88,13 +88,25 @@ assert(formReady.contactFormUrl !== null, 'contact form URL provided');
 
 const notUrgent = buildRevenueActionCard({
   business_name: 'Secure Co',
-  website: 'https://example.com',
+  website: 'https://secureco.com',
   scan_score: 92,
   scan_status: 'completed',
   scan_risk_level: 'low',
   pipeline_state: 'qualified',
+  contact_email: 'info@secureco.com',
+  contact_confidence: 'generic_public_inbox',
 });
-assert(notUrgent.status === 'not_urgent', 'high-score sites become Not urgent');
+assert(notUrgent.status === 'not_urgent', 'high-score sites with contact become Not urgent');
+
+const noContactHighScore = buildRevenueActionCard({
+  business_name: 'Secure No Contact',
+  website: 'https://securenc.com',
+  scan_score: 92,
+  scan_status: 'completed',
+  scan_risk_level: 'low',
+  pipeline_state: 'needs_contact',
+});
+assert(noContactHighScore.status === 'needs_contact', 'high-score sites without contact need enrichment');
 
 const dup = buildRevenueActionCard(
   { business_name: 'Dup', website: 'https://example.com', scan_status: 'completed', scan_score: 50 },
@@ -136,8 +148,8 @@ assert(
 );
 
 assert(
-  contactPathForProspect({ contact_page_found: true, contact_email: null }) === 'contact_form',
-  'contact form path detection',
+  contactPathForProspect({ contact_page_found: true, contact_email: null, business_name: 'x', website: 'https://x.com', scan_status: 'completed', pipeline_state: 'needs_contact' }) === 'contact_page_ready',
+  'contact page path detection',
 );
 
 if (growth) {

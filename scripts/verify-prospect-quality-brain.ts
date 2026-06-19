@@ -92,7 +92,7 @@ const blogScore = scoreAgency({
   hasContactEmail: false,
 });
 assert(blogScore.label === 'NOT AGENCY FIT', 'Photographer blog labeled NOT AGENCY FIT');
-assert(decideProspectKind(blogScore) === 'smb', 'NOT AGENCY FIT stays SMB segment');
+assert(decideProspectKind({ ...blogScore, signals: blogSignals }) === 'smb', 'NOT AGENCY FIT stays SMB segment');
 
 // ── Agency requires evidence ──
 const agencyHtml = `
@@ -111,7 +111,7 @@ const agencyResult = scoreAgency({
 });
 assert(agencySignals.managesClientSites === true, 'Agency detection requires client-site evidence');
 assert(isAgencyFitLabel(agencyResult.label), 'Real agency scores as agency fit');
-assert(decideProspectKind(agencyResult) === 'agency', 'Strong agency enters agency pipeline');
+assert(decideProspectKind({ ...agencyResult, signals: agencySignals }) === 'agency', 'Strong agency enters agency pipeline');
 
 function isAgencyFitLabel(label: string): boolean {
   return label !== 'NOT AGENCY FIT';

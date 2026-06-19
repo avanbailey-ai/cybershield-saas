@@ -12,6 +12,15 @@ import {
   contactStatusLabel,
 } from '@/lib/owner/pipeline';
 import { hasOutreachContact, isAgencyKind, isTrulyOutreachReady, displayContactPhone } from '@/lib/owner/prospectDisplay';
+import {
+  prospectVerdict,
+  resolveContactReadiness,
+  contactReadinessLabel,
+  outreachReadinessLabel,
+  buyerFitLabel,
+  securityFitLabel,
+  shouldShowHotLabel,
+} from '@/lib/owner/prospectVerdict';
 import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
 import { agencyTypeLabel } from '@/lib/owner/agency/agencyTypes';
 import { AGENCY_PLAN_PRICE } from '@/lib/owner/agency/agencyScore';
@@ -118,6 +127,9 @@ export default function ProspectCard({
   const confidence = confidenceLabel(p.conversion_likelihood, p.opportunity_score);
   const canGenerateOutreach = isTrulyOutreachReady(p);
   const isAgency = isAgencyKind(p);
+  const verdict = prospectVerdict(p);
+  const contactReadiness = contactReadinessLabel(resolveContactReadiness(p));
+  const outreachReady = outreachReadinessLabel(p);
   const detectedServices = Array.isArray(p.detected_services) ? p.detected_services : [];
   const phone = displayContactPhone(p);
   const sensitiveCaution = sensitiveSectorLabel(p);
@@ -147,7 +159,10 @@ export default function ProspectCard({
               </a>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
-              {p.quality_label && (
+              <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-violet-200">
+                {verdict}
+              </span>
+              {shouldShowHotLabel(p) && (
                 <span
                   className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${qualityLabelStyle(
                     p.quality_label,
@@ -242,8 +257,20 @@ export default function ProspectCard({
               </div>
             )}
             <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
-              <p className="text-[10px] uppercase text-gray-500">Fit score</p>
-              <p className="text-sm font-medium text-white">{opportunityScoreLabel(p)}</p>
+              <p className="text-[10px] uppercase text-gray-500">Security fit</p>
+              <p className="text-sm font-medium text-white">{securityFitLabel(p)}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Buyer fit</p>
+              <p className="text-sm font-medium text-white">{buyerFitLabel(p)}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Contact readiness</p>
+              <p className="text-sm font-medium text-white">{contactReadiness}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+              <p className="text-[10px] uppercase text-gray-500">Outreach readiness</p>
+              <p className="text-sm font-medium text-white">{outreachReady}</p>
             </div>
             <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
               <p className="text-[10px] uppercase text-gray-500">Contact confidence</p>
@@ -362,7 +389,25 @@ export default function ProspectCard({
                 onClick={onFindContact}
                 className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
               >
-                Find email on website
+                {action.label}
+              </button>
+            ) : action.action === 'contact_page' && p.scan_status === 'completed' ? (
+              <a
+                href={p.website.startsWith('http') ? `${p.website.replace(/\/$/, '')}/contact` : `https://${p.website}/contact`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500"
+              >
+                {action.label}
+              </a>
+            ) : action.action === 'review' ? (
+              <button
+                type="button"
+                disabled
+                title="Manual review required before outreach"
+                className="rounded-lg border border-orange-500/40 px-4 py-2 text-sm text-orange-200 opacity-80"
+              >
+                {action.label}
               </button>
             ) : (
               <button

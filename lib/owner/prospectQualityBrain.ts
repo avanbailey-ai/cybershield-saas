@@ -1,3 +1,4 @@
+import { isEnterpriseProspect } from './enterpriseFit';
 import type { LeadScore } from './types';
 import type { ProspectPipelineState } from './discovery/types';
 import type { DiscoveryBreakdownResult } from './discovery/types';
@@ -70,7 +71,7 @@ const DIRECTORY_HOSTS = [
 const GOV_TLD = /\.(gov|edu|mil)(?:\/|$)/i;
 const GOV_KEYWORDS = /\b(city hall|county|school district|university|college|public school|government)\b/i;
 
-const SENSITIVE_SECTORS = /\b(dental|dentist|medical|healthcare|clinic|hospital|legal|law firm|attorney|financial advisor|insurance)\b/i;
+const SENSITIVE_SECTORS = /\b(dental|dentist|medical|healthcare|health care|clinic|hospital|legal|law firm|attorney|financial advisor|insurance|plexis)\b/i;
 
 export function isPlaceholderEmail(email: string): boolean {
   const lower = email.toLowerCase().trim();
@@ -301,6 +302,20 @@ export function assessProspectQuality(input: AssessProspectQualityInput): Prospe
     };
   }
 
+  if (isEnterpriseProspect(input.businessName, input.industry) && !rejectionReason) {
+    return {
+      qualityLabel: 'NEEDS REVIEW',
+      qualityStage: 'qualified_fit',
+      pipelineState: 'needs_review',
+      outreachReady: false,
+      rejectionReason: 'enterprise_manual_review',
+      whySelected: 'Enterprise or large-company prospect — manual review required',
+      buyingTrigger: 'Enterprise-scale organization',
+      whyNow: 'Not a routine SMB/agency cold outreach target',
+      contactConfidence: input.signals.contact_confidence,
+    };
+  }
+
   const score = input.opportunityScore ?? 0;
   const hasContact = Boolean(input.signals.contact_email?.trim());
   const contactOk = isOutreachReadyContact(input.signals.contact_confidence);
@@ -311,6 +326,11 @@ export function assessProspectQuality(input: AssessProspectQualityInput): Prospe
   if (input.leadScore === 'HOT' || score >= 60) qualityLabel = 'HOT';
   else if (input.leadScore === 'WARM' || score >= 40) qualityLabel = 'WARM';
   else if (score < 25) qualityLabel = 'LOW';
+
+  const hasEmailOutreach = Boolean(input.signals.contact_email?.trim()) && contactOk;
+  if (!hasEmailOutreach && (qualityLabel === 'HOT' || qualityLabel === 'WARM')) {
+    qualityLabel = qualityLabel === 'HOT' ? 'WARM' : 'LOW';
+  }
 
   let qualityStage: QualityStage = 'discovered';
   if (input.httpValid !== false && input.dnsValid !== false) qualityStage = 'verified_business';

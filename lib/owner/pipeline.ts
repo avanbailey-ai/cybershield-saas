@@ -8,6 +8,10 @@ import {
   isTrulyOutreachReady,
 } from './prospectDisplay';
 import { assessProspectQuality } from './prospectQualityBrain';
+import {
+  recommendedOutreachAction,
+  prospectNextStepLabel,
+} from './prospectVerdict';
 
 export { planFitDisplayName, confidenceLabel, contactStatusLabel };
 
@@ -192,49 +196,11 @@ export function hasActiveProspects(prospects: OwnerProspect[]): boolean {
 }
 
 export function recommendedAction(p: OwnerProspect): { label: string; action: string } {
-  const resolved = resolveProspectScores(p);
-  if (!p.contact_email?.trim() && (p.contact_phone_found || p.contact_page_found)) {
-    return { label: 'Find email address', action: 'contact' };
-  }
-  if (
-    isTrulyOutreachReady(resolved)
-  ) {
-    return { label: 'Approve & send outreach', action: 'outreach' };
-  }
-  if (resolved.pipeline_state === 'outreach_ready' && !hasOutreachContact(resolved)) {
-    return { label: 'Find email first', action: 'contact' };
-  }
-  if (!hasOutreachContact(p) && p.scan_status === 'completed') {
-    return { label: 'Find email', action: 'contact' };
-  }
-  if (p.scan_status === 'completed') {
-    return { label: 'Review scan findings', action: 'review' };
-  }
-  if (p.scan_status === 'failed') {
-    return { label: 'Retry scan', action: 'scan' };
-  }
-  if (isDeprioritized(p)) {
-    return { label: 'Archive', action: 'archive' };
-  }
-  return { label: 'Run security scan', action: 'scan' };
-}
-
-function isDeprioritized(p: OwnerProspect): boolean {
-  return (p.opportunity_score ?? 100) < 25;
+  return recommendedOutreachAction(p);
 }
 
 export function prospectNextStep(p: OwnerProspect): string {
-  if (p.pipeline_state === 'ignore_forever') return 'Permanently ignored';
-  if (p.pipeline_state === 'archived') return 'Unarchive or delete';
-  if (p.scan_status === 'pending' || p.scan_status === 'running') return 'Scan in progress';
-  if (p.scan_status === 'failed') return 'Retry scan';
-  if (p.pipeline_state === 'outreach_ready' || p.lead_score === 'HOT') return 'Generate findings-based outreach';
-  if (p.pipeline_state === 'qualified' || p.lead_score === 'WARM') return 'Qualify contact path and send outreach';
-  if (p.pipeline_state === 'contacted') return 'Follow up on outreach';
-  if (p.pipeline_state === 'interested') return 'Move to CRM and close';
-  if (p.pipeline_state === 'customer') return 'Onboard as customer';
-  if (p.scan_status === 'completed') return 'Review scan and qualify';
-  return 'Run security scan';
+  return prospectNextStepLabel(p);
 }
 
 export function securityScoreLabel(p: OwnerProspect): string {

@@ -185,6 +185,12 @@ export default function FounderCommandCenterHome() {
           <Snap label="Contact paths" value={String(acquisition.contactPathsTotal)} />
         </div>
         <p className="mt-3 text-xs text-violet-300">{acquisition.nextRecommendedAction}</p>
+        {acquisition.draftsReady === 0 && acquisition.weakWebsitesTotal > 0 && (
+          <p className="mt-2 text-xs text-amber-300/90">
+            No send-ready leads yet. You have {acquisition.weakWebsitesTotal} weak-score websites that
+            need contact enrichment.
+          </p>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"

@@ -23,7 +23,13 @@ export type AgencyLabel = 'AGENCY HOT' | 'AGENCY WARM' | 'AGENCY LOW' | 'NOT AGE
 
 /** Public, non-fabricated signals detected from an agency's own website. */
 export interface AgencySignals {
-  /** Platforms/services mentioned (wordpress, shopify, seo, hosting, care_plan, …) */
+  /** Tech stack / site footprint only — must NOT drive agency classification alone. */
+  websiteTechnologySignals: string[];
+  /** Explicit client website service offerings — required for agency classification. */
+  businessServiceSignals: string[];
+  /** True when businessServiceSignals prove the company sells website services to clients. */
+  hasClientWebsiteServiceEvidence: boolean;
+  /** Legacy alias: business service offerings only (not WordPress/WooCommerce tech alone). */
   detectedServices: string[];
   /** Evidence the business builds/manages sites for clients (portfolio, "our clients", care plans) */
   managesClientSites: boolean | null;

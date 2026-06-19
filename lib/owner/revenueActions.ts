@@ -38,10 +38,8 @@ export function computeCustomerAcquisitionSnapshot(
     if (weak && p.scan_status === 'completed') weakWebsitesTotal++;
 
     const path = contactPathForProspect(p);
-    if (weak && path !== 'no_contact_found' && path !== 'phone_only') {
-      if (path === 'contact_form') weakWithContactForm++;
-      else weakWithEmail++;
-    }
+    if (weak && (path === 'contact_form_ready' || path === 'contact_page_ready')) weakWithContactForm++;
+    else if (weak && path !== 'no_contact_found' && path !== 'phone_only') weakWithEmail++;
 
     if (
       p.pipeline_state === 'needs_contact' ||
@@ -55,7 +53,8 @@ export function computeCustomerAcquisitionSnapshot(
 
     if (
       p.prospect_kind === 'agency' &&
-      (p.manages_client_sites === true || (p.agency_opportunity_score ?? 0) >= 60)
+      p.manages_client_sites === true &&
+      (p.agency_label === 'AGENCY HOT' || p.agency_label === 'AGENCY WARM' || p.agency_label === 'AGENCY LOW')
     ) {
       agenciesWithEvidence++;
     }

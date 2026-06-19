@@ -14,6 +14,10 @@ import type { AgencyLabel, AgencySignals, AgencyType } from './agencyTypes';
 import { agencyTypeLabel } from './agencyTypes';
 import { isDeprioritizedIndustry } from '../salesIntelligence';
 
+function hasClientWebsiteServiceEvidence(s: AgencySignals): boolean {
+  return s.hasClientWebsiteServiceEvidence || s.businessServiceSignals.length > 0;
+}
+
 /** Monthly price of the Agency plan used for revenue estimates. */
 export const AGENCY_PLAN_PRICE = 299;
 
@@ -46,7 +50,12 @@ export function computeAgencyOpportunityScore(input: AgencyScoreInput): number {
 
   // Hard deprioritize gov/nonprofit/school/etc. — never a good agency fit.
   if (isDeprioritizedIndustry(input.industry ?? null, input.businessName)) {
-    return Math.max(0, Math.min(20, s.detectedServices.length * 3));
+    return Math.max(0, Math.min(20, s.businessServiceSignals.length * 3));
+  }
+
+  // Technology-only signals (WordPress, WooCommerce, SEO meta) are NOT agency evidence.
+  if (!hasClientWebsiteServiceEvidence(s)) {
+    return Math.max(0, Math.min(15, s.websiteTechnologySignals.length * 2));
   }
 
   let score = 0;
@@ -63,14 +72,27 @@ export function computeAgencyOpportunityScore(input: AgencyScoreInput): number {
   if (s.mentionsMaintenanceOrCarePlans) score += 16;
   if (s.mentionsHosting) score += 8;
 
-  // Platform breadth (WordPress/Shopify/etc.) — capped so it can't dominate.
-  const platformServices = s.detectedServices.filter((x) =>
-    ['wordpress', 'shopify', 'webflow', 'wix', 'squarespace', 'woocommerce', 'ecommerce'].includes(x),
+  // Platform breadth from business service offerings only — capped.
+  const platformServices = s.businessServiceSignals.filter((x) =>
+    [
+      'wordpress_development',
+      'shopify_development',
+      'webflow_development',
+      'web_development',
+      'web_design',
+    ].includes(x),
   ).length;
   score += Math.min(12, platformServices * 4);
 
-  const otherServices = s.detectedServices.filter((x) =>
-    ['seo', 'security', 'managed_sites', 'digital_marketing', 'maintenance', 'care_plan'].includes(x),
+  const otherServices = s.businessServiceSignals.filter((x) =>
+    [
+      'client_seo',
+      'managed_websites',
+      'digital_marketing_agency',
+      'website_maintenance',
+      'care_plan',
+      'client_hosting',
+    ].includes(x),
   ).length;
   score += Math.min(8, otherServices * 2);
 
@@ -97,11 +119,14 @@ export function computeAgencyOpportunityScore(input: AgencyScoreInput): number {
 }
 
 export function agencyLabelFromScore(score: number, signals: AgencySignals): AgencyLabel {
-  // Anything with no evidence at all of managing/building sites is not a fit.
+  if (!hasClientWebsiteServiceEvidence(signals)) {
+    return 'NOT AGENCY FIT';
+  }
+
   const noEvidence =
     signals.managesClientSites === false ||
     (!signals.hasPortfolio &&
-      signals.detectedServices.length === 0 &&
+      signals.businessServiceSignals.length === 0 &&
       signals.managesClientSites !== true);
 
   if (noEvidence && score < 30) return 'NOT AGENCY FIT';
@@ -119,27 +144,21 @@ export function isAgencyFit(label: AgencyLabel): boolean {
 export interface ProspectKindDecisionInput {
   label: AgencyLabel;
   managesClientSites: boolean | null;
+  signals?: AgencySignals;
 }
 
 /**
- * Pure decision for which segment a scored prospect belongs to. This is the
- * single source of truth that keeps NOT-AGENCY-FIT (and weak) prospects OUT of
- * the agency pipeline so they don't pollute the agency segment.
- *
- * Conservative rule:
- *   - AGENCY HOT  / AGENCY WARM            -> 'agency'
- *   - AGENCY LOW                           -> 'agency' ONLY when there is real
- *                                             evidence it manages client sites
- *                                             (managesClientSites === true),
- *                                             otherwise stays 'smb'
- *   - NOT AGENCY FIT (and anything else)   -> 'smb'
- *
- * Agency scoring details may still be stored on an 'smb' row; the agency
- * views/filters key off prospect_kind === 'agency' (see lib/owner/prospectDisplay.ts
- * isAgencyKind, lib/owner/agency/agencyDraft.ts isAgencyProspect), so storing
- * details on an smb row never surfaces it in the agency segment.
+ * Pure decision for which segment a scored prospect belongs to. Requires explicit
+ * client website service evidence — tech stack alone never enters agency pipeline.
  */
 export function decideProspectKind(input: ProspectKindDecisionInput): 'agency' | 'smb' {
+  const hasServiceEvidence =
+    input.signals != null
+      ? hasClientWebsiteServiceEvidence(input.signals)
+      : input.managesClientSites === true;
+
+  if (!hasServiceEvidence) return 'smb';
+
   switch (input.label) {
     case 'AGENCY HOT':
     case 'AGENCY WARM':
@@ -164,10 +183,12 @@ export function buildAgencyWhySelected(
   if (s.mentionsMaintenanceOrCarePlans) reasons.push('offers maintenance / care plans');
   if (s.mentionsHosting) reasons.push('offers hosting');
   if (s.hasPortfolio) reasons.push('public portfolio of client work');
-  const platforms = s.detectedServices.filter((x) =>
-    ['wordpress', 'shopify', 'webflow', 'wix', 'squarespace', 'woocommerce'].includes(x),
+  const platforms = s.businessServiceSignals.filter((x) =>
+    ['wordpress_development', 'shopify_development', 'webflow_development', 'web_design', 'web_development'].includes(
+      x,
+    ),
   );
-  if (platforms.length) reasons.push(`builds on ${platforms.join(', ')}`);
+  if (platforms.length) reasons.push(`offers ${platforms.join(', ')}`);
   if (s.servesLocalBusinesses) reasons.push('serves local businesses');
   if (input.hasContactEmail || s.publicContactEmail) reasons.push('public contact email available');
   if (s.estimatedSiteCount !== null) reasons.push(`~${s.estimatedSiteCount} client sites referenced`);

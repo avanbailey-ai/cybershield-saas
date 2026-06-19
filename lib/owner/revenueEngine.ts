@@ -1,6 +1,6 @@
 import type { OwnerProspect } from './types';
 import { websiteHostKey } from './discovery/normalize';
-import { isOutreachReadyContact } from './prospectQualityBrain';
+import { resolveContactReadiness } from './prospectVerdict';
 
 export type RevenueSourceMode =
   | 'free_sources'
@@ -26,7 +26,8 @@ export type ContactPathType =
   | 'verified_public_email'
   | 'generic_public_email'
   | 'same_domain_email'
-  | 'contact_form'
+  | 'contact_form_ready'
+  | 'contact_page_ready'
   | 'phone_only'
   | 'no_contact_found';
 
@@ -83,15 +84,21 @@ export function isWeakScanScore(
 }
 
 export function contactPathForProspect(p: Partial<OwnerProspect>): ContactPathType {
-  const conf = p.contact_confidence ?? 'no_contact';
-  if (isOutreachReadyContact(conf) && p.contact_email) {
-    if (conf === 'verified_public_email') return 'verified_public_email';
-    if (conf === 'generic_public_inbox') return 'generic_public_email';
-    return 'same_domain_email';
+  const readiness = resolveContactReadiness(p as OwnerProspect);
+  switch (readiness) {
+    case 'verified_email':
+      return 'verified_public_email';
+    case 'public_email':
+      return p.contact_confidence === 'generic_public_inbox' ? 'generic_public_email' : 'same_domain_email';
+    case 'contact_form_ready':
+      return 'contact_form_ready';
+    case 'contact_page_ready':
+      return 'contact_page_ready';
+    case 'phone_only':
+      return 'phone_only';
+    default:
+      return 'no_contact_found';
   }
-  if (p.contact_page_found && !p.contact_email) return 'contact_form';
-  if (p.contact_phone_found && p.contact_phone && !p.contact_email) return 'phone_only';
-  return 'no_contact_found';
 }
 
 export function contactFormUrlForWebsite(website: string): string {
@@ -119,12 +126,13 @@ export function revenueStatusForProspect(
   if (p.scan_status === 'failed') return 'failed_scan';
   if (p.rejection_reason && p.quality_label === 'REJECTED') return 'rejected';
   if (p.scan_status !== 'completed') return 'needs_scan';
-  if (opts?.hasDraft || p.pipeline_state === 'outreach_ready') return 'draft_ready';
+  if (opts?.hasDraft && p.contact_email) return 'draft_ready';
   const weak = isWeakScanScore(p.scan_score, p.scan_risk_level);
-  if (!weak && (p.scan_score ?? 100) > 80) return 'not_urgent';
   const path = contactPathForProspect(p);
-  if (path === 'contact_form') return 'contact_form_ready';
-  if (path !== 'no_contact_found' && weak) return 'draft_ready';
+  if (path === 'contact_form_ready' || path === 'contact_page_ready') return 'contact_form_ready';
+  if (path === 'phone_only' || path === 'no_contact_found') return 'needs_contact';
+  if (opts?.hasDraft || (p.pipeline_state === 'outreach_ready' && p.contact_email)) return 'draft_ready';
+  if (!weak && (p.scan_score ?? 100) > 80) return 'not_urgent';
   if (weak) return 'needs_contact';
   return 'not_urgent';
 }
@@ -162,10 +170,10 @@ export function buildRevenueActionCard(
   const path = contactPathForProspect(p);
   const domain = websiteHostKey(p.website);
   let planFit: string | null = null;
-  if (p.estimated_plan_fit) planFit = `$${p.estimated_plan_fit}/mo`;
-  else if (p.prospect_kind === 'agency') planFit = 'Agency $299';
-  else if (p.estimated_plan_fit === 79) planFit = 'Pro $79';
+  if (p.estimated_plan_fit === 299 && p.prospect_kind === 'agency') planFit = 'Agency $299';
   else if (p.estimated_plan_fit === 149) planFit = 'Growth $149';
+  else if (p.estimated_plan_fit === 79) planFit = 'Pro $79';
+  else if (p.estimated_plan_fit) planFit = `$${p.estimated_plan_fit}/mo`;
 
   return {
     prospectId: p.id as string | undefined,
@@ -175,7 +183,10 @@ export function buildRevenueActionCard(
     topFindings: topFindingsFromProspect(p),
     contactPath: path,
     contactDetail: p.contact_email ?? p.contact_phone ?? null,
-    contactFormUrl: path === 'contact_form' ? contactFormUrlForWebsite(p.website) : null,
+    contactFormUrl:
+      path === 'contact_form_ready' || path === 'contact_page_ready'
+        ? contactFormUrlForWebsite(p.website)
+        : null,
     status,
     planFit,
     nextAction: nextActionForStatus(status, p),
