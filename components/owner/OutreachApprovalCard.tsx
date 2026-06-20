@@ -10,6 +10,11 @@ import {
 } from '@/lib/owner/pipeline';
 import { canFounderApproveOutreach } from '@/lib/owner/prospectDisplay';
 import { sensitiveSectorLabel } from '@/lib/owner/sensitiveSectorCaution';
+import {
+  parseOutreachDraftContent,
+  outreachBodyForPreview,
+} from '@/lib/owner/outreachDraftDisplay';
+import { staleOutreachDraftLabel } from '@/lib/owner/outreachCopyStale';
 
 interface Props {
   prospect: OwnerProspect;
@@ -51,7 +56,9 @@ export default function OutreachApprovalCard({
     }
   }
 
-  const subjectPreview = draft.content.match(/^Subject:\s*(.+?)(?:\n|$)/i)?.[1] ?? null;
+  const { subject: subjectPreview } = parseOutreachDraftContent(draft.content);
+  const previewBody = outreachBodyForPreview(draft.content);
+  const staleLabel = staleOutreachDraftLabel(draft.content);
 
   return (
     <article className="rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-500/5 to-transparent p-6">
@@ -112,6 +119,11 @@ export default function OutreachApprovalCard({
 
       <div className="mt-4 rounded-lg border border-white/[0.08] bg-black/30 p-4">
         <p className="text-xs uppercase text-gray-500">Email preview</p>
+        {staleLabel && (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            {staleLabel}
+          </p>
+        )}
         {subjectPreview && (
           <p className="mt-2 text-sm font-medium text-white">Subject: {subjectPreview}</p>
         )}
@@ -124,7 +136,7 @@ export default function OutreachApprovalCard({
           />
         ) : (
           <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-sm text-gray-300">
-            {draft.content}
+            {previewBody}
           </pre>
         )}
       </div>

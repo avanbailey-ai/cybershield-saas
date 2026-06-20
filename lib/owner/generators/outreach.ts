@@ -347,6 +347,8 @@ function buildColdEmail(variant: OutreachVariant, input: OutreachInput): string 
     '',
     lowPressureCta(input),
     '',
+    "If you'd rather not receive notes like this, reply and tell me — happy to opt you out.",
+    '',
     '— CyberShield Cloud',
   ]
     .filter((section): section is string => section !== null && section !== undefined)

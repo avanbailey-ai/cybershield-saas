@@ -28,6 +28,12 @@ import {
   OUTREACH_VARIANTS,
   type OutreachInput,
 } from '../lib/owner/generators/outreach';
+import { outreachBodyForPreview, parseOutreachDraftContent } from '../lib/owner/outreachDraftDisplay';
+import {
+  isOutreachDraftStale,
+  OUTREACH_COPY_RULES_VERSION,
+  staleOutreachDraftLabel,
+} from '../lib/owner/outreachCopyStale';
 
 // ── severity tags & raw scanner phrases that must never lead the email ──
 const SEVERITY_TAG = /\[(critical|high|medium|low|info|informational)\]/i;
@@ -102,6 +108,53 @@ function contentIssues(label: string, content: string, opts: CheckOptions = {}):
 console.log('CyberShield outreach copy quality verification\n');
 
 const allProblems: string[] = [];
+
+// preview helper — subject must not repeat in body preview
+{
+  const sample = generateOutreach('cold_email', {
+    businessName: 'Preview Test Co',
+    website: 'https://example.com',
+    issues: ['[HIGH] Missing Content-Security-Policy'],
+    scanScore: 55,
+  });
+  const { subject } = parseOutreachDraftContent(sample);
+  const body = outreachBodyForPreview(sample);
+  if (!subject) allProblems.push('preview: generated cold_email missing Subject line');
+  if (body.toLowerCase().startsWith('subject:')) {
+    allProblems.push('preview: body preview still includes Subject line');
+  } else {
+    console.log('OK: email preview strips duplicate subject line');
+  }
+}
+
+// stale draft detection
+{
+  const fresh = generateOutreach('cold_email', {
+    businessName: 'Fresh SMB',
+    website: 'https://fresh.com',
+    scanScore: 50,
+    issues: ['[MEDIUM] Missing Referrer-Policy'],
+  });
+  if (isOutreachDraftStale(fresh)) {
+    allProblems.push('stale: new template incorrectly marked stale');
+  } else {
+    console.log(`OK: fresh template not stale (${OUTREACH_COPY_RULES_VERSION})`);
+  }
+
+  const oldLong =
+    'Subject: Old Co — quick note\n\nHi,\n\n' +
+    'For a business like Old Co, small website issues usually show up as lost leads, interrupted online orders, or customers seeing browser warnings.\n' +
+    'CyberShield Cloud monitors business websites for security settings.\n' +
+    'Most businesses never know when a setting changes.\n' +
+    SAFETY_DISCLAIMER;
+  if (!isOutreachDraftStale(oldLong)) {
+    allProblems.push('stale: old long template should be marked stale');
+  } else if (!staleOutreachDraftLabel(oldLong)?.includes('Regenerate recommended')) {
+    allProblems.push('stale: missing regenerate label');
+  } else {
+    console.log('OK: old long template detected as stale');
+  }
+}
 
 // ── 1. Generator template checks ──
 const sampleIssues = [
