@@ -23,8 +23,8 @@ export default function PlanUsageWidget() {
   const websiteUsage = getWebsiteUsageMessage(websiteCount, { id: '', plan });
   const scanUsage =
     limits.maxScansPerDay === Infinity
-      ? `${scansToday} scans today`
-      : `${scansRemaining} of ${limits.maxScansPerDay} scans left today`;
+      ? `${scansToday} manual deep scans today`
+      : `${scansRemaining} of ${limits.maxScansPerDay} manual deep scans left today`;
   const websiteLimitReached = websitesRemaining === 0;
   const scanLimitReached = scansRemaining === 0;
   const nearLimit = websiteLimitReached || scanLimitReached;
@@ -54,19 +54,19 @@ export default function PlanUsageWidget() {
           aria-label="Upgrade plan for higher limits"
         >
           {websiteLimitReached && scanLimitReached
-            ? 'Upgrade for more sites & scans'
+            ? 'Upgrade for more sites & manual deep scans'
             : websiteLimitReached
               ? 'Upgrade for more websites'
-              : 'Upgrade for more scans'}
+              : 'Upgrade for more manual deep scans'}
         </button>
       )}
       {nearLimit && !conversion && (
         <Link href="/app/settings" className="text-xs font-medium text-orange-400 hover:text-orange-300">
           {websiteLimitReached && scanLimitReached
-            ? 'Upgrade for more sites & scans'
+            ? 'Upgrade for more sites & manual deep scans'
             : websiteLimitReached
               ? 'Upgrade for more websites'
-              : 'Upgrade for more scans'}
+              : 'Upgrade for more manual deep scans'}
         </Link>
       )}
     </div>

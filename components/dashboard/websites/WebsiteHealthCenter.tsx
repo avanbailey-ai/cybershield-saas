@@ -22,6 +22,10 @@ import {
   securityTrend,
   uptimeDisplay,
 } from '@/lib/websiteHealth/healthCenterCopy';
+import { usePlan } from '@/lib/billing/usePlan';
+import { PLAN_LIMITS } from '@/lib/billing/plans';
+import { getPriorityMonitoringSlots } from '@/lib/billing/priorityMonitoring';
+import { scheduledMonitoringDetailLabel } from '@/lib/dashboard/dashboardCommandCenter';
 import {
   monitoringEnabledBadgeClass,
   monitoringEnabledLabel,
@@ -134,7 +138,10 @@ function verdictTextClass(verdict: string): string {
 
 export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealthCenterProps) {
   const { website, security, ssl, domain, uptime, monitoring, recentChanges, alerts } = data;
+  const { plan } = usePlan();
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
+  const planLimits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  const planHasPriority = getPriorityMonitoringSlots(plan) > 0;
 
   const hasCriticalAlerts = alerts.recent.some((a) => a.severity === 'critical');
   const verdictResult = computeHealthVerdict({
@@ -162,9 +169,11 @@ export default function WebsiteHealthCenter({ data, displayLabel }: WebsiteHealt
   const retention = retentionMessage(data);
 
   const monitoringDetail = monitoring.enabled
-    ? monitoring.priorityMonitoring
-      ? 'Priority monitoring — checked every 5 minutes'
-      : 'Standard monitoring — checked hourly'
+    ? scheduledMonitoringDetailLabel(
+        monitoring.priorityMonitoring,
+        planHasPriority,
+        planLimits.scanFrequency,
+      )
     : 'Monitoring is paused for this website';
 
   const lastCheckDetail = monitoring.lastCheckAt

@@ -57,8 +57,8 @@ export default function DashboardOverview({
   const planLabel = PLAN_LIMITS[plan]?.name ?? 'Free';
   const scansLabel =
     limits.maxScansPerDay === Infinity
-      ? `${scansToday} scans today`
-      : `${scansRemaining} of ${limits.maxScansPerDay} scans left today`;
+      ? `${scansToday} manual deep scans today`
+      : `${scansRemaining} of ${limits.maxScansPerDay} manual deep scans left today`;
 
   let nextAction: { label: string; href?: string; showScanAll?: boolean } = {
     label: 'Add a website',
@@ -89,7 +89,7 @@ export default function DashboardOverview({
           <p className="mt-1 text-sm font-semibold text-white">{planLabel}</p>
         </div>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Scans today</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Manual deep scans today</p>
           <p className={`mt-1 text-sm font-semibold ${scansRemaining <= 1 ? 'text-orange-400' : 'text-white'}`}>
             {scansLabel}
           </p>

@@ -105,8 +105,8 @@ export function canRunScan(
     return {
       allowed: false,
       message: upgrade
-        ? `Upgrade to ${upgrade} for more daily scans`
-        : `You've reached your daily scan limit (${maxScans})`,
+        ? `Upgrade to ${upgrade} for more manual deep scans/day`
+        : `You've reached your daily manual deep scan limit (${maxScans})`,
     };
   }
   return { allowed: true };

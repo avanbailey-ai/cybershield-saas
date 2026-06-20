@@ -145,7 +145,7 @@ export default function UpgradeModal({
     second_scan: 'One-time scans miss new threats. Enable continuous protection to stay covered.',
     add_website: 'Add more websites and enable continuous protection.',
     export: 'Export full reports with continuous protection enabled.',
-    scan_limit: "You've reached your scan limit — enable protection for higher daily limits.",
+    scan_limit: "You've reached your manual deep scan limit — upgrade for more manual deep scans/day.",
     queue_busy: 'Enable protection for priority processing and faster scan throughput.',
     manual: null,
   };

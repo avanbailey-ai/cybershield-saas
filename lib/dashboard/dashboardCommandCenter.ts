@@ -1,3 +1,5 @@
+import type { Plan } from '@/lib/billing/plans';
+import { PLAN_LIMITS } from '@/lib/billing/plans';
 import { formatRelativeScanTime } from '@/lib/websiteHealth/healthCenterCopy';
 import { scoreToRiskBucket, type RiskBucket } from '@/lib/enterprise/enterpriseTypes';
 import type { SslDashboardSummary } from '@/lib/ssl/fetchSslDashboardSummary';
@@ -625,7 +627,30 @@ function normalizeSeverity(severity: string): NeedsAttentionItem['severity'] {
   return 'low';
 }
 
-export function monitoringLabelForWebsite(priorityMonitoring: boolean, planHasPriority: boolean): string {
+export function monitoringLabelForWebsite(
+  priorityMonitoring: boolean,
+  planHasPriority: boolean,
+  scanFrequency: (typeof PLAN_LIMITS)[Plan]['scanFrequency'] = 'hourly',
+): string {
   if (priorityMonitoring && planHasPriority) return 'Priority · every 5 min';
-  return 'Active · hourly checks';
+  if (scanFrequency === 'daily') return 'Active · daily checks';
+  if (scanFrequency === 'hourly') return 'Active · hourly checks';
+  return 'Manual scans only';
+}
+
+export function scheduledMonitoringDetailLabel(
+  priorityMonitoring: boolean,
+  planHasPriority: boolean,
+  scanFrequency: (typeof PLAN_LIMITS)[Plan]['scanFrequency'],
+): string {
+  if (priorityMonitoring && planHasPriority) {
+    return 'Priority monitoring — checked every 5 minutes';
+  }
+  if (scanFrequency === 'daily') {
+    return 'Daily monitoring checks — plus weekly deep scans';
+  }
+  if (scanFrequency === 'hourly') {
+    return 'Hourly monitoring checks — plus weekly deep scans';
+  }
+  return 'Manual scans only — upgrade for scheduled monitoring';
 }

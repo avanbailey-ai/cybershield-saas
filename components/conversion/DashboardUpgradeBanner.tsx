@@ -19,7 +19,7 @@ export default function DashboardUpgradeBanner() {
           <div>
             <p className="font-medium text-white">Enable continuous protection</p>
             <p className="mt-1 text-sm text-gray-400">
-              One-time scans miss new threats. Get daily scans, alerts, and full reports.
+              One-time scans miss new threats. Get daily monitoring, email alerts, and full reports.
             </p>
           </div>
           <Link

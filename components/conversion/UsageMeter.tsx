@@ -66,7 +66,7 @@ export default function UsageMeter({ compact = false }: UsageMeterProps) {
         )}
         {scanLimit !== null && (
           <span className={scansRemaining <= 1 ? 'text-orange-400' : undefined}>
-            {scansToday}/{scanLimit} scans today
+            {scansToday}/{scanLimit} manual deep scans today
           </span>
         )}
         {nearLimit && conversion && (
@@ -128,7 +128,7 @@ export default function UsageMeter({ compact = false }: UsageMeterProps) {
         {scanLimit !== null && (
           <div>
             <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="text-gray-400">Scans today</span>
+              <span className="text-gray-400">Manual deep scans today</span>
               <span className={scansRemaining <= 1 ? 'text-orange-400' : 'text-gray-300'}>
                 {scansToday} / {scanLimit}
               </span>

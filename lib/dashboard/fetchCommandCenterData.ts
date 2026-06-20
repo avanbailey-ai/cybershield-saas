@@ -335,7 +335,11 @@ export async function fetchCommandCenterData(
       score,
       scoreBand: getScoreBand(score),
       healthCategory: scoreToHealthCategory(score),
-      monitoringLabel: monitoringLabelForWebsite(w.priority_monitoring, planHasPriority),
+      monitoringLabel: monitoringLabelForWebsite(
+        w.priority_monitoring,
+        planHasPriority,
+        planLimits.scanFrequency,
+      ),
       lastScanLabel,
       lastScanAt: lastScanAt ? String(lastScanAt) : null,
       recentChangesCount: changesByWebsite.get(w.id) ?? 0,

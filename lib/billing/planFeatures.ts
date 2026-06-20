@@ -1,5 +1,5 @@
 import type { BilledPlan, Plan } from './plans';
-import { PLAN_LIMITS } from './plans';
+import { PLAN_LIMITS, formatDeepScanLimit } from './plans';
 
 /** Recommended USD prices — checkout uses Stripe Price objects via env vars. */
 export const RECOMMENDED_PLAN_PRICES_USD: Record<BilledPlan, number> = {
@@ -37,27 +37,29 @@ export const PLAN_MARKETING: Record<Plan, PlanMarketingProfile> = {
     tagline: 'Daily monitoring for small businesses',
     websiteLabel: websiteLabel(PLAN_LIMITS.pro.websites),
     monitoringLabel: 'Daily automated monitoring',
-    deepScanLabel: 'Weekly deep scans + manual deep scans',
+    deepScanLabel: `Weekly deep scans · ${formatDeepScanLimit(PLAN_LIMITS.pro.maxScansPerDay)}`,
     bullets: [
       'Full security reports',
-      'Health Center per website',
-      'SSL & domain expiry alerts',
       'Email alerts',
       'Daily monitoring checks',
       'Weekly deep scans',
+      formatDeepScanLimit(PLAN_LIMITS.pro.maxScansPerDay),
+      'Fix guidance & remediation steps',
+      'Scan history',
     ],
   },
   growth: {
     tagline: 'Hourly monitoring for growing teams',
     websiteLabel: websiteLabel(PLAN_LIMITS.growth.websites),
     monitoringLabel: 'Hourly automated monitoring',
-    deepScanLabel: 'Weekly deep scans + manual deep scans',
+    deepScanLabel: `Weekly deep scans · ${formatDeepScanLimit(PLAN_LIMITS.growth.maxScansPerDay)}`,
     bullets: [
       'Everything in Pro',
-      'Change timeline',
       'Hourly monitoring checks',
+      'Change detection',
+      'Trend tracking',
       'Priority risk alerts',
-      'Team-ready dashboard',
+      formatDeepScanLimit(PLAN_LIMITS.growth.maxScansPerDay),
     ],
   },
   agency: {
