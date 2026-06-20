@@ -48,30 +48,30 @@ const TRUST_METRICS = [
 
 export default function TrustSignals() {
   return (
-    <section className="relative px-5 py-16 sm:px-4 sm:py-20">
+    <section className="relative px-4 py-10 sm:px-4 sm:py-20 md:px-5">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
       <div className="mx-auto max-w-7xl">
-        <div className="mb-10 text-center sm:mb-12">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-500">
+        <div className="mb-8 text-center sm:mb-12">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500 sm:mb-3 sm:text-sm">
             Platform Trust
           </p>
-          <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h2 className="mb-3 text-xl font-bold tracking-tight text-white sm:mb-4 sm:text-3xl">
             Built for continuous protection
           </h2>
-          <p className="mx-auto max-w-2xl text-base text-gray-400">
+          <p className="mx-auto max-w-2xl text-sm text-gray-400 sm:text-base">
             CyberShield tracks real monitoring activity across your portfolio — not vanity metrics.
             Platform-wide totals will appear here once aggregated reporting is enabled.
           </p>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
           {TRUST_METRICS.map((metric) => (
             <div
               key={metric.key}
-              className="rounded-xl border border-gray-800 bg-gray-900/50 p-5"
+              className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 sm:rounded-xl sm:p-5"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 sm:h-10 sm:w-10">
                   {metric.icon}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -79,8 +79,8 @@ export default function TrustSignals() {
                   <p className="mt-1 text-xs text-gray-500">{metric.description}</p>
                 </div>
               </div>
-              <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-600" aria-hidden="true">
+              <div className="mt-3 flex items-baseline gap-2 sm:mt-4">
+                <span className="text-xl font-bold text-gray-600 sm:text-2xl" aria-hidden="true">
                   —
                 </span>
                 <span className="rounded-full border border-gray-700 bg-gray-800/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500">
@@ -91,7 +91,7 @@ export default function TrustSignals() {
           ))}
         </div>
 
-        <p className="mt-8 text-center text-xs text-gray-600">
+        <p className="mt-6 text-center text-xs text-gray-600 sm:mt-8">
           Your dashboard shows real counts for your own websites — SSL checks, changes detected, and
           resolved findings.
         </p>

@@ -52,35 +52,35 @@ const iconMap: Record<string, ReactNode> = {
 
 export default function WebsiteMemory() {
   return (
-    <section className="relative px-5 py-16 sm:px-4 sm:py-24">
+    <section className="relative px-4 py-10 sm:px-4 sm:py-24 md:px-5">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
       <div className="mx-auto max-w-7xl">
-        <div className="rounded-2xl border border-blue-800/30 bg-gradient-to-br from-blue-950/30 to-gray-900/50 p-8 sm:p-10">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+        <div className="rounded-xl border border-blue-800/30 bg-gradient-to-br from-blue-950/30 to-gray-900/50 p-5 sm:rounded-2xl sm:p-10">
+          <div className="mx-auto max-w-3xl text-left sm:text-center">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400 sm:mb-3 sm:text-sm">
               Continuous Memory
             </p>
-            <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            <h2 className="mb-3 text-xl font-bold tracking-tight text-white sm:mb-4 sm:text-3xl">
               CyberShield is the memory of your website
             </h2>
-            <p className="text-base leading-relaxed text-gray-400">
+            <p className="text-sm leading-relaxed text-gray-400 sm:text-base">
               One-time scans tell you what happened today. CyberShield remembers everything — SSL
               renewals, header changes, downtime events, score trends, and resolved findings. When
               something changes, you have context, not just an alert.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-5">
             {MEMORY_TRACKS.map((track) => (
               <div
                 key={track.title}
-                className="rounded-xl border border-gray-800/80 bg-gray-900/40 p-5"
+                className="rounded-lg border border-gray-800/80 bg-gray-900/40 p-4 sm:rounded-xl sm:p-5"
               >
-                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20">
+                <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 sm:mb-3 sm:h-10 sm:w-10">
                   {iconMap[track.icon]}
                 </div>
-                <h3 className="text-base font-semibold text-white">{track.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">{track.description}</p>
+                <h3 className="text-sm font-semibold text-white sm:text-base">{track.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-400 sm:mt-2">{track.description}</p>
               </div>
             ))}
           </div>

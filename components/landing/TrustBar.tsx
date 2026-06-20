@@ -39,12 +39,12 @@ const metrics = [
 
 export default function TrustBar() {
   return (
-    <section className="border-y border-gray-800/60 bg-gray-900/30 px-5 py-12 sm:px-4 sm:py-10">
+    <section className="border-y border-gray-800/60 bg-gray-900/30 px-4 py-8 sm:px-4 sm:py-10 md:px-5">
       <div className="mx-auto max-w-7xl">
-        <div className="grid gap-8 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
           {metrics.map((m) => (
-            <div key={m.label} className="flex items-start gap-4">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20">
+            <div key={m.label} className="flex items-start gap-3 sm:gap-4">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 sm:h-10 sm:w-10">
                 {m.icon}
               </div>
               <div>

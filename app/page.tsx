@@ -41,7 +41,7 @@ export const metadata = buildPageMetadata({
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-[#0a0f1e]">
+    <div className="min-h-screen overflow-x-hidden bg-[#0a0f1e]">
       <JsonLd data={faqSchema([...LANDING_FAQS])} />
       <Navbar />
       <main>

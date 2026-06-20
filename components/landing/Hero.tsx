@@ -2,49 +2,50 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-[72vh] items-center overflow-hidden px-5 pt-20 sm:min-h-[85vh] sm:px-4 sm:pt-16">
-      <div className="absolute inset-0 grid-bg opacity-40" />
-      <div className="absolute left-1/4 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-blue-600/8 blur-3xl" />
+    <section className="relative flex items-center overflow-hidden px-4 pb-8 pt-[4.25rem] sm:min-h-[85vh] sm:px-4 sm:pt-16 sm:pb-0 md:px-5">
+      <div className="absolute inset-0 grid-bg opacity-40 max-md:opacity-25" />
+      <div className="absolute left-1/4 top-1/2 hidden h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-blue-600/8 blur-3xl md:block" />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl">
-        <div className="grid items-center gap-10 sm:gap-12 lg:grid-cols-2">
-          <div className="space-y-6 sm:space-y-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-800/50 bg-blue-950/30 px-3 py-1.5 text-sm font-medium text-blue-400 sm:mb-6">
-              <span className="relative flex h-2 w-2">
+        <div className="grid items-center gap-6 sm:gap-12 lg:grid-cols-2">
+          <div className="space-y-4 sm:space-y-0">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-blue-800/50 bg-blue-950/30 px-2.5 py-1 text-xs font-medium text-blue-400 sm:mb-6 sm:px-3 sm:py-1.5 sm:text-sm">
+              <span className="relative hidden h-2 w-2 sm:flex">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
               </span>
-              Continuous monitoring — free scan to start
+              <span className="md:hidden">Free scan to start</span>
+              <span className="hidden md:inline">Continuous monitoring — free scan to start</span>
             </div>
 
-            <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:mb-6 sm:text-5xl lg:text-6xl">
+            <h1 className="max-w-[18rem] text-[1.625rem] font-bold leading-snug tracking-tight text-white sm:mb-6 sm:max-w-none sm:text-5xl sm:leading-tight lg:text-6xl">
               Website Security Monitoring{" "}
               <span className="text-blue-400">— SSL, Health & Change Detection</span>
             </h1>
 
-            <p className="max-w-xl text-base leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
+            <p className="max-w-xl text-sm leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
               CyberShield Cloud monitors business websites for security settings, SSL certificate
               issues, domain problems, uptime changes, and unexpected website changes — with alerts
               before customers see browser warnings.
             </p>
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
               <a
                 href="#scan"
-                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0a0f1e]"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[#0a0f1e] sm:min-h-[48px] sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
               >
                 Start with a free scan
                 <ArrowRightIcon className="h-4 w-4" />
               </a>
               <a
                 href="#health-center"
-                className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg border border-gray-700 px-7 py-3.5 text-base font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-gray-700 px-5 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white sm:min-h-[48px] sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
               >
                 See Health Center
               </a>
             </div>
 
-            <div className="flex flex-col gap-3 text-sm text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+            <div className="flex flex-col gap-2.5 text-xs text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2 sm:text-sm">
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
                 SSL expiry alerts before browser warnings

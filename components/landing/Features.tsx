@@ -81,16 +81,16 @@ const iconMap: Record<string, ReactNode> = {
 
 export default function Features() {
   return (
-    <section className="relative px-5 py-16 sm:px-4 sm:py-24">
+    <section className="relative px-4 py-10 sm:px-4 sm:py-24 md:px-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-10 text-center sm:mb-14">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-500">
+        <div className="mb-8 text-center sm:mb-14">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500 sm:mb-3 sm:text-sm">
             Platform Features
           </p>
-          <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
+          <h2 className="mb-3 text-xl font-bold tracking-tight text-white sm:mb-4 sm:text-4xl">
             Monitor what matters to your business
           </h2>
-          <p className="mx-auto max-w-2xl text-base text-gray-400 sm:text-gray-400">
+          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-gray-400 sm:text-base">
             SSL expiry, downtime, security gaps, and unauthorized changes — each can cost trust,
             leads, and revenue. CyberShield watches continuously so you can respond early.{' '}
             <Link href="/features" className="text-blue-400 hover:text-blue-300">
@@ -99,18 +99,18 @@ export default function Features() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {features.map((feature) => (
             <Link
               key={feature.title}
               href={feature.href}
-              className="group block rounded-xl border border-gray-800 bg-gray-900/50 p-6 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 sm:p-6"
+              className="group block rounded-lg border border-gray-800 bg-gray-900/50 p-4 transition-all duration-200 hover:border-gray-700 hover:bg-gray-900 sm:rounded-xl sm:p-6"
             >
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 group-hover:bg-blue-600/15">
+              <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 ring-1 ring-blue-600/20 group-hover:bg-blue-600/15 sm:mb-4 sm:h-10 sm:w-10">
                 {iconMap[feature.icon]}
               </div>
-              <h3 className="mb-2 text-base font-semibold text-white">{feature.title}</h3>
-              <p className="text-base leading-relaxed text-gray-400 sm:text-sm">{feature.description}</p>
+              <h3 className="mb-1.5 text-sm font-semibold text-white sm:mb-2 sm:text-base">{feature.title}</h3>
+              <p className="text-sm leading-relaxed text-gray-400">{feature.description}</p>
             </Link>
           ))}
         </div>

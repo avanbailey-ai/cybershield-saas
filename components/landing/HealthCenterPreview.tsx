@@ -47,23 +47,23 @@ function severityClass(severity: string): string {
 
 export default function HealthCenterPreview() {
   return (
-    <section id="health-center" className="relative px-5 py-16 sm:px-4 sm:py-24">
+    <section id="health-center" className="relative overflow-x-hidden px-4 py-10 sm:px-4 sm:py-24 md:px-5">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
       <div className="mx-auto max-w-7xl">
-        <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
           <div>
-            <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-500">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500 sm:mb-3 sm:text-sm">
               Health Center
             </p>
-            <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
+            <h2 className="mb-3 text-xl font-bold tracking-tight text-white sm:mb-4 sm:text-4xl">
               One place to see everything about your website
             </h2>
-            <p className="mb-6 text-base leading-relaxed text-gray-400">
+            <p className="mb-5 text-sm leading-relaxed text-gray-400 sm:mb-6 sm:text-base">
               Security score, SSL status, domain registration, uptime, recent changes, and active
               findings — all in a single executive view per website. Know when something changes
               before it affects customers.
             </p>
-            <ul className="mb-8 space-y-3 text-sm text-gray-400">
+            <ul className="mb-6 space-y-2.5 text-sm text-gray-400 sm:mb-8 sm:space-y-3">
               <li className="flex items-start gap-2">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
                 SSL expires → browser warnings, trust loss, and abandoned checkouts
@@ -83,15 +83,15 @@ export default function HealthCenterPreview() {
             </ul>
             <Link
               href="/signup"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto"
             >
               Start monitoring
               <ArrowIcon />
             </Link>
           </div>
 
-          <div className="rounded-xl border border-gray-700/60 bg-gray-950 shadow-2xl shadow-black/40">
-            <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-3">
+          <div className="min-w-0 overflow-hidden rounded-lg border border-gray-700/60 bg-gray-950 shadow-2xl shadow-black/40 sm:rounded-xl">
+            <div className="flex items-center gap-2 border-b border-gray-800 px-3 py-2.5 sm:px-4 sm:py-3">
               <span className="h-3 w-3 rounded-full bg-red-500/70" />
               <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
               <span className="h-3 w-3 rounded-full bg-green-500/70" />
@@ -100,8 +100,8 @@ export default function HealthCenterPreview() {
               </span>
             </div>
 
-            <div className="space-y-4 p-5">
-              <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-4">
+            <div className="space-y-3 p-3 sm:space-y-4 sm:p-5">
+              <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3 sm:p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                   Overall Website Health
                 </p>
@@ -116,7 +116,7 @@ export default function HealthCenterPreview() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="hidden grid-cols-2 gap-3 sm:grid">
                 {PREVIEW_METRICS.slice(1).map((m) => (
                   <div key={m.label} className="rounded-lg border border-gray-800 bg-gray-900/50 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">

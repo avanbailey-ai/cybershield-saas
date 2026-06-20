@@ -286,28 +286,28 @@ function ScanInputInner(_props: ScanInputProps) {
   const pendingData = pendingResultRef.current;
 
   return (
-    <section id="scan" className="relative scroll-mt-20 px-5 py-14 sm:px-4 sm:py-16">
+    <section id="scan" className="relative scroll-mt-[3.5rem] px-4 py-10 sm:scroll-mt-20 sm:px-4 sm:py-16 md:scroll-mt-20">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="mb-3 text-2xl font-bold text-white sm:mb-2 sm:text-3xl">
+        <h2 className="mb-2 text-xl font-bold text-white sm:mb-2 sm:text-3xl">
           Scan Your Website — Free
         </h2>
-        <p className="mb-8 text-base text-gray-400 sm:text-gray-400">
+        <p className="mb-6 text-sm text-gray-400 sm:mb-8 sm:text-base">
           Instant security score. No login required.
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:flex-row sm:gap-3">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:gap-3">
           <input
             type="text"
             value={url ?? ''}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://yoursite.com"
             disabled={loading || revealing}
-            className="min-h-[48px] flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-3.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-60 sm:text-sm"
+            className="min-h-[44px] flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-60 sm:min-h-[48px] sm:py-3.5 sm:text-sm"
           />
           <button
             type="submit"
             disabled={loading || revealing}
-            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[48px] sm:w-auto sm:px-6 sm:py-3.5 sm:text-sm"
           >
             {loading || revealing ? (
               <>
@@ -335,7 +335,7 @@ function ScanInputInner(_props: ScanInputProps) {
         </form>
 
         {loading && (
-          <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-6 text-left sm:p-6" aria-live="polite">
+          <div className="mt-6 rounded-lg border border-gray-700/60 bg-gray-900/60 p-4 text-left sm:mt-8 sm:rounded-xl sm:p-6" aria-live="polite">
             <p className="text-sm font-medium text-blue-300">{stage.label}</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-800">
               <div
@@ -350,7 +350,7 @@ function ScanInputInner(_props: ScanInputProps) {
         )}
 
         {revealing && pendingData && (
-          <div className="mt-8 rounded-xl border border-gray-700/60 bg-gray-900/60 p-6 text-left">
+          <div className="mt-6 rounded-lg border border-gray-700/60 bg-gray-900/60 p-4 text-left sm:mt-8 sm:rounded-xl sm:p-6">
             <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Preliminary findings
             </p>

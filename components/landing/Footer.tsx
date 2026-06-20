@@ -3,9 +3,9 @@ import TrustSignals from "@/components/enterprise/TrustSignals";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-gray-800 px-5 py-12 sm:px-4 sm:py-10">
+    <footer className="border-t border-gray-800 px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-10 md:px-5">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <TrustSignals compact />
         </div>
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">

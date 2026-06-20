@@ -35,44 +35,44 @@ const AGENCY_FEATURES = [
 
 export default function AgencySection() {
   return (
-    <section id="agencies" className="relative px-5 py-16 sm:px-4 sm:py-24">
+    <section id="agencies" className="relative px-4 py-10 sm:px-4 sm:py-24 md:px-5">
       <div className="absolute inset-x-0 top-0 h-px bg-gray-800/60" />
       <div className="mx-auto max-w-7xl">
-        <div className="mb-10 text-center sm:mb-14">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-500">
+        <div className="mb-8 text-center sm:mb-14">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-500 sm:mb-3 sm:text-sm">
             For Agencies
           </p>
-          <h2 className="mb-4 text-2xl font-bold tracking-tight text-white sm:text-4xl">
+          <h2 className="mb-3 text-xl font-bold tracking-tight text-white sm:mb-4 sm:text-4xl">
             Monitor every client site from one place
           </h2>
-          <p className="mx-auto max-w-2xl text-base text-gray-400">
+          <p className="mx-auto max-w-2xl text-sm text-gray-400 sm:text-base">
             Agencies managing multiple client websites need continuous visibility — not quarterly
             manual checks. CyberShield automates monitoring so you can focus on delivery.
           </p>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {AGENCY_FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="rounded-xl border border-gray-800 bg-gray-900/50 p-6"
+              className="rounded-lg border border-gray-800 bg-gray-900/50 p-4 sm:rounded-xl sm:p-6"
             >
-              <h3 className="text-base font-semibold text-white">{feature.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-400">{feature.description}</p>
+              <h3 className="text-sm font-semibold text-white sm:text-base">{feature.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-400 sm:mt-2">{feature.description}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+        <div className="mt-8 flex flex-col items-stretch gap-3 sm:mt-10 sm:flex-row sm:items-center sm:justify-center">
           <Link
             href="/agency"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto sm:px-7"
           >
             View Agency plans
           </Link>
           <Link
             href="/enterprise"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-gray-700 px-7 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-gray-700 px-6 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white sm:w-auto sm:px-7"
           >
             Enterprise & custom limits
           </Link>
