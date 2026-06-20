@@ -116,10 +116,10 @@ export function canUseMonitoring(user: UserForFeatureGate): boolean {
   return canAccessFeature(user, 'monitoring');
 }
 
-const ENTERPRISE_PLANS = new Set<Plan>(['agency', 'growth']);
+const AGENCY_DASHBOARD_PLANS = new Set<Plan>(['agency']);
 
-/** Enterprise portal: active agency/growth org subscription + org owner or admin. QA simulates customer plans unless qa_enterprise_enabled. */
-export function canAccessEnterprise(
+/** Agency Command Center: active agency org subscription + org owner or admin. */
+export function canAccessAgencyDashboard(
   user: UserForFeatureGate,
   orgRole?: OrgRole | null,
 ): boolean {
@@ -131,9 +131,17 @@ export function canAccessEnterprise(
   const status = user.subscription_status ?? 'inactive';
   const isActive = status === 'active' || status === 'trialing';
 
-  if (!isActive || !ENTERPRISE_PLANS.has(plan)) return false;
+  if (!isActive || !AGENCY_DASHBOARD_PLANS.has(plan)) return false;
 
   return true;
+}
+
+/** @deprecated Use canAccessAgencyDashboard — enterprise portal is agency-only. */
+export function canAccessEnterprise(
+  user: UserForFeatureGate,
+  orgRole?: OrgRole | null,
+): boolean {
+  return canAccessAgencyDashboard(user, orgRole);
 }
 
 export function getWebsiteUsageMessage(current: number, user: UserWithPlan): string {

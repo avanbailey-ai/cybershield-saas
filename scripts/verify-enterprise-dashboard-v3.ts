@@ -48,8 +48,8 @@ assert(
   'needs attention title',
 );
 assert(
-  ENTERPRISE_COMMAND_CENTER_COPY.title === 'Client Protection Overview',
-  'client protection overview title',
+  ENTERPRISE_COMMAND_CENTER_COPY.title === 'Agency Command Center',
+  'agency command center title',
 );
 assert(ENTERPRISE_COMMAND_CENTER_COPY.protected === 'Protected', 'protected label');
 assert(ENTERPRISE_COMMAND_CENTER_COPY.monitoringActive === 'Monitoring Active', 'monitoring active');
@@ -143,7 +143,7 @@ for (const term of BANNED_DEFAULT_TERMS) {
 
 // --- Advanced diagnostics collapsible (hidden by default) ---
 assert(dashboardContent.includes('defaultOpen={false}'), 'advanced panel collapsed by default');
-assert(dashboardContent.includes('Queued scans'), 'queue metrics in advanced only');
+assert(dashboardContent.includes('Pending checks'), 'queue metrics in advanced only');
 
 // --- No raw UUIDs in visible string literals ---
 const stringLiterals = dashboardContent.match(/'[^']*'|"[^"]*"/g) ?? [];

@@ -13,6 +13,15 @@ import { fetchCommandCenterData } from '@/lib/dashboard/fetchCommandCenterData';
 import type { HeaderChecks, RiskLevel } from '@/types';
 import SecurityFindingCard from '@/components/report/SecurityFindingCard';
 import { buildIntelligenceReport } from '@/lib/report/intelligenceFromScan';
+import { canAccessAgencyDashboard } from '@/lib/agency/planGate';
+import { userFromSubscriptionAccess } from '@/lib/auth/enterpriseGateUser';
+import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
+import { cookies } from 'next/headers';
+import { resolveClientDisplayName } from '@/lib/agency/clientContext';
+import { isHistoricalScanRow, HISTORICAL_FINDING_LABEL } from '@/lib/agency/scanFreshness';
+import AgencyProofOfWorkCard from '@/components/agency/AgencyProofOfWorkCard';
+import { AgencyReportsReadyList } from '@/components/agency/AgencyDashboardPanels';
+import type { AgencyReportRow } from '@/components/agency/AgencyDashboardPanels';
 import { formatRiskLevel, riskBadgeClass } from '@/components/report/severityStyles';
 
 export const metadata: Metadata = {
@@ -39,6 +48,7 @@ function timeAgo(dateStr: string): string {
 
 interface ScanReport {
   id: string;
+  website_id?: string;
   security_score: number | null;
   risk_level: RiskLevel | null;
   ssl_valid: boolean | null;
@@ -49,7 +59,13 @@ interface ScanReport {
   started_at: string;
   headers: HeaderChecks | null;
   scan_snapshot: unknown;
-  websites: { url: string; label: string | null } | null;
+  websites: {
+    url: string;
+    label: string | null;
+    client_name?: string | null;
+    client_company?: string | null;
+    client_group?: string | null;
+  } | null;
 }
 
 export default async function ReportsPage() {
@@ -73,34 +89,114 @@ export default async function ReportsPage() {
   const orgId = await getActiveOrgId(user.id);
   const commandCenter = await fetchCommandCenterData(supabase, user.id, user.email, orgId);
 
-  const { data: rawScans } = await supabase
+  const cookieStore = await cookies();
+  const cookieOrgId = cookieStore.get(ORG_CONTEXT_COOKIE)?.value ?? null;
+  const orgCtx = await resolveOrgSessionContextFromSession(
+    supabase as unknown as SessionSubscriptionClient,
+    user.id,
+    user.email,
+    cookieOrgId,
+  );
+  const isAgency = canAccessAgencyDashboard(
+    userFromSubscriptionAccess(orgCtx.access, user.email),
+    orgCtx.role,
+  );
+
+  let scansQuery = supabase
     .from('scans')
     .select(
-      'id, security_score, risk_level, ssl_valid, issues, passed, explanation, completed_at, started_at, headers, scan_snapshot, websites(url, label)',
+      'id, website_id, security_score, risk_level, ssl_valid, issues, passed, explanation, completed_at, started_at, headers, scan_snapshot, websites(url, label, client_name, client_company, client_group)',
     )
-    .eq('user_id', user.id)
     .eq('status', 'completed')
     .order('completed_at', { ascending: false })
-    .limit(10);
+    .limit(isAgency ? 30 : 10);
+
+  if (isAgency && orgId) {
+    scansQuery = scansQuery.eq('org_id', orgId);
+  } else {
+    scansQuery = scansQuery.eq('user_id', user.id);
+  }
+
+  const { data: rawScans } = await scansQuery;
 
   const scans = (rawScans ?? []) as unknown as ScanReport[];
 
+  const latestScanByWebsite = new Map<string, { scanId: string; score: number | null }>();
+  for (const scan of scans) {
+    if (scan.website_id && !latestScanByWebsite.has(scan.website_id)) {
+      latestScanByWebsite.set(scan.website_id, { scanId: scan.id, score: scan.security_score });
+    }
+  }
+
+  const agencyReportRows: AgencyReportRow[] = scans.map((scan) => {
+    const site = scan.websites;
+    const latest = scan.website_id ? latestScanByWebsite.get(scan.website_id) : null;
+    return {
+      scanId: scan.id,
+      clientName: site
+        ? resolveClientDisplayName({
+            url: site.url,
+            label: site.label,
+            client_name: site.client_name ?? null,
+            client_company: site.client_company ?? null,
+            client_group: site.client_group ?? null,
+            client_contact_name: null,
+            client_contact_email: null,
+            client_notes: null,
+            client_report_frequency: null,
+            client_status: null,
+            agency_internal_notes: null,
+          })
+        : 'Client',
+      websiteName: getWebsiteDisplayName(site?.label, site?.url ?? ''),
+      siteUrl: site?.url ?? '',
+      score: scan.security_score,
+      completedAt: scan.completed_at,
+      isHistorical: isHistoricalScanRow({
+        scanId: scan.id,
+        scanCompletedAt: scan.completed_at,
+        latestScanId: latest?.scanId ?? null,
+        latestScore: latest?.score ?? null,
+      }),
+    };
+  });
+
   return (
     <div className="flex flex-1 flex-col overflow-auto">
-      <DashboardHeader email={user.email ?? ''} title="Reports" />
+      <DashboardHeader email={user.email ?? ''} title={isAgency ? 'Client Reports' : 'Reports'} />
 
       <main className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="mb-6 space-y-6">
           <div>
-            <h2 className="text-xl font-bold text-white">Security Reports</h2>
+            <h2 className="text-xl font-bold text-white">
+              {isAgency ? 'Client Reports' : 'Security Reports'}
+            </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Executive-ready security reports with scores, findings, and fix guidance.
+              {isAgency
+                ? 'Client-ready reports with export and copy actions. Copy only — no emails sent automatically.'
+                : 'Executive-ready security reports with scores, findings, and fix guidance.'}
             </p>
           </div>
 
-          {commandCenter.showRetentionBanner && <RetentionBanner variant="protection" />}
+          {isAgency && orgId && (
+            <>
+              <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+                <h3 className="text-sm font-semibold text-white">Reports ready to export</h3>
+                <div className="mt-4">
+                  <AgencyReportsReadyList reports={agencyReportRows} />
+                </div>
+              </section>
+              <AgencyProofOfWorkCard
+                metrics={commandCenter.valueSummary}
+                reportsGenerated={agencyReportRows.filter((r) => !r.isHistorical).length}
+                orgId={orgId}
+              />
+            </>
+          )}
 
-          <CyberShieldValueSummary metrics={commandCenter.valueSummary} compact />
+          {!isAgency && commandCenter.showRetentionBanner && <RetentionBanner variant="protection" />}
+
+          {!isAgency && <CyberShieldValueSummary metrics={commandCenter.valueSummary} compact />}
         </div>
 
         {scans.length === 0 ? (
@@ -123,8 +219,9 @@ export default async function ReportsPage() {
             </div>
             <p className="text-base font-semibold text-gray-200">No reports yet</p>
             <p className="mt-2 max-w-sm text-sm text-gray-500">
-              Reports are automatically generated after security scans complete. Add a website and
-              run your first scan to see your security report here.
+              {isAgency
+                ? 'Reports appear after scans are completed.'
+                : 'Reports are automatically generated after security scans complete. Add a website and run your first scan to see your security report here.'}
             </p>
             <Link
               href="/app/websites"
@@ -138,8 +235,15 @@ export default async function ReportsPage() {
             {scans.map((scan) => {
               const site = scan.websites;
               const siteUrl = site?.url ?? '';
+              const latest = scan.website_id ? latestScanByWebsite.get(scan.website_id) : null;
+              const isHistorical = isHistoricalScanRow({
+                scanId: scan.id,
+                scanCompletedAt: scan.completed_at,
+                latestScanId: latest?.scanId ?? null,
+                latestScore: latest?.score ?? null,
+              });
               const intelligence = buildIntelligenceReport(siteUrl, scan);
-              const previewFindings = intelligence.findings.slice(0, 2);
+              const previewFindings = isHistorical ? [] : intelligence.findings.slice(0, 2);
 
               return (
                 <div
@@ -176,8 +280,17 @@ export default async function ReportsPage() {
                       <span className="text-xs text-gray-500">
                         {scan.completed_at ? timeAgo(scan.completed_at) : timeAgo(scan.started_at)}
                       </span>
+                      {isHistorical && (
+                        <span className="rounded-full border border-gray-600 px-2 py-0.5 text-[10px] text-gray-400">
+                          Historical
+                        </span>
+                      )}
                     </div>
                   </div>
+
+                  {isHistorical && (
+                    <p className="mt-2 text-xs text-gray-500">{HISTORICAL_FINDING_LABEL}</p>
+                  )}
 
                   <p className="mt-3 text-sm text-gray-400">{intelligence.summary}</p>
 

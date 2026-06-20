@@ -13,7 +13,7 @@ import type { PostureState } from './postureState';
 
 /** Section markers — used by verify-enterprise-dashboard-v3.ts */
 export const ENTERPRISE_COMMAND_CENTER_COPY = {
-  title: 'Client Protection Overview',
+  title: 'Agency Command Center',
   valueDeliveredTitle: 'What CyberShield Did For Your Clients',
   needsAttentionTitle: 'Clients Requiring Review',
   protectedWebsitesTitle: 'Protected Clients',

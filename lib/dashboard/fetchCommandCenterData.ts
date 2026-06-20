@@ -24,6 +24,7 @@ import {
   type CommandCenterWebsite,
   type ValueSummaryMetrics,
 } from './dashboardCommandCenter';
+import { isSupersededByLatestScan } from '@/lib/agency/scanFreshness';
 
 type HeaderChecks = {
   csp?: boolean;
@@ -236,7 +237,7 @@ async function fetchLatestScanIds(
 async function fetchAlertsForAttention(supabase: SupabaseClient, userId: string) {
   const { data } = await supabase
     .from('alerts')
-    .select('id, severity, title, message, website_id, is_read, websites(url, label)')
+    .select('id, severity, title, message, website_id, is_read, created_at, websites(url, label)')
     .eq('user_id', userId)
     .eq('is_read', false)
     .in('severity', ['critical', 'high', 'medium'])
@@ -257,6 +258,7 @@ async function fetchAlertsForAttention(supabase: SupabaseClient, userId: string)
       websiteId: row.website_id as string | null,
       websiteUrl: site?.url ?? null,
       websiteLabel: site?.label ?? null,
+      createdAt: row.created_at as string | null,
     };
   });
 }
@@ -406,7 +408,27 @@ export async function fetchCommandCenterData(
     headerPassRate: headerTotal > 0 ? headerPass / headerTotal : null,
   });
 
-  const alertItems = buildNeedsAttentionFromAlerts(alerts);
+  const latestCompletedAtByWebsite = new Map<string, string>();
+  for (const scan of allScans ?? []) {
+    if (
+      scan.status === 'completed' &&
+      scan.completed_at &&
+      !latestCompletedAtByWebsite.has(scan.website_id)
+    ) {
+      latestCompletedAtByWebsite.set(scan.website_id, scan.completed_at);
+    }
+  }
+
+  const alertItems = buildNeedsAttentionFromAlerts(alerts).filter((item) => {
+    const alert = alerts.find((a) => a.id === item.id);
+    if (!alert?.websiteId) return true;
+    const site = websites.find((w) => w.id === alert.websiteId);
+    return !isSupersededByLatestScan({
+      itemCreatedAt: alert.createdAt,
+      latestCompletedAt: site?.lastScanAt ?? latestCompletedAtByWebsite.get(alert.websiteId) ?? null,
+      latestScore: site?.score ?? latestScoreByWebsite.get(alert.websiteId) ?? null,
+    });
+  });
   const websiteItems = buildNeedsAttentionFromWebsites(websites, sslSummary, domainSummary);
   const seen = new Set<string>();
   const needsAttention = [...alertItems, ...websiteItems].filter((item) => {

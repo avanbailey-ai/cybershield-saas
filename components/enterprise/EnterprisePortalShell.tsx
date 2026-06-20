@@ -60,7 +60,7 @@ export default function EnterprisePortalShell({
           </button>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">CyberShield</p>
-            <p className="text-xs font-medium uppercase tracking-wide text-indigo-400">Enterprise</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-indigo-400">Agency</p>
           </div>
         </div>
         {children}

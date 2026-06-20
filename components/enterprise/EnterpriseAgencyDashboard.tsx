@@ -14,6 +14,10 @@ import {
   type OrgInsight,
 } from '@/lib/enterprise/enterpriseCommandCenter';
 import AgencyClientReportPanel from '@/components/intelligence/AgencyClientReportPanel';
+import AgencyPortfolioHealthCard from '@/components/agency/AgencyClientWebsitesView';
+import AgencyProofOfWorkCard from '@/components/agency/AgencyProofOfWorkCard';
+import AgencyInsightsPanel from '@/components/agency/AgencyDashboardPanels';
+import { buildAgencyInsights, buildPortfolioHealthSummary } from '@/lib/agency/agencyInsights';
 
 const mobileActionClass =
   'inline-flex min-h-[48px] w-full items-center justify-center rounded-lg px-4 py-3.5 text-sm font-medium sm:w-auto sm:min-h-0 sm:py-2';
@@ -72,6 +76,37 @@ function AgencySectionHeader({
 
 export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCommandCenterData }) {
   const { orgSummary, valueMetrics, advancedDiagnostics } = data;
+  const allWebsites: EnterpriseWebsiteRow[] = [
+    ...data.protectedWebsites,
+    ...data.needsAttention
+      .filter((c) => !data.protectedWebsites.some((w) => w.id === c.id))
+      .map((c) => ({
+        id: c.id,
+        displayName: c.displayName,
+        url: '',
+        clientGroup: c.clientName,
+        score: c.score,
+        scoreBand: c.scoreBand,
+        healthCategory: (c.score !== null && c.score < 50 ? 'critical' : 'needs_attention') as EnterpriseWebsiteRow['healthCategory'],
+        issueCount: c.issueCount,
+        topIssue: c.topIssue,
+        scanId: c.reportHref.includes('/report/') ? c.reportHref.split('/report/')[1] ?? null : null,
+        sslStatus: 'unknown' as const,
+        monitoringLabel: 'Active',
+        recentChangesCount: 0,
+        stabilityLabel: '',
+        lastScanLabel: '',
+      })),
+  ];
+  const portfolioHealth = buildPortfolioHealthSummary(allWebsites);
+  const agencyInsights = buildAgencyInsights({
+    websites: allWebsites,
+    reportsReadyCount: allWebsites.filter((w) => w.scanId).length,
+    monthlyTrend: data.insights.find((i) => i.label === 'Overall trend')?.value.includes('+')
+      ? 1
+      : null,
+    topIssueCategories: data.insights.map((i) => i.value),
+  });
   const featuredClient: EnterpriseWebsiteRow | undefined =
     data.needsAttention[0]
       ? data.protectedWebsites.find((w) => w.id === data.needsAttention[0]!.id) ??
@@ -80,7 +115,7 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
 
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-auto">
-      <DashboardHeader email={data.userEmail} title="Client Protection" showPlanUsage={false} />
+      <DashboardHeader email={data.userEmail} title="Agency Command Center" showPlanUsage={false} />
 
       <main className="min-w-0 flex-1 overflow-x-hidden px-5 py-5 sm:p-6">
         <div className="flex flex-col gap-8">
@@ -148,6 +183,14 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
               <MetricPill label="SSL alerts" value={String(orgSummary.weekStats.sslIssues)} />
             </div>
           </section>
+
+          <AgencyPortfolioHealthCard summary={portfolioHealth} />
+
+          <AgencyProofOfWorkCard
+            metrics={valueMetrics}
+            reportsGenerated={allWebsites.filter((w) => w.scanId).length}
+            orgId={data.orgId}
+          />
 
           {featuredClient && (
             <AgencyClientReportPanel
@@ -269,13 +312,7 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                   whatNext="Use insights to plan sprint work and client QBR agendas."
                 />
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {data.insights.map((insight) => (
-                    <div key={insight.label} className="rounded-lg border border-gray-800 bg-gray-950/30 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{insight.label}</p>
-                      <p className={`mt-2 text-sm font-semibold ${insightToneClass(insight.tone)}`}>{insight.value}</p>
-                      <p className="mt-1 text-sm text-gray-400">{insight.detail}</p>
-                    </div>
-                  ))}
+                  <AgencyInsightsPanel insights={agencyInsights} />
                 </div>
               </section>
 
