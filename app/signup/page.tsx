@@ -4,12 +4,16 @@ import AuthCard from "@/components/auth/AuthCard";
 import SignupForm from "@/components/auth/SignupForm";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
 import { parseSignupAttributionParams, signupPlanCopy } from "@/lib/conversion/signupPlanContext";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Create Account",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Create Account — CyberShield Cloud",
+  description: "Create a CyberShield Cloud account to monitor your websites.",
+  path: "/signup",
+  noIndex: true,
+});
 
 export default async function SignupPage({
   searchParams,

@@ -4,12 +4,16 @@ import AuthCard from '@/components/auth/AuthCard';
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseAuthConfigured } from '@/lib/supabase/env';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Reset Password',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Reset Password — CyberShield Cloud',
+  description: 'Reset your CyberShield Cloud account password.',
+  path: '/reset-password',
+  noIndex: true,
+});
 
 export default async function ResetPasswordPage() {
   if (!isSupabaseAuthConfigured()) {

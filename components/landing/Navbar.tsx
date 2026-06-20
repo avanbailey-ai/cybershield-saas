@@ -25,8 +25,14 @@ export default function Navbar() {
           <Link href="/pricing" className="hidden text-sm text-gray-400 hover:text-white sm:inline">
             Pricing
           </Link>
-          <Link href="/enterprise/login" className="hidden text-sm text-gray-400 hover:text-white md:inline">
-            Enterprise Login
+          <Link href="/scan" className="hidden text-sm text-gray-400 hover:text-white sm:inline">
+            Free Scan
+          </Link>
+          <Link href="/about" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
+            About
+          </Link>
+          <Link href="/contact" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
+            Contact
           </Link>
           <Link href="/#scan">
             <Button

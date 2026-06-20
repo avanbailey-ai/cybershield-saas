@@ -3,12 +3,16 @@ import { Suspense } from 'react';
 import AuthCard from '@/components/auth/AuthCard';
 import LoginForm from '@/components/auth/LoginForm';
 import { isSupabaseAuthConfigured } from '@/lib/supabase/env';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Enterprise Sign In',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Enterprise Login — CyberShield Cloud',
+  description: 'Sign in to the CyberShield enterprise portal for agency and organization accounts.',
+  path: '/enterprise/login',
+  noIndex: true,
+});
 
 const bullets = [
   'Organization-wide security visibility',

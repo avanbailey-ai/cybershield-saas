@@ -43,8 +43,13 @@ function main() {
 
   assert(robots.includes('sitemap'), 'robots references sitemap');
   assert(sitemap.includes('resolveSiteUrl'), 'sitemap uses canonical site URL');
+  assert(sitemap.includes("path: '/pricing'"), 'sitemap includes pricing');
+  assert(sitemap.includes("path: '/scan'"), 'sitemap includes free scan');
+  assert(sitemap.includes("path: '/enterprise/review'"), 'sitemap includes enterprise review');
+  assert(!sitemap.includes("path: '/login'"), 'sitemap excludes login');
+  assert(!sitemap.includes("path: '/enterprise/login'"), 'sitemap excludes enterprise login');
+  assert(!sitemap.includes('FEATURE_PAGES'), 'sitemap excludes feature page bulk entries');
   assert(FEATURE_PAGES.length >= 8, 'feature pages defined');
-  assert(sitemap.includes('/features/'), 'sitemap includes feature pages');
 
   assert(metadata.includes('alternates'), 'canonical metadata helper exists');
   assert(metadata.includes('icons:'), 'root metadata declares favicon icons');

@@ -5,10 +5,14 @@ import { createClient } from '@/lib/supabase/server';
 import type { SessionSupabaseClient } from '@/lib/auth/redirect';
 import { getRedirectPathForSession } from '@/lib/auth/redirectServer';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
-  title: 'Get Started — CyberShield',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Get Started — CyberShield Cloud',
+  description: 'Complete your CyberShield Cloud onboarding.',
+  path: '/onboarding',
+  noIndex: true,
+});
 
 export const dynamic = 'force-dynamic';
 

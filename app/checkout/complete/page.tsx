@@ -2,12 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Payment Received — CyberShield',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Payment Received — CyberShield Cloud',
+  description: 'Your CyberShield checkout is complete.',
+  path: '/checkout/complete',
+  noIndex: true,
+});
 
 export default async function CheckoutCompletePage({
   searchParams,

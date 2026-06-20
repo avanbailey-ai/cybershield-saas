@@ -26,11 +26,26 @@ export default function Footer() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-            <Link href="/features" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
-              Features
+            <Link href="/" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Home
+            </Link>
+            <Link href="/scan" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Free Scan
+            </Link>
+            <Link href="/pricing" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Pricing
             </Link>
             <Link href="/about" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               About
+            </Link>
+            <Link href="/contact" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Contact
+            </Link>
+            <Link href="/enterprise/review" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Request Security Review
+            </Link>
+            <Link href="/features" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
+              Features
             </Link>
             <Link href="/terms" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Terms
@@ -38,35 +53,11 @@ export default function Footer() {
             <Link href="/privacy" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Privacy
             </Link>
-            <Link href="/refund" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
-              Refunds
-            </Link>
             <Link href="/security" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
               Security
             </Link>
-            <Link href="/responsible-disclosure" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
-              Disclosure
-            </Link>
-            <Link href="/contact" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
-              Contact
-            </Link>
-            <Link href="/pricing" className="text-xs text-gray-500 transition-colors hover:text-gray-300">
-              Pricing
-            </Link>
-            <Link href="/enterprise/review" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Security Review
-            </Link>
-            <Link href="/enterprise/login" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Enterprise Login
-            </Link>
-            <Link href="/enterprise/pricing" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Enterprise
-            </Link>
             <Link href="/login" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
               Sign In
-            </Link>
-            <Link href="/signup" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Get Started
             </Link>
           </div>
         </div>

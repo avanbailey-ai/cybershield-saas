@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 
 import { redirect } from "next/navigation";
 
@@ -20,9 +21,14 @@ import { resolveOrgSessionContextFromSession } from "@/lib/org/sessionContext";
 
 import ReportProblemWidget from "@/components/beta/ReportProblemWidget";
 import { ensureUserOrg } from "@/lib/org/migrateExistingUsers";
+import { NO_INDEX_ROBOTS } from "@/lib/seo/noIndexMetadata";
 
 /** Auth + Supabase — must not prerender without runtime env/cookies */
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: NO_INDEX_ROBOTS,
+};
 
 export default async function DashboardLayout({
   children,

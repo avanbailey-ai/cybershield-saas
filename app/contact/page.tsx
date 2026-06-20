@@ -4,8 +4,9 @@ import { buildPageMetadata } from '@/lib/seo/metadata';
 import { SEO_SUPPORT_EMAIL } from '@/lib/seo/constants';
 
 export const metadata: Metadata = buildPageMetadata({
-  title: 'Contact',
-  description: 'Contact CyberShield Cloud support for product, billing, and enterprise inquiries.',
+  title: 'Contact CyberShield Cloud',
+  description:
+    'Contact CyberShield Cloud for website security monitoring, agency reporting, and security review questions.',
   path: '/contact',
 });
 

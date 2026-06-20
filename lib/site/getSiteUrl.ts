@@ -1,10 +1,10 @@
 /**
  * Canonical site URL for Stripe return URLs, auth redirects, and emails.
  *
- * Production: https://cybershieldcloud.com (Vercel alias → cybershield-saas-1o19).
+ * Production: https://www.cybershieldcloud.com (Vercel alias → cybershield-saas-1o19).
  * Every production deploy to that project automatically serves the .com domain.
  */
-export const PRODUCTION_SITE_URL = 'https://cybershieldcloud.com';
+export const PRODUCTION_SITE_URL = 'https://www.cybershieldcloud.com';
 
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/$/, '');

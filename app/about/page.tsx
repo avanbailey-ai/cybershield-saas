@@ -4,8 +4,9 @@ import { buildPageMetadata } from '@/lib/seo/metadata';
 import { SEO_BRAND, SEO_SUPPORT_EMAIL } from '@/lib/seo/constants';
 
 export const metadata: Metadata = buildPageMetadata({
-  title: 'About',
-  description: `${SEO_BRAND} provides website security monitoring, SSL alerts, and change detection for small businesses and agencies.`,
+  title: 'About CyberShield Cloud — Website Security Monitoring',
+  description:
+    'CyberShield Cloud helps businesses and agencies scan, monitor, and report website security issues.',
   path: '/about',
 });
 

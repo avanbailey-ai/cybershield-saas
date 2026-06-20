@@ -4,11 +4,14 @@ import Link from 'next/link';
 
 import ScanInput from '@/components/landing/ScanInput';
 import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
-  title: 'Free Security Scan — CyberShield',
-  description: 'Scan any website for free. No login required.',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Free Website Security Scan — CyberShield Cloud',
+  description:
+    'Scan your website for common security issues and get a plain-English security score and risk summary.',
+  path: '/scan',
+});
 
 export default function ScanPage() {
   return (

@@ -40,7 +40,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
 export const rootMetadata: Metadata = {
   metadataBase: new URL(resolveSiteUrl()),
   title: {
-    default: `${SEO_BRAND} — Website Security Monitoring`,
+    default: 'CyberShield Cloud — Website Security Monitoring for Businesses and Agencies',
     template: `%s | ${SEO_BRAND}`,
   },
   description: SEO_DEFAULT_DESCRIPTION,
@@ -57,13 +57,13 @@ export const rootMetadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     siteName: SEO_BRAND,
-    title: `${SEO_BRAND} — Website Security Monitoring`,
+    title: 'CyberShield Cloud — Website Security Monitoring for Businesses and Agencies',
     description: SEO_DEFAULT_DESCRIPTION,
     url: resolveSiteUrl(),
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${SEO_BRAND} — Website Security Monitoring`,
+    title: 'CyberShield Cloud — Website Security Monitoring for Businesses and Agencies',
     description: SEO_DEFAULT_DESCRIPTION,
   },
   robots: { index: true, follow: true },

@@ -2,17 +2,14 @@ import type { Metadata } from 'next';
 import Navbar from '@/components/landing/Navbar';
 import Pricing from '@/components/landing/Pricing';
 import Footer from '@/components/landing/Footer';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
-  title: 'Pricing',
+export const metadata: Metadata = buildPageMetadata({
+  title: 'CyberShield Pricing — Website Security Monitoring Plans',
   description:
-    'Try your first scan free, then enable continuous protection. Most SMBs choose daily monitoring for live websites.',
-  openGraph: {
-    title: 'CyberShield Pricing — Continuous Protection',
-    description: 'Start with a free scan. Enable protection when you\'re ready.',
-    type: 'website',
-  },
-};
+    'Compare Pro, Growth, and Agency plans for website security monitoring, alerts, reports, and agency client reporting.',
+  path: '/pricing',
+});
 
 export const revalidate = 3600;
 

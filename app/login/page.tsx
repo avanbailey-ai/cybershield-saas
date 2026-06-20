@@ -3,12 +3,16 @@ import { Suspense } from "react";
 import AuthCard from "@/components/auth/AuthCard";
 import LoginForm from "@/components/auth/LoginForm";
 import { isSupabaseAuthConfigured } from "@/lib/supabase/env";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Sign In",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Sign In — CyberShield Cloud",
+  description: "Sign in to your CyberShield Cloud account.",
+  path: "/login",
+  noIndex: true,
+});
 
 const bullets = [
   "Health Center for every website",

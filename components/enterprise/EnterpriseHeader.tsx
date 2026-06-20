@@ -25,7 +25,7 @@ export default function EnterpriseHeader() {
           <Link href="/enterprise/review" className="text-gray-400 hover:text-white">
             Request Security Review
           </Link>
-          <Link href="/enterprise/login" className="text-gray-400 hover:text-white">
+          <Link href="/enterprise/login" className="text-xs text-gray-500 hover:text-gray-400">
             Enterprise Login
           </Link>
         </nav>

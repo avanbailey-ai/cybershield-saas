@@ -8,12 +8,16 @@ import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/o
 import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAccess';
 import { formatScanFrequency, PLAN_LIMITS } from '@/lib/billing/plans';
 import { formatWebsiteLimit } from '@/lib/billing/plans';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Welcome to Enterprise — CyberShield',
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Welcome to Enterprise — CyberShield Cloud',
+  description: 'Complete your CyberShield enterprise onboarding.',
+  path: '/enterprise/onboarding',
+  noIndex: true,
+});
 
 export default async function EnterpriseOnboardingPage({
   searchParams,

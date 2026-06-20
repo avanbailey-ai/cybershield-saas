@@ -2,16 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import EnterpriseHeader from '@/components/enterprise/EnterpriseHeader';
 import TrustSignals from '@/components/enterprise/TrustSignals';
+import { buildPageMetadata } from '@/lib/seo/metadata';
 
-export const metadata: Metadata = {
-  title: 'Enterprise Security',
-  description: 'Request a security review, compliance reporting, and dedicated support for regulated teams.',
-  openGraph: {
-    title: 'CyberShield Enterprise',
-    description: 'Custom enterprise security monitoring, audit logs, and dedicated support.',
-    type: 'website',
-  },
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: 'Enterprise Security — CyberShield Cloud',
+  description: 'Enterprise security monitoring, compliance reporting, and dedicated support for regulated teams.',
+  path: '/enterprise/pricing',
+  noIndex: true,
+});
 
 export const revalidate = 3600;
 export const runtime = 'nodejs';

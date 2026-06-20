@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -9,8 +10,13 @@ import type { SessionSubscriptionClient } from '@/lib/billing/getSubscriptionAcc
 import { isOwner } from '@/lib/auth/owner';
 import { OWNER_HOME_PATH } from '@/lib/auth/ownerExperience';
 import ReportProblemWidget from '@/components/beta/ReportProblemWidget';
+import { NO_INDEX_ROBOTS } from '@/lib/seo/noIndexMetadata';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  robots: NO_INDEX_ROBOTS,
+};
 
 export default async function EnterprisePortalLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
