@@ -67,4 +67,13 @@ export const rootMetadata: Metadata = {
     description: SEO_DEFAULT_DESCRIPTION,
   },
   robots: { index: true, follow: true },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: [{ url: '/icon.png', sizes: '512x512', type: 'image/png' }],
+  },
 };

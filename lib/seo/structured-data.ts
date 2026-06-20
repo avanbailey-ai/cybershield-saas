@@ -15,7 +15,7 @@ export function organizationSchema() {
     legalName: SEO_LEGAL_NAME,
     url,
     email: SEO_SUPPORT_EMAIL,
-    logo: `${url}/icon.svg`,
+    logo: `${url}/icon.png`,
     sameAs: [] as string[],
   };
 }

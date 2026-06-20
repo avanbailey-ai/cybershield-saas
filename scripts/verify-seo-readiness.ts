@@ -29,6 +29,8 @@ function main() {
   assert(exists('app/robots.ts'), 'robots.ts exists');
   assert(exists('app/sitemap.ts'), 'sitemap.ts exists');
   assert(exists('app/icon.svg'), 'favicon/icon exists');
+  assert(exists('app/icon.png'), 'PNG icon exists');
+  assert(exists('app/favicon.ico'), 'favicon.ico exists');
   assert(exists('app/manifest.ts'), 'web manifest exists');
 
   const robots = read('app/robots.ts');
@@ -45,6 +47,9 @@ function main() {
   assert(sitemap.includes('/features/'), 'sitemap includes feature pages');
 
   assert(metadata.includes('alternates'), 'canonical metadata helper exists');
+  assert(metadata.includes('icons:'), 'root metadata declares favicon icons');
+  assert(metadata.includes('/favicon.ico'), 'favicon.ico referenced in metadata');
+  assert(metadata.includes('/icon.png'), 'icon.png referenced in metadata');
   assert(metadata.includes('openGraph'), 'Open Graph in metadata helper');
   assert(metadata.includes('twitter'), 'Twitter cards in metadata helper');
   assert(layout.includes('JsonLd'), 'structured data on root layout');
