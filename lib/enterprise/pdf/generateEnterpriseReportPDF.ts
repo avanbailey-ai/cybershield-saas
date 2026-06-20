@@ -3,6 +3,7 @@ import 'server-only';
 import PDFDocument from '@/lib/enterprise/pdf/createPdfDocument';
 import type { EnterpriseReportData } from '../reportBuilder';
 import { sanitizeReportText } from '../reportBuilder';
+import { buildOrgPdfFilename } from './pdfExportUtils';
 
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
@@ -214,7 +215,7 @@ function renderCoverPage(doc: PDFKit.PDFDocument, data: EnterpriseReportData): v
   doc
     .fontSize(13)
     .fillColor('#ffffff')
-    .text(`Posture: ${data.cover.postureLabel.toUpperCase()}`, MARGIN + 12, doc.y + 11, {
+    .text(`Posture: ${(data.cover.postureLabel ?? 'Unknown').toUpperCase()}`, MARGIN + 12, doc.y + 11, {
       width: 160,
     });
 
@@ -560,7 +561,6 @@ export async function generateEnterpriseReportPDFForOrg(
 
   const reportData = await buildEnterpriseReport(orgId, dateRange);
   const buffer = await generateEnterpriseReportPDF(reportData);
-  const safeName = reportData.cover.orgName.replace(/[^a-z0-9.-]/gi, '_').slice(0, 60);
-  const filename = `CyberShield-Security-Posture-${safeName}-${reportData.cover.dateRange.end.slice(0, 10)}.pdf`;
+  const filename = buildOrgPdfFilename(reportData.cover.orgName, reportData.cover.dateRange.end);
   return { buffer, filename };
 }

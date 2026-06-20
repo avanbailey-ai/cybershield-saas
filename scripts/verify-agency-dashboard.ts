@@ -11,12 +11,17 @@ import { buildClientOwnerEmail, buildClientOwnerReport } from '../lib/agency/cli
 import { generateAgencyClientReport } from '../lib/intelligence/agencyReport';
 import {
   HISTORICAL_FINDING_LABEL,
+  HISTORICAL_ALERT_LABEL,
+  isAlertCurrentForLatestScan,
   isHistoricalScanRow,
   isSupersededByLatestScan,
+  filterCurrentAlertsByLatestScan,
+  latestScanHasCriticalHighFindings,
 } from '../lib/agency/scanFreshness';
 import { resolveClientDisplayName } from '../lib/agency/clientContext';
 import { buildPortfolioHealthSummary } from '../lib/agency/agencyInsights';
 import { ENTERPRISE_COMMAND_CENTER_COPY } from '../lib/enterprise/enterpriseCommandCenter';
+import { sanitizePdfDownloadFilename } from '../lib/enterprise/pdf/pdfExportUtils';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
@@ -129,15 +134,98 @@ assert(
   'old scan marked historical when latest is healthy',
 );
 assert(HISTORICAL_FINDING_LABEL.includes('Historical'), 'historical label present');
+assert(HISTORICAL_ALERT_LABEL.includes('Historical'), 'historical alert label present');
+
+assert(
+  !isAlertCurrentForLatestScan(
+    { severity: 'critical', createdAt: '2026-01-01T00:00:00Z', scanId: 'old-scan' },
+    {
+      scanId: 'new-scan',
+      score: 100,
+      completedAt: '2026-06-01T00:00:00Z',
+      hasCriticalHighFindings: false,
+    },
+  ),
+  'stale critical alert hidden when latest scan is 100/100',
+);
+assert(
+  isAlertCurrentForLatestScan(
+    { severity: 'critical', createdAt: '2026-06-02T00:00:00Z', scanId: 'new-scan' },
+    {
+      scanId: 'new-scan',
+      score: 45,
+      completedAt: '2026-06-01T00:00:00Z',
+      hasCriticalHighFindings: true,
+    },
+  ),
+  'critical alert remains when latest scan still critical',
+);
+assert(
+  filterCurrentAlertsByLatestScan(
+    [
+      {
+        id: 'a1',
+        severity: 'critical',
+        createdAt: '2026-01-01T00:00:00Z',
+        scanId: 'old',
+        websiteId: 'w1',
+      },
+      {
+        id: 'a2',
+        severity: 'medium',
+        createdAt: '2026-01-01T00:00:00Z',
+        scanId: 'old',
+        websiteId: 'w1',
+      },
+    ],
+    new Map([
+      [
+        'w1',
+        {
+          scanId: 'new',
+          score: 100,
+          completedAt: '2026-06-01T00:00:00Z',
+          hasCriticalHighFindings: false,
+        },
+      ],
+    ]),
+  ).length === 1,
+  'filter keeps medium alerts but drops stale critical',
+);
+assert(latestScanHasCriticalHighFindings(100, []) === false, 'healthy score has no critical findings');
+assert(latestScanHasCriticalHighFindings(55, []) === true, 'low score has critical findings');
+
+const fetchAgencyData = read('lib/agency/fetchAgencyData.ts');
+assert(fetchAgencyData.includes('filterCurrentAlertsByLatestScan'), 'agency alerts filtered by latest scan');
+assert(fetchAgencyData.includes('fetchLatestScansByWebsite'), 'latest scan lookup helper exists');
+
+const alertsPage = read('app/dashboard/alerts/page.tsx');
+assert(alertsPage.includes('filterCurrentAlertsByLatestScan'), 'SMB alerts page filters stale alerts');
+assert(alertsPage.includes('AgencyAlertsGroupedView'), 'agency grouped alerts');
+assert(alertsPage.includes('Copy client-safe notes'), 'copy client note messaging');
 
 const reportsPage = read('app/dashboard/reports/page.tsx');
 assert(reportsPage.includes('HISTORICAL_FINDING_LABEL'), 'reports page labels historical');
 assert(reportsPage.includes('Client Reports'), 'agency reports heading');
 
-// --- Alerts grouped ---
-const alertsPage = read('app/dashboard/alerts/page.tsx');
-assert(alertsPage.includes('AgencyAlertsGroupedView'), 'agency grouped alerts');
-assert(alertsPage.includes('Copy client-safe notes'), 'copy client note messaging');
+// --- Client edit table refresh ---
+assert(clientWebsitesView.includes('localClientEdits'), 'client table preserves local edits after save');
+assert(clientWebsitesView.includes('mergedRows'), 'client table merges local state for display');
+assert(editModal.includes('resolveClientDisplayName'), 'edit modal resolves client display name on save');
+
+// --- PDF export reliability ---
+const pdfRoute = read('app/api/enterprise/export/pdf/route.ts');
+assert(pdfRoute.includes('requestId'), 'PDF route logs request id');
+assert(pdfRoute.includes('pdfExportUtils'), 'PDF route uses shared filename sanitizer');
+const pdfButton = read('components/enterprise/EnterpriseExportPdfButton.tsx');
+assert(pdfButton.includes('result.status >= 500'), 'PDF button retries on 5xx');
+assert(pdfButton.includes('Export failed. Try again.'), 'PDF button shows clean retry message');
+const canonicalState = read('lib/enterprise/canonicalOrgSecurityState.ts');
+assert(canonicalState.includes('pdf_validation_healed_rolling_score'), 'canonical validation heals rolling score mismatch');
+assert(
+  sanitizePdfDownloadFilename('Bad"name\\report.pdf') === 'Bad_name_report.pdf',
+  'PDF filename sanitization strips unsafe chars',
+);
 
 // --- Exports page ---
 assert(fs.existsSync(path.join(ROOT, 'app/enterprise/portal/exports/page.tsx')), 'exports page exists');

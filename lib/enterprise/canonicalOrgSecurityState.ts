@@ -345,9 +345,16 @@ export async function validateCanonicalState(
         `rollingRiskScore recomputed=${recomputedRolling} canonical=${state.rollingRiskScore}`,
       ],
     });
-    throw new Error(
-      `Canonical state validation failed: rollingRiskScore recomputed=${recomputedRolling} canonical=${state.rollingRiskScore}`,
-    );
+    state.rollingRiskScore = recomputedRolling;
+    await admin
+      .from('organizations')
+      .update({
+        rolling_risk_score: recomputedRolling,
+        posture_state: state.postureState,
+        intelligence_updated_at: new Date().toISOString(),
+      })
+      .eq('id', orgId);
+    console.log('[pdf_validation_healed_rolling_score]', { orgId, rollingRiskScore: recomputedRolling });
   }
 
   if (

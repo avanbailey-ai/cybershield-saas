@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { PortfolioHealthSummary } from '@/lib/agency/agencyInsights';
@@ -95,20 +95,48 @@ export function AgencyClientWebsitesTable({ rows: initialRows }: { rows: AgencyC
   const [rows, setRows] = useState(initialRows);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [editingRow, setEditingRow] = useState<AgencyClientWebsiteRow | null>(null);
+  const localClientEdits = useRef<Map<string, Partial<AgencyClientWebsiteRow>>>(new Map());
 
   useEffect(() => {
-    setRows(initialRows);
+    setRows((prev) => {
+      const prevById = new Map(prev.map((row) => [row.id, row]));
+      return initialRows.map((row) => {
+        const local = localClientEdits.current.get(row.id);
+        if (local) return { ...row, ...local };
+        return prevById.get(row.id) ?? row;
+      });
+    });
   }, [initialRows]);
 
   const handleSaved = (websiteId: string, updates: Partial<AgencyClientWebsiteRow>) => {
+    localClientEdits.current.set(websiteId, updates);
     setRows((prev) =>
       prev.map((row) => (row.id === websiteId ? { ...row, ...updates } : row)),
+    );
+    setEditingRow((current) =>
+      current?.id === websiteId ? { ...current, ...updates } : current,
     );
     router.refresh();
   };
 
+  const mergedRows = useMemo(() => {
+    return rows.map((row) => {
+      const local = localClientEdits.current.get(row.id);
+      if (!local) return row;
+      const serverSynced =
+        local.clientNameRaw === row.clientNameRaw &&
+        local.clientCompany === row.clientCompany &&
+        local.clientStatus === row.clientStatus;
+      if (serverSynced) {
+        localClientEdits.current.delete(row.id);
+        return row;
+      }
+      return { ...row, ...local };
+    });
+  }, [rows, initialRows]);
+
   const filtered = useMemo(() => {
-    return rows.filter((row) => {
+    return mergedRows.filter((row) => {
       switch (filter) {
         case 'critical':
           return row.healthCategory === 'critical';
@@ -126,9 +154,9 @@ export function AgencyClientWebsitesTable({ rows: initialRows }: { rows: AgencyC
           return true;
       }
     });
-  }, [rows, filter]);
+  }, [mergedRows, filter]);
 
-  if (rows.length === 0) {
+  if (mergedRows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-indigo-700/40 bg-indigo-950/20 px-5 py-12 text-center">
         <p className="text-sm font-medium text-indigo-200">Add your first client website</p>

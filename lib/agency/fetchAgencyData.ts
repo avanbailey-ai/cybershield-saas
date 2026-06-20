@@ -3,6 +3,11 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AgencyClientWebsiteRow } from '@/components/agency/AgencyClientWebsitesView';
 import { resolveClientDisplayName, type WebsiteClientContext } from '@/lib/agency/clientContext';
+import {
+  filterCurrentAlertsByLatestScan,
+  latestScanHasCriticalHighFindings,
+  type LatestScanForAlertFreshness,
+} from '@/lib/agency/scanFreshness';
 import { getScoreBand, getWebsiteDisplayName, scoreToHealthCategory } from '@/lib/dashboard/dashboardCommandCenter';
 import { formatRelativeScanTime } from '@/lib/websiteHealth/healthCenterCopy';
 import { buildEnterpriseWebsiteRows } from '@/lib/enterprise/enterpriseCommandCenter';
@@ -119,6 +124,42 @@ export async function fetchAgencyClientWebsiteRows(
   });
 }
 
+export async function fetchLatestScansByWebsite(
+  admin: SupabaseClient,
+  orgId: string | null,
+  websiteIds: string[],
+): Promise<Map<string, LatestScanForAlertFreshness>> {
+  const latestByWebsite = new Map<string, LatestScanForAlertFreshness>();
+  if (websiteIds.length === 0) return latestByWebsite;
+
+  let query = admin
+    .from('scans')
+    .select('id, website_id, security_score, completed_at, issues, status')
+    .eq('status', 'completed')
+    .in('website_id', websiteIds)
+    .order('completed_at', { ascending: false })
+    .limit(websiteIds.length * 3);
+
+  if (orgId) {
+    query = query.eq('org_id', orgId);
+  }
+
+  const { data: scans } = await query;
+
+  for (const scan of scans ?? []) {
+    if (!scan.website_id || latestByWebsite.has(scan.website_id)) continue;
+    const issues = Array.isArray(scan.issues) ? (scan.issues as string[]) : [];
+    latestByWebsite.set(scan.website_id, {
+      scanId: scan.id,
+      score: scan.security_score,
+      completedAt: scan.completed_at,
+      hasCriticalHighFindings: latestScanHasCriticalHighFindings(scan.security_score, issues),
+    });
+  }
+
+  return latestByWebsite;
+}
+
 export async function fetchAgencyAlertGroups(
   admin: SupabaseClient,
   orgId: string,
@@ -139,12 +180,31 @@ export async function fetchAgencyAlertGroups(
   const { data: alerts } = await admin
     .from('alerts')
     .select(
-      'id, title, message, severity, created_at, website_id, websites(url, label, client_name, client_company, client_group)',
+      'id, title, message, severity, created_at, website_id, scan_id, websites(url, label, client_name, client_company, client_group)',
     )
     .eq('org_id', orgId)
     .eq('is_read', false)
     .order('created_at', { ascending: false })
     .limit(50);
+
+  const websiteIds = [
+    ...new Set(
+      (alerts ?? [])
+        .map((alert) => alert.website_id as string | null)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const latestByWebsite = await fetchLatestScansByWebsite(admin, orgId, websiteIds);
+
+  const currentAlerts = filterCurrentAlertsByLatestScan(
+    (alerts ?? []).map((alert) => ({
+      ...alert,
+      createdAt: alert.created_at as string,
+      scanId: alert.scan_id as string | null,
+      websiteId: alert.website_id as string | null,
+    })),
+    latestByWebsite,
+  );
 
   type AlertGroup = {
     websiteId: string;
@@ -161,7 +221,7 @@ export async function fetchAgencyAlertGroups(
 
   const groups = new Map<string, AlertGroup>();
 
-  for (const alert of alerts ?? []) {
+  for (const alert of currentAlerts) {
     const siteRaw = alert.websites as unknown;
     const site = (Array.isArray(siteRaw) ? siteRaw[0] : siteRaw) as WebsiteClientContext & {
       label: string | null;

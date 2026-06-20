@@ -11,8 +11,9 @@ import { canAccessAgencyDashboard } from '@/lib/agency/planGate';
 import { userFromSubscriptionAccess } from '@/lib/auth/enterpriseGateUser';
 import { ORG_CONTEXT_COOKIE, resolveOrgSessionContextFromSession } from '@/lib/org/sessionContext';
 import { getActiveOrgId } from '@/lib/org/context';
-import { fetchAgencyAlertGroups } from '@/lib/agency/fetchAgencyData';
+import { fetchAgencyAlertGroups, fetchLatestScansByWebsite } from '@/lib/agency/fetchAgencyData';
 import { AgencyAlertsGroupedView } from '@/components/agency/AgencyDashboardPanels';
+import { filterCurrentAlertsByLatestScan } from '@/lib/agency/scanFreshness';
 
 export const metadata: Metadata = {
   title: 'Alerts — CyberShield',
@@ -76,6 +77,33 @@ export default async function AlertsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
+  const websiteIds = [
+    ...new Set(
+      (alerts ?? [])
+        .map((alert) => alert.website_id as string | null)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  let filteredAlerts = alerts ?? [];
+  if (websiteIds.length > 0) {
+    const admin = createAdminClient();
+    const orgIdForScans = orgId ?? (await getActiveOrgId(user.id));
+    const latestByWebsite = await fetchLatestScansByWebsite(admin, orgIdForScans, websiteIds);
+
+    if (latestByWebsite.size > 0) {
+      filteredAlerts = filterCurrentAlertsByLatestScan(
+        (alerts ?? []).map((alert) => ({
+          ...alert,
+          createdAt: alert.created_at as string,
+          scanId: alert.scan_id as string | null,
+          websiteId: alert.website_id as string | null,
+        })),
+        latestByWebsite,
+      );
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col overflow-auto">
       <DashboardHeader email={user.email ?? 'User'} title="Alerts" />
@@ -86,7 +114,7 @@ export default async function AlertsPage() {
             Website health and monitoring notifications for your protected sites.
           </p>
         </div>
-        <AlertsList initialAlerts={(alerts ?? []) as unknown as AlertRow[]} />
+        <AlertsList initialAlerts={filteredAlerts as unknown as AlertRow[]} />
       </main>
     </div>
   );

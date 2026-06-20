@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { AgencyClientWebsiteRow } from '@/components/agency/AgencyClientWebsitesView';
+import { resolveClientDisplayName } from '@/lib/agency/clientContext';
 
 const REPORT_FREQUENCIES = [
   { value: '', label: 'Not set' },
@@ -111,17 +112,31 @@ export default function AgencyClientEditModal({ row, onClose, onSaved }: AgencyC
         return;
       }
 
+      const savedContext = {
+        client_name: data.client_name ?? payload.client_name,
+        client_company: data.client_company ?? payload.client_company,
+        client_contact_name: data.client_contact_name ?? payload.client_contact_name,
+        client_contact_email: data.client_contact_email ?? payload.client_contact_email,
+        client_report_frequency: data.client_report_frequency ?? payload.client_report_frequency,
+        client_status: data.client_status ?? payload.client_status,
+        client_notes: data.client_notes ?? payload.client_notes,
+        agency_internal_notes: data.agency_internal_notes ?? payload.agency_internal_notes,
+        client_group: null,
+        label: null,
+        url: row.url,
+      };
+
       setSuccess(true);
       onSaved(row.id, {
-        clientName: data.client_name?.trim() || row.displayName,
-        clientNameRaw: data.client_name ?? '',
-        clientCompany: data.client_company ?? '',
-        clientContactName: data.client_contact_name ?? '',
-        clientContactEmail: data.client_contact_email ?? '',
-        clientReportFrequency: data.client_report_frequency ?? '',
-        clientStatus: data.client_status ?? 'active',
-        clientNotes: data.client_notes ?? '',
-        agencyInternalNotes: data.agency_internal_notes ?? '',
+        clientName: resolveClientDisplayName(savedContext),
+        clientNameRaw: savedContext.client_name ?? '',
+        clientCompany: savedContext.client_company ?? '',
+        clientContactName: savedContext.client_contact_name ?? '',
+        clientContactEmail: savedContext.client_contact_email ?? '',
+        clientReportFrequency: savedContext.client_report_frequency ?? '',
+        clientStatus: savedContext.client_status ?? 'active',
+        clientNotes: savedContext.client_notes ?? '',
+        agencyInternalNotes: savedContext.agency_internal_notes ?? '',
       });
     } catch {
       setError('Network error — please try again.');

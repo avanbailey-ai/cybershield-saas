@@ -7,6 +7,35 @@ interface EnterpriseExportPdfButtonProps {
   disabled?: boolean;
 }
 
+async function requestPdfExport(orgId: string): Promise<{ ok: true; blob: Blob; filename: string } | { ok: false; status: number }> {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
+
+  const res = await fetch('/api/enterprise/export/pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      org_id: orgId,
+      date_range: {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    return { ok: false, status: res.status };
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match?.[1] ?? 'CyberShield-Security-Posture-Report.pdf';
+
+  return { ok: true, blob, filename };
+}
+
 export default function EnterpriseExportPdfButton({
   orgId,
   disabled = false,
@@ -21,47 +50,28 @@ export default function EnterpriseExportPdfButton({
     setSuccess(null);
 
     try {
-      const end = new Date();
-      const start = new Date();
-      start.setDate(start.getDate() - 30);
+      let result = await requestPdfExport(orgId);
 
-      const res = await fetch('/api/enterprise/export/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          org_id: orgId,
-          date_range: {
-            start: start.toISOString(),
-            end: end.toISOString(),
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? `Export failed (${res.status})`);
+      if (!result.ok && result.status >= 500) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        result = await requestPdfExport(orgId);
       }
 
-      const blob = await res.blob();
-      const disposition = res.headers.get('Content-Disposition') ?? '';
-      const match = disposition.match(/filename="([^"]+)"/);
-      const filename = match?.[1] ?? 'CyberShield-Security-Posture-Report.pdf';
+      if (!result.ok) {
+        throw new Error('export_failed');
+      }
 
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(result.blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = filename;
+      anchor.download = result.filename;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
       setSuccess('Security posture report downloaded.');
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? `${err.message}. Try again or contact support if the issue persists.`
-          : 'Export failed — try again or contact support.',
-      );
+    } catch {
+      setError('Export failed. Try again.');
     } finally {
       setLoading(false);
     }
@@ -90,8 +100,8 @@ export default function EnterpriseExportPdfButton({
         </div>
       )}
       {error && (
-        <p className="max-w-xs text-right text-xs text-red-400">
-          Couldn&apos;t export the report. Please try again.
+        <p className="max-w-xs text-right text-xs text-red-400" role="alert">
+          {error}
         </p>
       )}
     </div>
