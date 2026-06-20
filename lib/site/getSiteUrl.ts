@@ -41,5 +41,9 @@ export function getSiteUrl(): string {
 
 /** Prefer env-aware URL; fall back to production .com when unset. */
 export function resolveSiteUrl(): string {
-  return getSiteUrl() || PRODUCTION_SITE_URL;
+  const url = getSiteUrl() || PRODUCTION_SITE_URL;
+  if (url === 'https://cybershieldcloud.com') {
+    return PRODUCTION_SITE_URL;
+  }
+  return url;
 }

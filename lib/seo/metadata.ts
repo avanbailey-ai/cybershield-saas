@@ -13,16 +13,18 @@ type PageMetadataInput = {
 export function buildPageMetadata(input: PageMetadataInput): Metadata {
   const base = resolveSiteUrl();
   const canonical = `${base}${input.path}`;
-  const title = input.title.includes(SEO_BRAND) ? input.title : `${input.title} | ${SEO_BRAND}`;
+  const fullTitle = input.title.includes(SEO_BRAND)
+    ? input.title
+    : `${input.title} | ${SEO_BRAND}`;
 
   return {
-    title,
+    title: { absolute: fullTitle },
     description: input.description,
     keywords: input.keywords,
     alternates: { canonical },
     robots: input.noIndex ? { index: false, follow: false } : { index: true, follow: true },
     openGraph: {
-      title,
+      title: fullTitle,
       description: input.description,
       url: canonical,
       siteName: SEO_BRAND,
@@ -31,7 +33,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: fullTitle,
       description: input.description,
     },
   };
