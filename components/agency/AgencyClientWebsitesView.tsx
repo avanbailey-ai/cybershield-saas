@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { PortfolioHealthSummary } from '@/lib/agency/agencyInsights';
 import { getScoreBand } from '@/lib/dashboard/dashboardCommandCenter';
+import AgencyClientEditModal from '@/components/agency/AgencyClientEditModal';
 
 interface AgencyPortfolioHealthCardProps {
   summary: PortfolioHealthSummary;
@@ -48,6 +50,13 @@ function Stat({ label, value, tone = 'text-white' }: { label: string; value: str
 export interface AgencyClientWebsiteRow {
   id: string;
   clientName: string;
+  clientNameRaw?: string | null;
+  clientCompany?: string | null;
+  clientContactName?: string | null;
+  clientContactEmail?: string | null;
+  clientNotes?: string | null;
+  clientReportFrequency?: string | null;
+  agencyInternalNotes?: string | null;
   displayName: string;
   url: string;
   score: number | null;
@@ -81,8 +90,22 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'ssl_issue', label: 'SSL issue' },
 ];
 
-export function AgencyClientWebsitesTable({ rows }: { rows: AgencyClientWebsiteRow[] }) {
+export function AgencyClientWebsitesTable({ rows: initialRows }: { rows: AgencyClientWebsiteRow[] }) {
+  const router = useRouter();
+  const [rows, setRows] = useState(initialRows);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [editingRow, setEditingRow] = useState<AgencyClientWebsiteRow | null>(null);
+
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
+
+  const handleSaved = (websiteId: string, updates: Partial<AgencyClientWebsiteRow>) => {
+    setRows((prev) =>
+      prev.map((row) => (row.id === websiteId ? { ...row, ...updates } : row)),
+    );
+    router.refresh();
+  };
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
@@ -187,6 +210,13 @@ export function AgencyClientWebsitesTable({ rows }: { rows: AgencyClientWebsiteR
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingRow(row)}
+                        className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
+                      >
+                        Edit client
+                      </button>
                       <Link
                         href={`/app/websites/${row.id}/health`}
                         className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
@@ -210,6 +240,12 @@ export function AgencyClientWebsitesTable({ rows }: { rows: AgencyClientWebsiteR
           </tbody>
         </table>
       </div>
+
+      <AgencyClientEditModal
+        row={editingRow}
+        onClose={() => setEditingRow(null)}
+        onSaved={handleSaved}
+      />
     </div>
   );
 }

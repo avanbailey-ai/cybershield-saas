@@ -96,6 +96,13 @@ export async function fetchAgencyClientWebsiteRows(
     return {
       id: w.id,
       clientName,
+      clientNameRaw: w.client_name,
+      clientCompany: w.client_company,
+      clientContactName: w.client_contact_name,
+      clientContactEmail: w.client_contact_email,
+      clientNotes: w.client_notes,
+      clientReportFrequency: w.client_report_frequency,
+      agencyInternalNotes: w.agency_internal_notes,
       displayName: getWebsiteDisplayName(w.label, w.url),
       url: w.url,
       score,

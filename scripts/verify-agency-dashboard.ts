@@ -48,6 +48,15 @@ assert(sidebar.includes('Client Websites'), 'Agency nav has Client Websites');
 assert(sidebar.includes('Client Reports'), 'Agency nav has Client Reports');
 assert(!sidebar.includes('Founder OS'), 'Founder OS not in agency sidebar');
 assert(!sidebar.includes('/app/admin/owner'), 'Owner routes not in agency sidebar');
+assert(!sidebar.includes('Website Memory'), 'duplicate Website Memory nav removed');
+
+// --- Client edit UI ---
+const clientWebsitesView = read('components/agency/AgencyClientWebsitesView.tsx');
+assert(clientWebsitesView.includes('Edit client'), 'client websites table has edit action');
+assert(fs.existsSync(path.join(ROOT, 'components/agency/AgencyClientEditModal.tsx')), 'client edit modal exists');
+const editModal = read('components/agency/AgencyClientEditModal.tsx');
+assert(editModal.includes('/api/websites/'), 'edit modal uses PATCH endpoint');
+assert(editModal.includes('agency_internal_notes'), 'internal notes field in edit modal');
 
 // --- Agency dashboard components ---
 const dashboard = read('components/enterprise/EnterpriseAgencyDashboard.tsx');
