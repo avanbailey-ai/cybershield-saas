@@ -124,7 +124,7 @@ export default function CheckoutContextPanel({
           </div>
 
           <p className="mt-4 text-center text-xs text-gray-600">
-            Secure Stripe checkout · Cancel anytime · 30-day guarantee
+            Secure Stripe checkout · Cancel anytime · Refund policy applies
           </p>
         </div>
       </div>

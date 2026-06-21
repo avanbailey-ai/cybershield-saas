@@ -32,7 +32,7 @@ function riskReminderHtml(name: string, domain?: string | null): string {
     <div style="padding:32px;">
       <p style="color:#374151;font-size:16px;">Hi ${escapeHtml(name)},</p>
       <p style="color:#374151;font-size:14px;line-height:1.6;">Thanks for reaching out about securing ${target}. Enterprise teams face evolving threats — misconfigurations, missing headers, and compliance gaps compound quickly at scale.</p>
-      <p style="color:#374151;font-size:14px;">CyberShield provides continuous monitoring with audit-ready logs and multi-tenant controls built for security teams.</p>
+      <p style="color:#374151;font-size:14px;">CyberShield provides scheduled monitoring with scan history and multi-tenant org controls for security teams.</p>
       <a href="${siteUrl()}/enterprise/pricing" style="display:block;margin-top:24px;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">View Enterprise Plans →</a>
     </div>
   </div>
@@ -44,12 +44,12 @@ function caseStudyHtml(name: string): string {
 <html><body style="font-family:system-ui,sans-serif;background:#f9fafb;margin:0;padding:20px;">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
     <div style="background:#0f172a;padding:24px 32px;">
-      <h1 style="color:#fff;margin:0;font-size:22px;">How a SaaS Team Cut Risk 62%</h1>
+      <h1 style="color:#fff;margin:0;font-size:22px;">How teams use continuous monitoring</h1>
     </div>
     <div style="padding:32px;">
       <p style="color:#374151;font-size:16px;">Hi ${escapeHtml(name)},</p>
-      <p style="color:#374151;font-size:14px;line-height:1.6;">A mid-market SaaS company reduced their security score from 38 to 91 in 90 days using CyberShield's continuous scanning and remediation workflow.</p>
-      <p style="color:#374151;font-size:14px;">Key wins: automated header checks, weekly executive summaries, and SOC2-ready audit trails.</p>
+      <p style="color:#374151;font-size:14px;line-height:1.6;">Illustrative example: a SaaS team uses scheduled header and SSL checks plus change alerts to prioritize fixes across many domains.</p>
+      <p style="color:#374151;font-size:14px;">Key capabilities: automated header checks, weekly digests, and scan history exports.</p>
       <a href="${siteUrl()}/enterprise/case-studies" style="display:block;margin-top:24px;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">Read Case Studies →</a>
     </div>
   </div>
@@ -65,7 +65,7 @@ function monitoringCtaHtml(name: string): string {
     </div>
     <div style="padding:32px;">
       <p style="color:#374151;font-size:16px;">Hi ${escapeHtml(name)},</p>
-      <p style="color:#374151;font-size:14px;line-height:1.6;">Automated scans catch issues once — continuous monitoring catches drift before attackers do. Upgrade to CyberShield continuous monitoring for audit-ready logs and real-time alerts.</p>
+      <p style="color:#374151;font-size:14px;line-height:1.6;">One-time scans show today's posture — continuous monitoring helps you notice configuration drift over time. CyberShield sends email alerts when supported changes or issues are detected.</p>
       <p style="color:#6b7280;font-size:13px;">This is an automated follow-up. No phone call is required or scheduled.</p>
       <a href="${siteUrl()}/enterprise/pricing?focus=continuousMonitoring" style="display:block;margin-top:24px;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">View Continuous Monitoring →</a>
     </div>

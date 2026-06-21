@@ -52,7 +52,7 @@ export function securityAlertEmail(data: {
       <!-- Why it matters -->
       <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:16px;border-radius:0 8px 8px 0;margin-bottom:24px;">
         <p style="margin:0;color:#92400e;font-size:14px;line-height:1.5;">
-          <strong>Why this matters:</strong> Security vulnerabilities can expose your website to hackers, damage your SEO rankings, and erode customer trust. These issues are typically quick to fix with your web developer.
+          <strong>Why this matters:</strong> Missing security headers and TLS issues can increase risk, hurt SEO, and erode customer trust. Many fixes are straightforward with your web developer.
         </p>
       </div>
 

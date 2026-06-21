@@ -269,7 +269,7 @@ export default function UpgradeModal({
 
         {trustSignals && (
           <div className="mx-5 mb-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-500 sm:mx-6">
-            <span>30-day money-back guarantee</span>
+            <span>Refund requests reviewed case-by-case — see refund policy</span>
             <span>Cancel anytime</span>
             <span>Secure Stripe checkout</span>
           </div>

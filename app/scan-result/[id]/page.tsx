@@ -126,7 +126,7 @@ export default async function SharedScanResultPage({ params }: PageProps) {
               ))}
             </div>
             <p className="mt-4 text-xs text-gray-500">
-              Full exploit scenarios, remediation assistant, send-to-developer, and ticket
+              Full risk context, remediation guidance, send-to-developer, and ticket
               generation require a CyberShield account. Run your own scan or enable monitoring for
               complete intelligence.
             </p>

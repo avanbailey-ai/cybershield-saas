@@ -18,16 +18,16 @@ const COMPANY_SIZES = ['1-10', '11-50', '51-200', '201-500', '500+'] as const;
 
 const SECURITY_NEED_GROUPS = [
   {
-    title: 'Compliance',
-    needs: ['SOC2', 'Audit Logs', 'Custom SLA'],
+    title: 'Compliance conversations',
+    needs: ['SOC 2 planning (custom)', 'Audit log exports', 'Custom SLA inquiry'],
   },
   {
     title: 'Identity',
-    needs: ['SSO / SAML', 'Multi-tenant Management'],
+    needs: ['SSO / SAML (custom inquiry)', 'Multi-tenant management'],
   },
   {
-    title: 'Security Coverage',
-    needs: ['Continuous Monitoring', 'Penetration Testing', 'API Security'],
+    title: 'Coverage',
+    needs: ['Continuous monitoring', 'Third-party security review referral', 'API surface review (headers/config)'],
   },
 ] as const;
 
@@ -174,7 +174,7 @@ export default function EnterpriseLeadForm({ variant = 'lead' }: EnterpriseLeadF
         <main className="mx-auto max-w-xl px-4 py-16 text-center">
           <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-8">
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-300/80">
-              Automated Security Review System
+              Security review request received
             </p>
             <h1 className="mt-2 text-2xl font-bold text-white">Security review received</h1>
             <p className="mt-3 text-gray-300">

@@ -251,7 +251,7 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                   title={ENTERPRISE_COMMAND_CENTER_COPY.needsAttentionTitle}
                   subtitle="Client properties that need a review before your next check-in"
                   whatHappened={`${data.needsAttention.length} propert${data.needsAttention.length === 1 ? 'y' : 'ies'} below your healthy threshold.`}
-                  whyItMatters="Early review prevents client-facing incidents and strengthens your agency's trusted-advisor role."
+                  whyItMatters="Early review helps clients prioritize fixes and strengthens your agency's trusted-advisor role."
                   whatNext="Open each report, prioritize fixes, and schedule client follow-ups."
                 />
                 {data.needsAttention.length === 0 ? (

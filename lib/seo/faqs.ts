@@ -52,6 +52,6 @@ export const LANDING_FAQS = [
   {
     question: 'Is there a free option?',
     answer:
-      'Yes. Use the free public scan at /scan with no account required. Ongoing monitoring, full reports, and alerts require a paid plan.',
+      'Yes. Use the free public scan at /scan with no account required. The preview shows your score and up to two issue headlines. Ongoing monitoring, full reports, and alerts require a paid plan.',
   },
 ] as const;

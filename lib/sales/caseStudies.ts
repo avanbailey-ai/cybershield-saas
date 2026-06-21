@@ -3,64 +3,56 @@ export interface CaseStudy {
   title: string;
   industry: string;
   companySize: string;
-  beforeScore: number;
-  afterScore: number;
-  riskReductionPercent: number;
-  timeline: string;
   summary: string;
   highlights: string[];
+  /** Illustrative scenario — not a verified customer outcome */
+  illustrative: true;
 }
 
 export const CASE_STUDIES: CaseStudy[] = [
   {
     id: 'saas-monitoring',
-    title: 'Mid-Market SaaS Platform',
+    title: 'Mid-Market SaaS Platform (illustrative)',
     industry: 'B2B SaaS',
     companySize: '150 employees',
-    beforeScore: 38,
-    afterScore: 91,
-    riskReductionPercent: 62,
-    timeline: '90 days',
+    illustrative: true,
     summary:
-      'A growing SaaS company needed continuous security monitoring across 40+ production domains without adding headcount.',
+      'Example: a growing SaaS team wants continuous header and SSL monitoring across many production domains without adding headcount.',
     highlights: [
-      'Automated weekly scans across all environments',
-      'SOC2-ready audit log exports',
-      'Reduced mean time to remediate by 4x',
+      'Scheduled scans across monitored environments',
+      'Scan history for change review',
+      'Plain-English remediation guidance for developers',
     ],
   },
   {
     id: 'fintech-compliance',
-    title: 'Regulated Fintech Startup',
+    title: 'Regulated Fintech Startup (illustrative)',
     industry: 'Financial Services',
     companySize: '80 employees',
-    beforeScore: 45,
-    afterScore: 88,
-    riskReductionPercent: 48,
-    timeline: '60 days',
+    illustrative: true,
     summary:
-      'A fintech team preparing for SOC2 Type II needed proof of continuous security monitoring and header compliance.',
+      'Example: a fintech team wants ongoing visibility into TLS and security header posture while planning a formal compliance program.',
     highlights: [
-      'Multi-tenant org structure with RBAC',
-      'Executive summary reports for auditors',
-      'SSO-ready architecture alignment',
+      'Multi-tenant org structure with role-based access',
+      'Reports from real scan data for internal review',
+      'Custom enterprise options available by sales inquiry',
     ],
   },
   {
     id: 'agency-portfolio',
-    title: 'Digital Agency Portfolio',
+    title: 'Digital Agency Portfolio (illustrative)',
     industry: 'Agency / MSP',
     companySize: '35 employees',
-    beforeScore: 52,
-    afterScore: 94,
-    riskReductionPercent: 44,
-    timeline: '45 days',
+    illustrative: true,
     summary:
-      'An agency managing 100+ client websites consolidated security monitoring into a single dashboard with client-ready reports.',
+      'Example: an agency managing many client websites consolidates monitoring into one dashboard with client-ready copy exports.',
     highlights: [
-      '100+ websites under one org',
-      'White-label executive summaries',
-      'Automated client alert digests',
+      'Up to 250 websites on Agency plan',
+      'Client-ready report copy (manual export — no auto client emails)',
+      'Weekly digest emails for the organization',
     ],
   },
 ];
+
+export const CASE_STUDIES_DISCLAIMER =
+  'Illustrative scenarios for planning conversations. These are not verified customer outcomes or guaranteed results.';

@@ -91,10 +91,11 @@ export default async function EnterpriseOnboardingPage({
         )}
 
         <p className="text-xs font-semibold uppercase tracking-widest text-blue-500">Agency plan</p>
-        <h1 className="mt-3 text-3xl font-bold text-white">Your enterprise security command center</h1>
+        <h1 className="mt-3 text-3xl font-bold text-white">Your agency monitoring dashboard</h1>
         <p className="mt-4 text-gray-400">
-          You now have access to team management, hourly automated monitoring, and unlimited website
-          tracking — all in a dedicated enterprise dashboard separate from the standard SMB product.
+          You now have access to team management, scheduled monitoring, and up to{' '}
+          {formatWebsiteLimit(limits.websites)} — in a dedicated portal separate from the standard SMB
+          product.
         </p>
 
         <ul className="mt-8 space-y-4">

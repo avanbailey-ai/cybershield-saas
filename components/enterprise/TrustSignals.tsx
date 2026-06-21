@@ -1,7 +1,8 @@
 const TRUST_BULLETS = [
   {
-    title: 'SOC2-Ready Architecture',
-    description: 'Audit logs, encryption at rest, and role-based access controls built in from day one.',
+    title: 'Organization-Ready Access',
+    description:
+      'Role-based org membership with isolated data per tenant. Agency plans support multi-client portfolios.',
     icon: (
       <path
         strokeLinecap="round"
@@ -12,7 +13,7 @@ const TRUST_BULLETS = [
   },
   {
     title: 'Multi-Tenant by Design',
-    description: 'Organizations, teams, and seat limits with isolated data per tenant.',
+    description: 'Organizations, teams, and website limits with data scoped to your org.',
     icon: (
       <path
         strokeLinecap="round"
@@ -22,8 +23,9 @@ const TRUST_BULLETS = [
     ),
   },
   {
-    title: 'Complete Audit Logs',
-    description: 'Every scan, alert, and admin action tracked for compliance and forensics.',
+    title: 'Scan & Alert History',
+    description:
+      'Completed scans, findings, and alert events stored for your organization — not a compliance certification.',
     icon: (
       <path
         strokeLinecap="round"
@@ -33,8 +35,8 @@ const TRUST_BULLETS = [
     ),
   },
   {
-    title: 'SSO-Ready',
-    description: 'Enterprise identity integration path for SAML and OAuth providers.',
+    title: 'Custom Enterprise Options',
+    description: 'SSO, larger limits, and custom review workflows available by sales inquiry — not self-serve today.',
     icon: (
       <path
         strokeLinecap="round"

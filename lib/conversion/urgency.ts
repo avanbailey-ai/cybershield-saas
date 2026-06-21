@@ -44,7 +44,7 @@ export function getUrgencyMessage(score: number, domain?: string): UrgencyMessag
     return {
       level: 'high',
       headline: 'Critical vulnerabilities found — your site is exposed right now.',
-      subtext: `${site} scored ${score}/100. Enable continuous protection before attackers exploit these gaps.`,
+      subtext: `${site} scored ${score}/100. Enable continuous monitoring to track configuration changes over time.`,
       highlightPlan: 'growth',
     };
   }

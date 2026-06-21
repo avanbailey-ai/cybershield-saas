@@ -14,7 +14,7 @@ const features = [
     title: "Security Scoring",
     href: "/features/website-security-monitoring",
     description:
-      "A 0–100 score tracks your posture over time. When headers disappear or vulnerabilities appear, the score drops — and you get context on why.",
+      "A 0–100 score tracks your posture over time. When headers disappear or new findings appear, the score drops — with context on why.",
   },
   {
     icon: "lock",
@@ -35,7 +35,7 @@ const features = [
     title: "Continuous Monitoring",
     href: "/features/website-security-monitoring",
     description:
-      "Pro checks daily, Growth hourly, Agency priority sites every 5 minutes. Catch downtime, certificate issues, and malicious changes between manual reviews.",
+      "Pro checks daily, Growth hourly, Agency priority sites every 5 minutes. Catch HTTP errors, certificate issues, and configuration changes between manual reviews.",
   },
   {
     icon: "bell",
@@ -91,7 +91,7 @@ export default function Features() {
             Monitor what matters to your business
           </h2>
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-gray-400 sm:text-base">
-            SSL expiry, downtime, security gaps, and unauthorized changes — each can cost trust,
+            SSL expiry, HTTP status signals, security gaps, and configuration changes — each can cost trust,
             leads, and revenue. CyberShield watches continuously so you can respond early.{' '}
             <Link href="/features" className="text-blue-400 hover:text-blue-300">
               Explore all features →

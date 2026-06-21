@@ -59,7 +59,7 @@ function followUpEmailHtml(domain: string, score: number): string {
       <h1 style="color:#fff;margin:0;font-size:22px;">Still thinking about ${escapeHtml(domain)}?</h1>
     </div>
     <div style="padding:32px;">
-      <p style="color:#374151;font-size:16px;line-height:1.6;">Yesterday you scanned <strong>${escapeHtml(domain)}</strong> (score: ${score}/100). Security issues don't fix themselves — enable continuous monitoring to catch new vulnerabilities before attackers do.</p>
+      <p style="color:#374151;font-size:16px;line-height:1.6;">Yesterday you scanned <strong>${escapeHtml(domain)}</strong> (score: ${score}/100). Security issues don't fix themselves — enable continuous monitoring to catch new configuration risks and changes over time.</p>
       <a href="${siteUrl()}/pricing" style="display:block;margin-top:24px;background:#2563eb;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">Start Monitoring →</a>
     </div>
   </div>
@@ -75,8 +75,8 @@ function highRiskEmailHtml(domain: string, score: number): string {
     </div>
     <div style="padding:32px;">
       <p style="color:#374151;font-size:16px;line-height:1.6;"><strong>${escapeHtml(domain)}</strong> scored <strong>${score}/100</strong> — this indicates critical security gaps that need immediate attention.</p>
-      <p style="color:#374151;font-size:14px;">Unencrypted traffic, missing security headers, and misconfigurations leave your site vulnerable to attacks.</p>
-      <a href="${siteUrl()}/pricing" style="display:block;margin-top:24px;background:#dc2626;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">Protect Your Site Now →</a>
+      <p style="color:#374151;font-size:14px;">Missing security headers and TLS misconfigurations can increase risk — monitoring helps you spot changes early.</p>
+      <a href="${siteUrl()}/pricing" style="display:block;margin-top:24px;background:#dc2626;color:#fff;text-decoration:none;padding:14px;border-radius:8px;text-align:center;font-weight:600;">Start Monitoring →</a>
     </div>
   </div>
 </body></html>`;

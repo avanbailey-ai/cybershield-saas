@@ -109,7 +109,7 @@ export const ENTERPRISE_MARKETING = {
     'Custom reporting',
     'Priority support',
     'Organization controls',
-    'Audit logs & compliance reporting path',
+    'Audit-friendly scan history for internal review',
   ],
   cta: 'Contact Sales',
 } as const;

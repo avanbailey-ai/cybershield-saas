@@ -264,7 +264,7 @@ export default function ScanResultPaywall({
                       Why it matters
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400 blur-[3px] select-none">
-                      Business impact and exploit context locked on Free plan
+                      Business impact and risk context locked on Free plan
                     </p>
                   </div>
                   <div>

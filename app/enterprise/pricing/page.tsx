@@ -6,7 +6,8 @@ import { buildPageMetadata } from '@/lib/seo/metadata';
 
 export const metadata: Metadata = buildPageMetadata({
   title: 'Enterprise Security — CyberShield Cloud',
-  description: 'Enterprise security monitoring, compliance reporting, and dedicated support for regulated teams.',
+  description:
+    'Custom website security monitoring and security review inquiries for larger teams — contact sales to scope coverage.',
   path: '/enterprise/pricing',
   noIndex: true,
 });
@@ -20,12 +21,12 @@ export default function EnterprisePricingPage() {
       name: 'Enterprise Protection',
       subtitle: 'For security-conscious organizations',
       features: [
-        'Unlimited websites & seats',
+        'Custom website limits (Agency self-serve: up to 250 sites)',
         'Multi-tenant org management',
-        'SOC2-ready audit logs',
-        'SSO / SAML integration path',
-        'Dedicated security review',
-        'Custom SLA & support',
+        'Scan & alert history exports',
+        'SSO / SAML — available by custom inquiry',
+        'Dedicated security review (sales-led)',
+        'Priority support — scoped in custom agreements',
       ],
       cta: 'Request security review',
       ctaHref: '/enterprise/review',
@@ -35,11 +36,11 @@ export default function EnterprisePricingPage() {
       name: 'Security Audit',
       subtitle: 'One-time comprehensive assessment',
       features: [
-        'Full vulnerability assessment',
-        'Executive summary report',
-        'Remediation roadmap',
-        'Compliance gap analysis',
+        'Configuration & header review (not penetration testing)',
+        'Executive summary from scan data',
+        'Remediation guidance and prioritization',
         'Optional ongoing monitoring handoff',
+        'Custom compliance conversations — contact sales',
       ],
       cta: 'Request audit',
       ctaHref: '/enterprise/lead?message=Security+Audit+inquiry',

@@ -25,8 +25,8 @@ export default function Hero() {
 
             <p className="max-w-xl text-sm leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
               CyberShield Cloud monitors business websites for security settings, SSL certificate
-              issues, domain problems, uptime changes, and unexpected website changes — with alerts
-              before customers see browser warnings.
+              issues, domain registration signals, HTTP status from scans, and configuration changes — with
+              alerts when supported issues are detected.
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">

@@ -18,7 +18,7 @@ export const FEATURE_PAGES: FeaturePageDef[] = [
       'Monitor website security posture continuously with scores, alerts, and change detection — built for small businesses and agencies.',
     keywords: ['website security monitoring', 'website monitoring software', 'security monitoring'],
     intro:
-      'CyberShield Cloud watches your websites around the clock so you know when security posture shifts — not weeks later during a manual audit.',
+      'CyberShield Cloud monitors your websites on a schedule that matches your paid plan so you know when security posture shifts — not weeks later during a manual review.',
     benefits: [
       'Automated security scans on a schedule that matches your plan',
       'Security score tracking with historical context',
@@ -47,7 +47,7 @@ export const FEATURE_PAGES: FeaturePageDef[] = [
   {
     slug: 'website-change-detection',
     title: 'Website Change Detection',
-    headline: 'Detect unauthorized website changes',
+    headline: 'Detect website configuration changes',
     description:
       'Website change detection for scripts, headers, SSL events, and security score shifts — with a timeline your team can audit.',
     keywords: ['website change detection', 'website monitoring', 'security change alerts'],
@@ -57,7 +57,7 @@ export const FEATURE_PAGES: FeaturePageDef[] = [
       'Change timeline per website',
       'Alerts for new scripts and removed security headers',
       'Score drop detection with context',
-      'Audit-friendly history for agencies and compliance conversations',
+      'Audit-friendly change history for agencies and internal review',
     ],
     relatedSlugs: ['website-security-monitoring', 'website-intelligence', 'security-reports'],
   },
@@ -71,7 +71,7 @@ export const FEATURE_PAGES: FeaturePageDef[] = [
     intro:
       'Domain lapses and DNS misconfigurations can remove your site from the internet entirely. CyberShield tracks domain-related signals with your security program.',
     benefits: [
-      'Domain signals alongside SSL and uptime checks',
+      'Monitor domain registration signals alongside SSL and HTTP status from scheduled scans',
       'Early warning when configuration drifts',
       'Unified view in the Health Center',
       'Works with multi-site agency portfolios',
@@ -86,10 +86,10 @@ export const FEATURE_PAGES: FeaturePageDef[] = [
       'Website health monitoring with security scores, SSL status, uptime signals, and actionable fix guidance in one dashboard.',
     keywords: ['website health monitoring', 'website health score', 'website risk assessment'],
     intro:
-      'Health monitoring should answer one question fast: is this website safe and available for customers right now?',
+      'Health monitoring summarizes security score, SSL status, and recent scan HTTP status — not dedicated uptime probes on every plan.',
     benefits: [
       '0–100 security health score per site',
-      'SSL, headers, and uptime in one view',
+      'SSL, headers, and recent scan status in one view',
       'Trend visibility over time',
       'Prioritized issues with plain-language explanations',
     ],
@@ -125,7 +125,7 @@ export const FEATURE_PAGES: FeaturePageDef[] = [
       'Monitor up to 250 websites on Agency plans',
       '5-minute priority monitoring for critical client sites',
       'Per-client Health Center and change history',
-      'White-label friendly reporting workflows',
+      'Client-ready report copy exports (manual — CyberShield does not email clients automatically)',
     ],
     relatedSlugs: ['website-security-monitoring', 'security-reports', 'website-intelligence'],
   },

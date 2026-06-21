@@ -101,7 +101,7 @@ function customerAutoResponseHtml(
 <html><body style="font-family:system-ui,sans-serif;background:#f9fafb;margin:0;padding:20px;">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
     <div style="background:#0f172a;padding:24px 32px;">
-      <p style="color:#94a3b8;margin:0;font-size:12px;text-transform:uppercase;">Automated Security Review System</p>
+      <p style="color:#94a3b8;margin:0;font-size:12px;text-transform:uppercase;">Security review request</p>
       <h1 style="color:#fff;margin:8px 0 0;font-size:22px;">Your Security Review Has Been Received</h1>
     </div>
     <div style="padding:32px;">

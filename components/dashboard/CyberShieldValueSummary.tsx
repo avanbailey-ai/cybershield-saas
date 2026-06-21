@@ -55,7 +55,7 @@ export default function CyberShieldValueSummary({
         <MetricCell label="Domain risks flagged" value={metrics.domainRisksFlagged} />
         <MetricCell label="Downtime events" value={metrics.downtimeEvents} />
         <MetricCell
-          label="Sites online"
+          label="Sites healthy (score ≥70)"
           value={metrics.sitesAllOnline}
           suffix={` / ${metrics.websitesMonitored}`}
         />

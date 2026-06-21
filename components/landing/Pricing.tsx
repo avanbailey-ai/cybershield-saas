@@ -57,10 +57,10 @@ const smbPlans = [
 const freePlan = {
   id: 'free' as const,
   name: 'Free Scan',
-  description: 'One-time preview only — top 3 findings shown, no continuous monitoring.',
+  description: 'One-time preview only — top 2 findings shown, no continuous monitoring.',
   features: [
     'One-time risk score',
-    'Top 3 vulnerabilities shown',
+    'Top 2 issue headlines shown',
     'No account required',
     'Attack surface mapping not included',
     'Change detection not included',
@@ -211,7 +211,7 @@ function PricingInner() {
           </p>
           {trustSignals && (
             <p className="mx-auto mt-3 max-w-xl text-xs text-gray-500">
-              Secure checkout · Cancel anytime · 30-day guarantee
+              Secure checkout · Cancel anytime · Refund requests reviewed case-by-case
             </p>
           )}
         </div>

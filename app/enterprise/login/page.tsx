@@ -18,7 +18,7 @@ const bullets = [
   'Organization-wide security visibility',
   'Team member access controls',
   'Centralized scan reporting',
-  'Enterprise SLA support',
+  'Priority support on custom plans (contact sales)',
 ];
 
 export default function EnterpriseLoginPage() {
