@@ -27,7 +27,7 @@ const ScanInput = dynamic(() => import("@/components/landing/ScanInput"), {
 export const metadata = buildPageMetadata({
   title: 'CyberShield Cloud — Website Security Monitoring for Businesses and Agencies',
   description:
-    'Run a free website security scan, monitor security changes, receive alerts, and generate plain-English reports for your business or clients.',
+    'CyberShield Cloud helps small businesses, agencies, and website owners monitor common website security risks, detect changes, and generate plain-English security reports.',
   path: '/',
   keywords: [
     "website security monitoring",

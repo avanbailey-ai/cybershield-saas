@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { SEO_SALES_EMAIL } from '@/lib/seo/constants';
 import { useSearchParams } from 'next/navigation';
 import {
   PLAN_LIMITS,
@@ -47,7 +48,7 @@ const smbPlans = [
       'Continuous protection with hourly monitoring, change detection, and trend tracking.',
     roiLine: 'Hourly monitoring catches new risks between deep scans.',
     features: getPlanMarketing('growth').bullets,
-    cta: 'Enable Continuous Protection',
+    cta: 'Start Monitoring',
     highlighted: false,
     stripePlan: 'growth' as const,
   },
@@ -319,7 +320,7 @@ function PricingInner() {
               <h3 className="mt-2 text-2xl font-bold text-white">{PLAN_LIMITS.agency.name}</h3>
               <p className="mt-2 text-sm text-gray-400">{getPlanMarketing('agency').tagline}</p>
               <ul className="mt-4 space-y-2 text-sm text-gray-400">
-                {getPlanMarketing('agency').bullets.slice(0, 4).map((item) => (
+                {getPlanMarketing('agency').bullets.map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <span className="text-purple-400">✓</span>
                     {item}
@@ -335,7 +336,7 @@ function PricingInner() {
                 disabled={loading !== null}
                 className="mt-4 rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-purple-500 disabled:opacity-60"
               >
-                {loading === 'agency' ? 'Redirecting…' : 'Upgrade to Agency'}
+                {loading === 'agency' ? 'Redirecting…' : 'Start Agency Plan'}
               </button>
             </div>
           </div>
@@ -357,6 +358,13 @@ function PricingInner() {
               ))}
             </ul>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a
+                href={`mailto:${SEO_SALES_EMAIL}?subject=Enterprise%20plan%20inquiry`}
+                onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_sales' })}
+                className="rounded-lg bg-amber-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
+              >
+                {ENTERPRISE_MARKETING.cta}
+              </a>
               <Link
                 href={
                   funnelState
@@ -364,17 +372,17 @@ function PricingInner() {
                     : '/enterprise/review'
                 }
                 onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_review' })}
-                className="rounded-lg bg-amber-600 px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-amber-500"
-              >
-                {ENTERPRISE_MARKETING.cta}
-              </Link>
-              <Link
-                href="/enterprise/login"
                 className="rounded-lg border border-gray-700 px-8 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
               >
-                Enterprise Login
+                Request Security Review
               </Link>
             </div>
+            <p className="mt-4 text-xs text-gray-500">
+              Enterprise inquiries:{' '}
+              <a href={`mailto:${SEO_SALES_EMAIL}`} className="text-blue-400 hover:text-blue-300">
+                {SEO_SALES_EMAIL}
+              </a>
+            </p>
           </div>
         </div>
       </div>

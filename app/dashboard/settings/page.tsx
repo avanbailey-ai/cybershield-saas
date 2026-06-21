@@ -13,6 +13,7 @@ import { getUserWithPlan } from "@/lib/billing/planService";
 import { getActiveOrgId } from "@/lib/org/context";
 import { getNotificationPreferences } from "@/lib/notifications/preferences";
 import ChangePasswordCard from "@/components/dashboard/ChangePasswordCard";
+import { SEO_SUPPORT_EMAIL } from "@/lib/seo/constants";
 import { userCanChangePassword, userUsesGoogleSignIn } from "@/lib/auth/providers";
 
 export const dynamic = "force-dynamic";
@@ -163,8 +164,8 @@ export default async function SettingsPage({
                       <p className="mt-0.5 text-xs text-gray-500">Permanently remove your account and all data.</p>
                       <p className="mt-1 text-xs text-gray-600">
                         Account deletion is handled by support - email{' '}
-                        <a href="mailto:support@cybershield.app" className="text-blue-400 underline hover:text-blue-300">
-                          support@cybershield.app
+                        <a href={`mailto:${SEO_SUPPORT_EMAIL}`} className="text-blue-400 underline hover:text-blue-300">
+                          {SEO_SUPPORT_EMAIL}
                         </a>
                       </p>
                     </div>

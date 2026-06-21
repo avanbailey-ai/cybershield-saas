@@ -1,32 +1,57 @@
 export const LANDING_FAQS = [
   {
+    question: 'What does CyberShield check?',
+    answer:
+      'CyberShield monitors common website security signals including SSL/TLS certificate status, security headers, domain registration signals, uptime, and changes to page structure over time. Findings are presented in plain English with remediation guidance.',
+  },
+  {
+    question: 'Does CyberShield fix issues automatically?',
+    answer:
+      'No. CyberShield identifies risks and provides guidance, but you or your developer must implement fixes on your website, hosting, or DNS provider.',
+  },
+  {
+    question: 'Does CyberShield guarantee my site cannot be hacked?',
+    answer:
+      'No. CyberShield helps detect common issues and changes; it does not guarantee complete security or prevent all attacks. See our Security Disclaimer for full limitations.',
+  },
+  {
+    question: 'Can I scan websites I do not own?',
+    answer:
+      'No. You may only scan websites you own, manage, or are explicitly authorized to test. Unauthorized scanning violates our Acceptable Use Policy.',
+  },
+  {
+    question: 'Is CyberShield for agencies?',
+    answer:
+      'Yes. The Agency plan supports multi-client monitoring, client-ready reports, portfolio views, and higher website limits. Partner inquiries: partners@cybershieldcloud.com.',
+  },
+  {
+    question: 'What happens after I subscribe?',
+    answer:
+      'After checkout, add your websites to the dashboard. CyberShield begins scheduled monitoring based on your plan, sends alerts when configured, and stores scan history and reports in your account.',
+  },
+  {
+    question: 'Can I cancel anytime?',
+    answer:
+      'Yes. Cancel from billing settings or the Stripe customer portal. Cancellation stops future charges; access continues through the end of the paid period.',
+  },
+  {
+    question: 'How do alerts work?',
+    answer:
+      'CyberShield sends email alerts for important changes such as SSL expiry warnings, downtime, score drops, and significant configuration changes. Alert frequency depends on your plan and notification settings.',
+  },
+  {
+    question: 'Do I need to be technical to understand the reports?',
+    answer:
+      'No. Reports use plain-English summaries, risk scores, and step-by-step remediation guidance. Technical details are available when you need them for developers.',
+  },
+  {
     question: 'How is this different from a one-time security scan?',
     answer:
-      'A one-time scan shows your posture today. CyberShield monitors continuously — tracking SSL expiry, uptime, header changes, and score trends over time. You get alerts when something changes, not just a snapshot.',
-  },
-  {
-    question: 'How does monitoring work?',
-    answer:
-      'Pro includes daily automated monitoring checks plus weekly deep scans. Growth adds hourly monitoring checks and change detection. Agency includes 5-minute monitoring for priority websites and hourly monitoring for remaining sites.',
-  },
-  {
-    question: 'What happens when my SSL certificate expires?',
-    answer:
-      'Browsers show security warnings that erode visitor trust and can reduce conversions. CyberShield alerts you well before expiry so you can renew.',
-  },
-  {
-    question: 'How often are websites checked?',
-    answer:
-      'Pro runs daily monitoring checks with weekly deep scans. Growth runs hourly monitoring checks. Agency runs 5-minute monitoring for priority websites.',
-  },
-  {
-    question: 'Can I monitor multiple websites?',
-    answer:
-      'Yes. Pro includes 10 websites, Growth includes 50, and Agency includes 250 websites.',
+      'A one-time scan shows today’s posture. Paid plans add continuous monitoring, change detection, alerts, and history so you know when something changes — not just a single snapshot.',
   },
   {
     question: 'Is there a free option?',
     answer:
-      'Yes. Use the free public scan at /scan — no account required. Continuous monitoring requires a paid plan after signup.',
+      'Yes. Use the free public scan at /scan with no account required. Ongoing monitoring, full reports, and alerts require a paid plan.',
   },
 ] as const;

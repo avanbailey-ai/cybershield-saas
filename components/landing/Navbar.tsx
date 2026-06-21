@@ -34,6 +34,15 @@ export default function Navbar() {
           <Link href="/contact" className="hidden text-sm text-gray-400 hover:text-white lg:inline">
             Contact
           </Link>
+          <Link href="/signup">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="inline-flex whitespace-nowrap !px-2.5 !py-1 !text-xs md:!px-3 md:!py-1.5 md:!text-sm"
+            >
+              Get Started
+            </Button>
+          </Link>
           <Link href="/#scan">
             <Button
               variant="primary"

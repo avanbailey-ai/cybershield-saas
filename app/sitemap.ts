@@ -15,6 +15,9 @@ const INDEXABLE_ROUTES: Array<{
   { path: '/enterprise/review', priority: 0.65, changeFrequency: 'monthly' },
   { path: '/privacy', priority: 0.3, changeFrequency: 'yearly' },
   { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
+  { path: '/refund-policy', priority: 0.3, changeFrequency: 'yearly' },
+  { path: '/acceptable-use', priority: 0.3, changeFrequency: 'yearly' },
+  { path: '/security-disclaimer', priority: 0.3, changeFrequency: 'yearly' },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

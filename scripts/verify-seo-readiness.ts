@@ -45,6 +45,10 @@ function main() {
   assert(sitemap.includes('resolveSiteUrl'), 'sitemap uses canonical site URL');
   assert(sitemap.includes("path: '/pricing'"), 'sitemap includes pricing');
   assert(sitemap.includes("path: '/scan'"), 'sitemap includes free scan');
+  assert(sitemap.includes("path: '/contact'"), 'sitemap includes contact');
+  assert(sitemap.includes("path: '/refund-policy'"), 'sitemap includes refund policy');
+  assert(sitemap.includes("path: '/acceptable-use'"), 'sitemap includes acceptable use');
+  assert(sitemap.includes("path: '/security-disclaimer'"), 'sitemap includes security disclaimer');
   assert(sitemap.includes("path: '/enterprise/review'"), 'sitemap includes enterprise review');
   assert(!sitemap.includes("path: '/login'"), 'sitemap excludes login');
   assert(!sitemap.includes("path: '/enterprise/login'"), 'sitemap excludes enterprise login');
@@ -64,6 +68,10 @@ function main() {
 
   assert(homepage.includes('faqSchema'), 'homepage FAQ structured data');
   assert(!homepage.includes('noindex'), 'homepage not noindex');
+  assert(
+    homepage.includes('monitor common website security risks'),
+    'homepage metadata uses trust positioning language',
+  );
   assert(hero.includes('Website Security Monitoring'), 'homepage H1 targets primary intent');
 
   for (const slug of [
@@ -78,7 +86,17 @@ function main() {
     );
   }
 
-  for (const page of ['about', 'contact', 'security', 'responsible-disclosure', 'privacy', 'terms']) {
+  for (const page of [
+    'about',
+    'contact',
+    'security',
+    'responsible-disclosure',
+    'privacy',
+    'terms',
+    'refund-policy',
+    'acceptable-use',
+    'security-disclaimer',
+  ]) {
     assert(exists(`app/${page}/page.tsx`), `trust/public page /${page}`);
   }
 
@@ -87,8 +105,12 @@ function main() {
   assert(exists('docs/SEO-AUDIT-REPORT.md'), 'SEO audit report');
 
   const footer = read('components/landing/Footer.tsx');
-  assert(footer.includes('/features'), 'footer links to features');
   assert(footer.includes('/pricing'), 'footer links to pricing');
+  assert(footer.includes('/scan'), 'footer links to free scan');
+  assert(footer.includes('/contact'), 'footer links to contact');
+  assert(footer.includes('/terms'), 'footer links to terms');
+  assert(footer.includes('/refund-policy'), 'footer links to refund policy');
+  assert(footer.includes('/security-disclaimer'), 'footer links to security disclaimer');
 
   console.log('\nAll SEO readiness checks passed.');
 }
