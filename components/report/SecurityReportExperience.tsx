@@ -208,11 +208,23 @@ export default function SecurityReportExperience({
         </div>
       </section>
 
-      {/* Fix These First */}
+      {/* Fix These First / Recommended Hardening */}
       {fixTheseFirst.actions.length > 0 && (
-        <section className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-amber-400/90">
-            Fix These First
+        <section
+          className={`mb-6 rounded-xl border p-6 ${
+            fixTheseFirst.sectionLabel === 'Fix These First'
+              ? 'border-amber-500/20 bg-amber-500/5'
+              : 'border-blue-500/20 bg-blue-500/5'
+          }`}
+        >
+          <h2
+            className={`mb-4 text-sm font-semibold uppercase tracking-wider ${
+              fixTheseFirst.sectionLabel === 'Fix These First'
+                ? 'text-amber-400/90'
+                : 'text-blue-400/90'
+            }`}
+          >
+            {fixTheseFirst.sectionLabel}
           </h2>
           <ol className="space-y-4">
             {fixTheseFirst.actions.map((action) => (
@@ -222,7 +234,15 @@ export default function SecurityReportExperience({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <span className="text-xs font-bold text-amber-400">#{action.rank}</span>
+                    <span
+                      className={`text-xs font-bold ${
+                        fixTheseFirst.sectionLabel === 'Fix These First'
+                          ? 'text-amber-400'
+                          : 'text-blue-400'
+                      }`}
+                    >
+                      #{action.rank}
+                    </span>
                     <h3 className="mt-1 text-sm font-semibold text-white">{action.title}</h3>
                     <p className="mt-1 text-xs text-gray-400">
                       {action.effort.label} · {action.effort.timeRange}
@@ -238,7 +258,13 @@ export default function SecurityReportExperience({
               </li>
             ))}
           </ol>
-          <div className="mt-4 flex flex-wrap gap-4 border-t border-amber-500/20 pt-4 text-sm">
+          <div
+            className={`mt-4 flex flex-wrap gap-4 border-t pt-4 text-sm ${
+              fixTheseFirst.sectionLabel === 'Fix These First'
+                ? 'border-amber-500/20'
+                : 'border-blue-500/20'
+            }`}
+          >
             <p className="text-gray-300">
               <span className="text-gray-500">Total effort: </span>
               {fixTheseFirst.totalEffortLabel}

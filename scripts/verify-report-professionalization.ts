@@ -104,7 +104,56 @@ const groups = groupFindingsByBusinessImpact([view]);
 assert(groups[0].name === 'Browser Security Protections', 'category group name');
 
 const fixFirst = buildFixTheseFirst([view], 55);
-assert(fixFirst.potentialImprovement.includes('/100'), 'potential improvement');
+assert(fixFirst.potentialImprovement.includes('/100'), 'potential improvement for lower scores');
+
+const goodScoreFinding: SecurityFinding = {
+  id: 'external_scripts',
+  title: 'External Third-Party Scripts',
+  severity: 'medium',
+  category: 'third_party',
+  description: 'External scripts detected.',
+  impact: ['External scripts are common, but each one adds a vendor dependency'],
+  exploitScenario: 'Review vendors periodically.',
+  fix: 'Remove unused scripts.',
+  securityImpactIfFixed: 'Smaller dependency footprint.',
+};
+
+const goodReport: SecurityIntelligenceReport = {
+  ...mockReport,
+  securityScore: 76,
+  riskLevel: 'medium',
+  findings: [goodScoreFinding],
+};
+
+const goodPresentation = buildExecutiveReportPresentation({ report: goodReport, sslValid: true });
+assert(
+  goodPresentation.fixTheseFirst.sectionLabel === 'Recommended Hardening',
+  'good score uses hardening label',
+);
+assert(
+  goodPresentation.fixTheseFirst.potentialImprovement.includes('excellent range'),
+  'good score softens improvement promise',
+);
+assert(
+  goodPresentation.scoreExplanation.percentileContext.includes('solid security baseline'),
+  'good score baseline copy',
+);
+assert(
+  goodPresentation.plan[0].title.includes('Third-party'),
+  'good score hardening plan week 1',
+);
+
+const criticalReport: SecurityIntelligenceReport = {
+  ...mockReport,
+  securityScore: 35,
+  riskLevel: 'critical',
+  findings: [{ ...mockFinding, severity: 'critical' }],
+};
+const criticalPresentation = buildExecutiveReportPresentation({ report: criticalReport, sslValid: false });
+assert(
+  criticalPresentation.fixTheseFirst.sectionLabel === 'Fix These First',
+  'critical score keeps urgent label',
+);
 
 const strengths = extractSecurityStrengths([], null, true, []);
 assert(strengths.some((s) => s.label.includes('HTTPS')), 'https strength');

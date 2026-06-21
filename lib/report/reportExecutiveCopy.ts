@@ -60,10 +60,39 @@ export interface FixFirstAction {
 }
 
 export interface FixTheseFirstSummary {
+  sectionLabel: string;
   actions: FixFirstAction[];
   totalEstimatedGain: number;
   totalEffortLabel: string;
   potentialImprovement: string;
+}
+
+export function fixTheseFirstSectionLabel(
+  score: number,
+  severities: Severity[],
+): string {
+  const hasCriticalHigh = severities.some((s) => s === 'critical' || s === 'high');
+  if (score < 70 || hasCriticalHigh) {
+    return 'Fix These First';
+  }
+  return 'Recommended Hardening';
+}
+
+function buildPotentialImprovementText(
+  score: number,
+  actionCount: number,
+  projectedTotal: number,
+): string {
+  if (score >= 70 && score < 90) {
+    return 'Addressing these items could move your site toward the excellent range — actual results depend on how the site is configured after changes.';
+  }
+  if (score >= 90) {
+    return 'These refinements can help maintain an excellent score as your site evolves.';
+  }
+  if (projectedTotal >= 98) {
+    return `Addressing these ${actionCount} item${actionCount === 1 ? '' : 's'} could significantly improve your score estimate.`;
+  }
+  return `Addressing these ${actionCount} item${actionCount === 1 ? '' : 's'} could raise your score to about ${projectedTotal}/100.`;
 }
 
 export interface BusinessImpactGroup {
@@ -163,7 +192,7 @@ const CATEGORY_GROUP: Record<FindingCategory, { name: string; description: strin
   attack_surface: {
     name: 'Website Exposure',
     description:
-      'Public pages, endpoints, and forms that increase what attackers can discover or target.',
+      'Public pages, endpoints, and scripts visible in your homepage scan — worth reviewing, not necessarily vulnerabilities.',
   },
 };
 
@@ -186,9 +215,9 @@ function businessImpactFromSeverity(severity: Severity): BusinessImpactInfo {
   if (severity === 'medium') {
     return {
       level: 'moderate',
-      label: 'Moderate Business Impact',
+      label: 'Moderate — review recommended',
       ifIgnored:
-        'Risk compounds over time — a minor gap today can become the entry point for a larger incident after your next site update.',
+        'Unreviewed configuration can drift over time. Periodic review keeps a good baseline strong.',
     };
   }
   return {
@@ -345,10 +374,18 @@ export function buildFixTheseFirst(
   }
 
   return {
+    sectionLabel: fixTheseFirstSectionLabel(
+      currentScore,
+      ranked.map((r) => r.severity),
+    ),
     actions,
     totalEstimatedGain: totalGain,
     totalEffortLabel,
-    potentialImprovement: `Addressing these ${actions.length} item${actions.length === 1 ? '' : 's'} could raise your score to about ${projectedTotal}/100.`,
+    potentialImprovement: buildPotentialImprovementText(
+      currentScore,
+      actions.length,
+      projectedTotal,
+    ),
   };
 }
 
@@ -411,12 +448,24 @@ export function extractSecurityStrengths(
   return strengths;
 }
 
-export function buildThirtyDayPlan(findingViews: FindingExecutiveView[]): WeeklyPlanItem[] {
+export function buildThirtyDayPlan(
+  findingViews: FindingExecutiveView[],
+  securityScore?: number,
+): WeeklyPlanItem[] {
   const criticalHigh = findingViews.filter(
     (f) => f.severity === 'critical' || f.severity === 'high',
   );
   const medium = findingViews.filter((f) => f.severity === 'medium');
   const low = findingViews.filter((f) => f.severity === 'low');
+
+  const isHardeningPlan =
+    criticalHigh.length === 0 &&
+    findingViews.length > 0 &&
+    (securityScore ?? 0) >= 70;
+
+  if (isHardeningPlan) {
+    return buildGoodScoreHardeningPlan(findingViews);
+  }
 
   const week1Tasks =
     criticalHigh.length > 0
@@ -451,12 +500,55 @@ export function buildThirtyDayPlan(findingViews: FindingExecutiveView[]): Weekly
   ];
 }
 
+function buildGoodScoreHardeningPlan(findingViews: FindingExecutiveView[]): WeeklyPlanItem[] {
+  const tasksForIds = (ids: string[], fallback: string): string[] => {
+    const matches = findingViews.filter((v) => ids.includes(v.findingId));
+    if (matches.length === 0) return [fallback];
+    return matches.map((m) => `Review: ${m.title}`);
+  };
+
+  return [
+    {
+      week: 1,
+      title: 'Week 1 — Third-party review',
+      tasks: tasksForIds(
+        ['external_scripts', 'third_party_dependencies', 'analytics_tracking'],
+        'Review third-party scripts and confirm required vendors.',
+      ),
+    },
+    {
+      week: 2,
+      title: 'Week 2 — Authentication review',
+      tasks: tasksForIds(
+        ['auth_endpoints', 'login_surface'],
+        'Review login and authentication protections (rate limiting, secure cookies).',
+      ),
+    },
+    {
+      week: 3,
+      title: 'Week 3 — API & surface review',
+      tasks: tasksForIds(
+        ['external_api_calls', 'admin_endpoints'],
+        'Review external API calls and client-side configuration.',
+      ),
+    },
+    {
+      week: 4,
+      title: 'Week 4 — Verify & document',
+      tasks: [
+        'Run a follow-up scan and save the report for your records',
+        'Share hardening notes with your developer or host if needed',
+      ],
+    },
+  ];
+}
+
 function percentileContextForScore(score: number): string {
   if (score >= 90) {
     return 'Your score is excellent — an estimated strong result based on this scan, not a live peer benchmark.';
   }
   if (score >= 70) {
-    return 'Your score is solid for a small business site. A few targeted fixes could reach excellent territory.';
+    return 'Your site has a solid security baseline. A few targeted hardening steps could move it closer to excellent.';
   }
   if (score >= 50) {
     return 'Your score has room to improve. Most gaps are configuration-related, not signs of active compromise.';
@@ -541,7 +633,9 @@ export function buildExecutiveSummary(
       );
     } else {
       statusBullets.push(
-        `${findingCount} improvement${findingCount === 1 ? '' : 's'} identified — mostly quick wins.`,
+        score >= 70
+          ? `${findingCount} hardening opportunit${findingCount === 1 ? 'y' : 'ies'} identified — your baseline is solid.`
+          : `${findingCount} improvement${findingCount === 1 ? '' : 's'} identified — mostly quick wins.`,
       );
     }
   }
@@ -556,14 +650,24 @@ export function buildExecutiveSummary(
     report.riskLevel === 'low'
       ? 'Overall risk: Low — maintain monitoring'
       : report.riskLevel === 'medium'
-        ? 'Overall risk: Moderate — schedule fixes this month'
+        ? score >= 70
+          ? 'Overall risk: Moderate — hardening review recommended'
+          : 'Overall risk: Moderate — schedule fixes this month'
         : report.riskLevel === 'high'
           ? 'Overall risk: High — prioritize remediation this week'
           : 'Overall risk: Critical — act immediately';
 
   let nextStep = 'No action needed — monitoring continues automatically.';
   if (fixTheseFirst.actions.length > 0) {
-    nextStep = `Start with "${fixTheseFirst.actions[0].title}" — highest impact for your score.`;
+    const highCount = report.findings.filter(
+      (f) => f.severity === 'critical' || f.severity === 'high',
+    ).length;
+    if (score >= 70 && highCount === 0) {
+      nextStep =
+        'Review the recommended hardening items below — preventive improvements, not confirmed vulnerabilities.';
+    } else {
+      nextStep = `Start with "${fixTheseFirst.actions[0].title}" — highest impact for your score.`;
+    }
   } else if (findingCount > 0) {
     nextStep = 'Review grouped findings below and tackle easy wins first.';
   }
@@ -575,7 +679,9 @@ export function buildExecutiveSummary(
         ? 'Attention needed — protect customer trust'
         : band === 'Below average'
           ? 'Room to improve — mostly configuration fixes'
-          : 'Good foundation — a few upgrades recommended';
+          : score >= 70
+            ? 'Good baseline — hardening opportunities identified'
+            : 'Good foundation — a few upgrades recommended';
 
   return {
     headline,
@@ -636,7 +742,7 @@ export function buildExecutiveReportPresentation(
   const strengths = extractSecurityStrengths(passed, headers, sslValid, report.findings);
   const fixTheseFirst = buildFixTheseFirst(findingViews, report.securityScore);
   const groupedFindings = groupFindingsByBusinessImpact(findingViews);
-  const plan = buildThirtyDayPlan(findingViews);
+  const plan = buildThirtyDayPlan(findingViews, report.securityScore);
   const scoreExplanation = buildSecurityScoreExplanation(
     report.securityScore,
     report.findings,

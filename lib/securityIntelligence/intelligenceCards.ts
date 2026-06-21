@@ -204,7 +204,7 @@ export const CARD_TRIGGERS: CardTrigger[] = [
 
       const count = scan.pageSnapshot.scripts.filter((s) => isExternalScript(s, scan.url)).length;
 
-      return `${count} script(s) loaded from external domains, expanding supply-chain trust boundaries.`;
+      return `${count} external script(s) detected. Review vendors regularly and remove unnecessary dependencies.`;
 
     },
 
@@ -268,7 +268,7 @@ export const CARD_TRIGGERS: CardTrigger[] = [
 
       const paths = scan.pageSnapshot.endpoints.filter((e) => /\/auth|\/login/i.test(e));
 
-      return `${paths.length} auth-related path(s) visible: ${paths.slice(0, 3).join(', ')}${paths.length > 3 ? '…' : ''}.`;
+      return `${paths.length} auth-related path(s) visible: ${paths.slice(0, 3).join(', ')}${paths.length > 3 ? '…' : ''}. Review rate limiting and secure cookie settings.`;
 
     },
 
