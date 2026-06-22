@@ -10,6 +10,8 @@ const ALERT_TITLE_REPLACEMENTS: Array<[RegExp, string | ((match: string, ...grou
   [/Scan could not complete/gi, 'Monitoring check incomplete'],
   [/New finding/gi, 'New improvement opportunity'],
   [/Critical finding/gi, 'Priority protection gap'],
+  [/Risk Score Increased/gi, 'Score changed'],
+  [/Security score dropped/gi, 'Website trust score changed'],
 ];
 
 const ALERT_MESSAGE_REPLACEMENTS: Array<[RegExp, string]> = [

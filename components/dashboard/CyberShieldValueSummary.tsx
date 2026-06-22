@@ -16,7 +16,7 @@ function MetricCell({
   suffix,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   suffix?: string;
 }) {
   return (
@@ -47,15 +47,19 @@ export default function CyberShieldValueSummary({
         <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
       </div>
       <div
-        className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'}`}
+        className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}`}
       >
-        <MetricCell label="Monitoring checks" value={metrics.checksCompleted} />
-        <MetricCell label="Changes detected" value={metrics.changesDetected} />
-        <MetricCell label="SSL certificates protected" value={metrics.sslCertificatesProtected} />
-        <MetricCell label="Domain risks flagged" value={metrics.domainRisksFlagged} />
+        <MetricCell label="Checks completed" value={metrics.checksCompleted} />
+        <MetricCell label="Last successful check" value={metrics.lastSuccessfulCheckLabel} />
+        <MetricCell label="Failed checks" value={metrics.failedChecks} />
+        <MetricCell label="Meaningful changes" value={metrics.meaningfulChanges} />
+        {metrics.baselineDataPoints > 0 && (
+          <MetricCell label="Baseline data captured" value={metrics.baselineDataPoints} />
+        )}
+        <MetricCell label="SSL issues" value={metrics.sslDomainIssues > 0 ? metrics.sslDomainIssues : 0} />
         <MetricCell label="Downtime events" value={metrics.downtimeEvents} />
         <MetricCell
-          label="Sites healthy (score ≥70)"
+          label="Sites healthy (≥70)"
           value={metrics.sitesAllOnline}
           suffix={` / ${metrics.websitesMonitored}`}
         />

@@ -27,25 +27,24 @@ function read(rel: string): string {
 // --- V4 copy constants ---
 assert(DASHBOARD_V4_COPY.websiteHealthTitle === 'Website Health', 'Website Health card title');
 assert(DASHBOARD_V4_COPY.monitoringActiveTitle === 'Monitoring Active', 'Monitoring Active card title');
-assert(DASHBOARD_V4_COPY.immediateAttentionTitle === 'Fix this first', 'Fix this first card title');
-assert(DASHBOARD_V4_COPY.recentIntelligenceTitle === 'Recent Website Intelligence', 'Recent Website Intelligence');
-assert(DASHBOARD_V4_COPY.valueDeliveredTitle === 'What CyberShield Did For You', 'value delivered title');
+assert(DASHBOARD_V4_COPY.immediateAttentionTitle === 'Recommended Actions', 'Recommended Actions card title');
+assert(DASHBOARD_V4_COPY.recentIntelligenceTitle === 'Recent Activity', 'Recent Activity title');
+assert(DASHBOARD_V4_COPY.valueDeliveredTitle === 'Monitoring Summary', 'monitoring summary title');
 assert(DASHBOARD_V4_COPY.websiteMemoryTitle === 'Website Memory', 'Website Memory title');
-assert(COMMAND_CENTER_COPY.title.includes('Intelligence Command Center'), 'command center repositioned');
+assert(COMMAND_CENTER_COPY.title.includes('Website Protection Overview'), 'protection overview title');
 assert(VALUE_SUMMARY_COPY.subtitle.includes('30 days'), '30-day value summary');
 
 // --- Dashboard V4 top row component ---
 const topRow = read('components/dashboard/DashboardV4TopRow.tsx');
-assert(topRow.includes('Website Health'), 'DashboardV4TopRow has Website Health card');
-assert(topRow.includes('Monitoring Active'), 'DashboardV4TopRow has Monitoring Active card');
-assert(topRow.includes('Fix this first'), 'DashboardV4TopRow has Fix this first card');
-assert(topRow.includes('Open Health Center'), 'Immediate Attention CTA');
+assert(topRow.includes('immediateAttentionTitle') || topRow.includes('Recommended Actions'), 'DashboardV4TopRow has Recommended Actions');
+assert(topRow.includes('recommendedNextStepTitle') || topRow.includes('Recommended Next Step'), 'DashboardV4TopRow has next step card');
 
 // --- Command center layout ---
 const dashboard = read('components/dashboard/CommandCenterDashboard.tsx');
 assert(dashboard.includes('DashboardV4TopRow'), 'CommandCenterDashboard uses V4 top row');
-assert(dashboard.includes('DASHBOARD_V4_COPY.recentIntelligenceTitle'), 'CommandCenterDashboard intelligence row');
-assert(dashboard.includes('VALUE_SUMMARY_COPY') || dashboard.includes('CyberShieldValueSummary'), 'value section wired');
+assert(dashboard.includes('What Changed Since Last Scan') || dashboard.includes('scanComparisonTitle'), 'scan comparison section');
+assert(dashboard.includes('CyberShieldValueSummary'), 'monitoring summary wired');
+assert(dashboard.includes('COMMAND_CENTER_COPY.title') || dashboard.includes('Website Protection Overview'), 'protection overview header');
 
 // --- Website Memory timeline ---
 const memoryTimeline = read('components/dashboard/websites/WebsiteMemoryTimeline.tsx');

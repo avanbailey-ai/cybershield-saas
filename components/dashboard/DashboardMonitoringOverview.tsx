@@ -21,8 +21,8 @@ function trendLabel(trend: number | null, label: string): string {
 
 export default function DashboardMonitoringOverview({ data }: DashboardMonitoringOverviewProps) {
   const { activeMonitoring, orgHealth, valueSummary, websites } = data;
-  const totalRecentChanges = websites.reduce((sum, w) => sum + w.recentChangesCount, 0);
-  const sitesWithChanges = websites.filter((w) => w.recentChangesCount > 0);
+  const totalRecentChanges = websites.reduce((sum, w) => sum + w.meaningfulChangesCount, 0);
+  const sitesWithChanges = websites.filter((w) => w.meaningfulChangesCount > 0);
 
   return (
     <section className="rounded-xl border border-gray-800 bg-gray-900/50 p-5 sm:p-6">

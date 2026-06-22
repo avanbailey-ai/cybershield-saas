@@ -57,7 +57,8 @@ const sampleSites: CommandCenterWebsite[] = [
     monitoringLabel: 'Active · hourly checks',
     lastScanLabel: '2h ago',
     lastScanAt: new Date().toISOString(),
-    recentChangesCount: 1,
+    meaningfulChangesCount: 1,
+    actionCount: 0,
     latestScanId: 'scan-1',
   },
 ];

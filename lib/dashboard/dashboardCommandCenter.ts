@@ -4,21 +4,26 @@ import { formatRelativeScanTime } from '@/lib/websiteHealth/healthCenterCopy';
 import { scoreToRiskBucket, type RiskBucket } from '@/lib/enterprise/enterpriseTypes';
 import type { SslDashboardSummary } from '@/lib/ssl/fetchSslDashboardSummary';
 import type { DomainDashboardSummary } from '@/lib/domain/fetchDomainDashboardSummary';
+import type {
+  GroupedActivityItem,
+  ScanComparisonSummary,
+} from '@/lib/dashboard/dashboardActivity';
 
 /** Section markers — used by verify-dashboard-v2.ts */
 export const COMMAND_CENTER_COPY = {
-  title: 'Website Intelligence Command Center',
-  monitoringActive: 'CyberShield Monitoring Active',
+  title: 'Website Protection Overview',
+  monitoringActive: 'Monitoring is active',
   monitoringActiveDetail:
-    'Your websites are being checked automatically. We will alert you if anything changes.',
-  welcomeMonitoring: 'Continuous website protection is active — we detect changes and surface intelligence automatically.',
+    'Your websites are being checked automatically. We will alert you when meaningful changes are detected.',
+  welcomeMonitoring:
+    'Monitoring is active — we track SSL, domain, configuration, and trust score changes over time.',
   emptyTitle: 'Welcome to CyberShield',
   emptySubtitle: 'Add your first website to start continuous website protection and intelligence.',
   orgHealthTitle: 'Website Health',
   activeMonitoringTitle: 'Monitoring Active',
   securityWinsTitle: "What's Working Well",
-  needsAttentionTitle: 'Immediate Attention',
-  recentActivityTitle: 'Recent Website Intelligence',
+  needsAttentionTitle: 'Recommended Actions',
+  recentActivityTitle: 'Recent Activity',
   quickActionsTitle: 'Quick Actions',
   scoreContextTitle: 'Score Guide',
 } as const;
@@ -28,11 +33,14 @@ export const DASHBOARD_V4_COPY = {
   websiteHealthTitle: 'Website Health',
   monitoringActiveTitle: 'Monitoring Active',
   monitoringActiveSubtitle: 'Continuous checks across SSL, domain, uptime, and configuration.',
-  immediateAttentionTitle: 'Fix this first',
-  recentIntelligenceTitle: 'Recent Website Intelligence',
-  valueDeliveredTitle: 'What CyberShield Did For You',
-  valueDeliveredSubtitle: 'Past 30 days of protection and intelligence',
+  immediateAttentionTitle: 'Recommended Actions',
+  recentIntelligenceTitle: 'Recent Activity',
+  valueDeliveredTitle: 'Monitoring Summary',
+  valueDeliveredSubtitle: 'Past 30 days of protection activity',
   websiteMemoryTitle: 'Website Memory',
+  scanComparisonTitle: 'What Changed Since Last Scan',
+  recommendedNextStepTitle: 'Recommended Next Step',
+  planUsageTitle: 'Plan Usage',
 } as const;
 
 export type ScoreBandKey =
@@ -153,12 +161,16 @@ export function riskBucketLabel(bucket: RiskBucket): string {
 export interface ValueSummaryMetrics {
   checksCompleted: number;
   changesDetected: number;
+  meaningfulChanges: number;
+  baselineDataPoints: number;
   sslDomainIssues: number;
   sslCertificatesProtected: number;
   domainRisksFlagged: number;
   downtimeEvents: number;
   sitesAllOnline: number;
   websitesMonitored: number;
+  failedChecks: number;
+  lastSuccessfulCheckLabel: string;
 }
 
 export const VALUE_SUMMARY_COPY = {
@@ -254,18 +266,47 @@ export interface CommandCenterWebsite {
   monitoringLabel: string;
   lastScanLabel: string;
   lastScanAt: string | null;
-  recentChangesCount: number;
+  meaningfulChangesCount: number;
+  actionCount: number;
   latestScanId: string | null;
 }
 
 export interface ActiveMonitoringSummary {
   websitesMonitored: number;
   checksCompleted: number;
-  changesDetected: number;
+  meaningfulChanges: number;
+  baselineDataPoints: number;
   sslWarnings: number;
   domainWarnings: number;
+  failedChecks: number;
   lastActivityLabel: string;
   lastActivityAt: string | null;
+  lastSuccessfulCheckLabel: string;
+  monitoringCadence: string;
+}
+
+export interface RecommendedNextStep {
+  headline: string;
+  detail: string;
+  primaryLabel: string;
+  primaryHref: string;
+  showDeveloperActions: boolean;
+}
+
+export interface PlanUsageSummary {
+  planLabel: string;
+  websitesUsed: number;
+  websiteLimit: number | null;
+  manualScansRemaining: number | null;
+  manualScansLimit: number | null;
+  isAgency: boolean;
+}
+
+export interface AgencyOverviewStats {
+  clientReadyReports: number;
+  sitesNeedingAttention: number;
+  sitesWithoutRecentScans: number;
+  sitesWithMeaningfulChanges: number;
 }
 
 export interface SecurityWin {
@@ -276,6 +317,7 @@ export interface SecurityWin {
 export interface NeedsAttentionItem {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
+  priority: 'critical' | 'high' | 'review' | 'info';
   title: string;
   websiteName: string;
   whyItMatters: string;
@@ -298,6 +340,8 @@ export interface CommandCenterData {
   planLabel: string;
   planMonitoringLabel: string;
   accountStatus: 'Protected' | 'Action needed' | 'Setup required';
+  overallStatusLabel: string;
+  protectionSummary: string;
   lastActivityLabel: string;
   lastActivityAt: string | null;
   orgHealth: OrgHealthSummary;
@@ -306,6 +350,12 @@ export interface CommandCenterData {
   valueSummary: ValueSummaryMetrics;
   securityWins: SecurityWin[];
   needsAttention: NeedsAttentionItem[];
+  monitoringActivity: NeedsAttentionItem[];
+  recommendedNextStep: RecommendedNextStep;
+  scanComparison: ScanComparisonSummary;
+  groupedActivity: GroupedActivityItem[];
+  planUsage: PlanUsageSummary;
+  agencyOverview: AgencyOverviewStats | null;
   activityFeed: ActivityFeedItem[];
   showRetentionBanner: boolean;
   isEmpty: boolean;
@@ -436,8 +486,19 @@ const SEVERITY_ORDER: Record<NeedsAttentionItem['severity'], number> = {
   low: 3,
 };
 
+const PRIORITY_ORDER: Record<NeedsAttentionItem['priority'], number> = {
+  critical: 0,
+  high: 1,
+  review: 2,
+  info: 3,
+};
+
 export function prioritizeNeedsAttention(items: NeedsAttentionItem[]): NeedsAttentionItem[] {
-  return [...items].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  return [...items].sort((a, b) => {
+    const p = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    if (p !== 0) return p;
+    return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+  });
 }
 
 export function buildNeedsAttentionFromAlerts(
@@ -455,6 +516,8 @@ export function buildNeedsAttentionFromAlerts(
 
   for (const alert of alerts) {
     const severity = normalizeSeverity(alert.severity);
+    const priority =
+      severity === 'critical' ? 'critical' : severity === 'high' ? 'high' : severity === 'medium' ? 'review' : 'info';
     const websiteName = alert.websiteLabel || alert.websiteUrl
       ? getWebsiteDisplayName(alert.websiteLabel, alert.websiteUrl ?? '')
       : 'Your account';
@@ -462,6 +525,7 @@ export function buildNeedsAttentionFromAlerts(
     items.push({
       id: alert.id,
       severity,
+      priority,
       title: alert.title,
       websiteName,
       whyItMatters: alert.message ?? 'This issue could affect your website security or availability.',
@@ -487,9 +551,10 @@ export function buildNeedsAttentionFromWebsites(
       items.push({
         id: `score-${site.id}`,
         severity: 'critical',
-        title: `Security score needs immediate attention (${site.score}/100)`,
+        priority: 'critical',
+        title: `Website trust score needs immediate attention (${site.score}/100)`,
         websiteName: site.displayName,
-        whyItMatters: 'A low score means visitors may be exposed to preventable security risks.',
+        whyItMatters: 'A low score means visitors may notice preventable trust or security gaps.',
         actionLabel: 'Open Health Center',
         actionHref: `/app/websites/${site.id}/health`,
       });
@@ -497,10 +562,11 @@ export function buildNeedsAttentionFromWebsites(
       items.push({
         id: `score-${site.id}`,
         severity: 'medium',
-        title: `Security score below target (${site.score}/100)`,
+        priority: 'review',
+        title: `Website trust score below target (${site.score}/100)`,
         websiteName: site.displayName,
-        whyItMatters: 'Addressing findings now prevents small issues from becoming critical.',
-        actionLabel: 'View Report',
+        whyItMatters: 'Mostly configuration improvements — address with your developer when convenient.',
+        actionLabel: 'Open Report',
         actionHref: site.latestScanId ? `/report/${site.latestScanId}` : `/app/websites/${site.id}/health`,
       });
     }
@@ -512,6 +578,7 @@ export function buildNeedsAttentionFromWebsites(
       items.push({
         id: `ssl-${ssl.websiteId}`,
         severity: ssl.status === 'critical' ? 'critical' : 'high',
+        priority: ssl.status === 'critical' ? 'critical' : 'high',
         title: ssl.status === 'critical' ? 'SSL certificate expiring soon' : 'SSL certificate warning',
         websiteName: name,
         whyItMatters: 'An expired certificate breaks trust and can take your site offline for visitors.',
@@ -527,6 +594,7 @@ export function buildNeedsAttentionFromWebsites(
       items.push({
         id: `domain-${domain.websiteId}`,
         severity: domain.status === 'critical' ? 'critical' : 'high',
+        priority: domain.status === 'critical' ? 'critical' : 'high',
         title: domain.status === 'critical' ? 'Domain registration expiring soon' : 'Domain registration warning',
         websiteName: name,
         whyItMatters: 'Losing your domain means losing your website and customer trust.',
@@ -590,10 +658,10 @@ export function formatActivityFeed(input: {
   if (input.changesDetected > 0 && items.length < 8) {
     items.unshift({
       id: 'changes-summary',
-      title: `${input.changesDetected} website change${input.changesDetected === 1 ? '' : 's'} detected recently`,
+      title: `${input.changesDetected} meaningful change${input.changesDetected === 1 ? '' : 's'} detected recently`,
       detail: 'Review Website Memory to confirm updates match your expectations.',
       timeLabel: 'Recent',
-      tone: 'warn',
+      tone: 'neutral',
       href: '/app/websites',
     });
   }

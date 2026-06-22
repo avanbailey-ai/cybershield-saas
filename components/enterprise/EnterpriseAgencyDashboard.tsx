@@ -239,7 +239,13 @@ export default function EnterpriseAgencyDashboard({ data }: { data: EnterpriseCo
                   whatNext="Share wins in client QBRs or dive into clients that need review below."
                 />
                 <CyberShieldValueSummary
-                  metrics={valueMetrics}
+                  metrics={{
+                    ...valueMetrics,
+                    meaningfulChanges: valueMetrics.changesDetected,
+                    baselineDataPoints: 0,
+                    failedChecks: valueMetrics.downtimeEvents,
+                    lastSuccessfulCheckLabel: 'Recent',
+                  }}
                   title={ENTERPRISE_COMMAND_CENTER_COPY.valueDeliveredTitle}
                   subtitle="Past 30 days of protection and intelligence for your clients"
                 />

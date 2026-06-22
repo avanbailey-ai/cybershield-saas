@@ -110,7 +110,7 @@ function MonitoringSummaryCard({ data }: { data: CommandCenterData }) {
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <SummaryPill label="Security checks" value={m.checksCompleted} />
-        <SummaryPill label="Changes" value={m.changesDetected} />
+        <SummaryPill label="Meaningful changes" value={m.meaningfulChanges} />
         <SummaryPill label="SSL / domain issues" value={m.sslDomainIssues} tone="warn" />
         <SummaryPill label="Downtime events" value={m.downtimeEvents} tone={m.downtimeEvents > 0 ? 'bad' : undefined} />
       </div>
