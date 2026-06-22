@@ -168,6 +168,13 @@ export default async function ReportPage({ params }: PageProps) {
     reportUrl,
   };
 
+  const handoffMeta = {
+    scanDate: scannedAt,
+    securityScore: intelligence.securityScore,
+    riskLevel:
+      intelligence.riskLevel.charAt(0).toUpperCase() + intelligence.riskLevel.slice(1),
+  };
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 bg-gray-900/80 backdrop-blur">
@@ -218,6 +225,7 @@ export default async function ReportPage({ params }: PageProps) {
               recommendations={intelligence.recommendations}
               sslValid={scanRow.ssl_valid}
               actionContext={findingActionContext}
+              handoffMeta={handoffMeta}
               intelligenceReport={intelligence}
               siteLabel={siteLabel}
               siteUrl={siteUrl}

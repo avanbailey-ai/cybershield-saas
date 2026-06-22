@@ -41,7 +41,7 @@ const ID_COPY: Record<string, Omit<BusinessFindingCopy, 'notConfirmedVulnerabili
     priorityLabel: 'Optional',
   },
   auth_endpoints: {
-    plainTitle: 'Login or admin routes are visible on your site',
+    plainTitle: 'Login/Admin routes were detected',
     whatWeFound: 'We detected login or authentication-related paths in your public page surface.',
     whyItMatters:
       'Login routes are normal for many businesses. What matters is that they stay protected with HTTPS, rate limiting, and secure session handling.',
@@ -68,7 +68,7 @@ const ID_COPY: Record<string, Omit<BusinessFindingCopy, 'notConfirmedVulnerabili
     priorityLabel: 'Recommended',
   },
   external_api_calls: {
-    plainTitle: 'Your site connects to external services or APIs',
+    plainTitle: 'External services or API connections were detected',
     whatWeFound: 'The page references external API or service endpoints from the browser.',
     whyItMatters:
       'External connections are often required for features like maps, chat, or payments. They should be reviewed so secrets stay server-side and vendors stay trusted.',

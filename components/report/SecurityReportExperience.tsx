@@ -6,11 +6,13 @@ import type {
   ExecutiveReportPresentation,
   ReportViewMode,
 } from '@/lib/report/reportExecutiveCopy';
-import type { FindingActionContext } from '@/lib/findings';
+import type { FindingActionContext, ReportHandoffMeta } from '@/lib/findings';
+import { buildCombinedHandoffItems, buildRecommendedFixOrder } from '@/lib/findings';
 import type { SecurityFinding, SecurityRecommendation } from '@/lib/securityIntelligence/types';
 import SecurityFindingCard from './SecurityFindingCard';
 import SecurityRecommendationsPanel from './SecurityRecommendationsPanel';
 import FindingActionBar from './FindingActionBar';
+import DeveloperHandoffBar from './DeveloperHandoffBar';
 import RemediationAssistantPanel from './RemediationAssistantPanel';
 import CustomerReportPanel from '@/components/intelligence/CustomerReportPanel';
 import { riskScoreColor } from './severityStyles';
@@ -22,6 +24,7 @@ interface SecurityReportExperienceProps {
   recommendations: SecurityRecommendation[];
   sslValid: boolean | null;
   actionContext?: FindingActionContext;
+  handoffMeta?: ReportHandoffMeta;
   intelligenceReport?: SecurityIntelligenceReport;
   siteLabel?: string;
   siteUrl?: string;
@@ -94,6 +97,7 @@ export default function SecurityReportExperience({
   recommendations,
   sslValid,
   actionContext,
+  handoffMeta,
   intelligenceReport,
   siteLabel,
   siteUrl,
@@ -124,6 +128,24 @@ export default function SecurityReportExperience({
           : 'critical';
 
   const isUrgentSection = fixTheseFirst.sectionLabel === 'Fix These First';
+
+  const priorityFindingIds = fixTheseFirst.actions.map((a) => a.findingId);
+  const recommendedFixOrder =
+    findings.length > 0
+      ? buildRecommendedFixOrder(buildCombinedHandoffItems(findings, priorityFindingIds))
+      : [];
+
+  const resolvedHandoff: ReportHandoffMeta | undefined =
+    handoffMeta ??
+    (intelligenceReport
+      ? {
+          scanDate: progress.lastScanLabel,
+          securityScore: snapshot.trustScore,
+          riskLevel:
+            intelligenceReport.riskLevel.charAt(0).toUpperCase() +
+            intelligenceReport.riskLevel.slice(1),
+        }
+      : undefined);
 
   return (
     <>
@@ -255,6 +277,33 @@ export default function SecurityReportExperience({
           <p className="mb-4 text-sm text-gray-500">
             Business impact first — expand any item for developer notes and remediation tools.
           </p>
+
+          {actionContext && resolvedHandoff && findings.length > 0 && (
+            <DeveloperHandoffBar
+              findings={findings}
+              actionContext={actionContext}
+              handoff={resolvedHandoff}
+              priorityFindingIds={priorityFindingIds}
+              className="mb-5"
+            />
+          )}
+
+          {recommendedFixOrder.length > 0 && (
+            <div className="mb-5 rounded-xl border border-gray-800 bg-gray-900/60 p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Recommended fix order
+              </h3>
+              <ol className="mt-3 space-y-2">
+                {recommendedFixOrder.map((title, index) => (
+                  <li key={`${index}-${title}`} className="flex gap-3 text-sm text-gray-300">
+                    <span className="shrink-0 font-semibold text-blue-400">{index + 1}.</span>
+                    <span>{title}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           <div className="space-y-5">
             {groupedFindings.map((group) => (
               <div key={group.name}>
@@ -535,15 +584,21 @@ function ExecutiveFindingCard({
       <dl className="mt-4 space-y-3">
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            What CyberShield found
+            What we found
           </dt>
           <dd className="mt-1 text-sm text-gray-300">{business.whatWeFound}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Why it matters to your business
+            Why it matters
           </dt>
           <dd className="mt-1 text-sm text-gray-300">{business.whyItMatters}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Recommended fix
+          </dt>
+          <dd className="mt-1 text-sm text-gray-300">{business.developerAction}</dd>
         </div>
         {business.notConfirmedVulnerability && (
           <p className="text-xs text-gray-500 italic">
@@ -554,31 +609,22 @@ function ExecutiveFindingCard({
 
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-gray-800 pt-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-400/90">
-              What to ask your developer or host
-            </p>
-            <p className="mt-1 text-sm text-gray-300">{business.developerAction}</p>
-          </div>
+          <RemediationAssistantPanel finding={finding} />
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Estimated score impact
+              Impact if fixed
             </p>
             <p className="mt-1 text-sm text-gray-300">
               Estimated {view.scoreImpact.currentScore}/100 → {view.scoreImpact.projectedScore}/100
               (+{view.scoreImpact.estimatedGain} pts if addressed)
             </p>
           </div>
-          <div>
-            <RemediationAssistantPanel finding={finding} />
-          </div>
           {actionContext && (
-            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-blue-400">
-                Remediation tools
-              </p>
-              <FindingActionBar finding={finding} context={actionContext} />
-            </div>
+            <FindingActionBar
+              finding={finding}
+              context={actionContext}
+              variant="secondary"
+            />
           )}
           {technicalMode ? (
             <div>

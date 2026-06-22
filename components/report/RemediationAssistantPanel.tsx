@@ -15,10 +15,9 @@ export default function RemediationAssistantPanel({ finding }: RemediationAssist
 
   return (
     <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
-      <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-400/90">
-        Remediation assistant
+      <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-blue-400/90">
+        Developer steps
       </h4>
-      <p className="mb-3 text-sm font-medium text-blue-100/90">{enriched.remediationTitle}</p>
       <ol className="space-y-2">
         {enriched.remediationSteps.map((step, index) => (
           <li key={step} className="flex gap-2 text-sm text-gray-300">

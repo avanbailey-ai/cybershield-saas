@@ -45,7 +45,9 @@ function fromExploitRule(
 
   const plainEnglish =
     overrides.plainEnglish ??
-    `Your site is missing ${title.replace(/^Missing /i, '').replace(/^No /i, '')} — a standard browser protection that helps keep visitors safe.`;
+    (rule.category === 'headers'
+      ? `Your site is missing ${title.replace(/^Missing /i, '').replace(/^No /i, '')} — a standard browser protection that helps keep visitors safe.`
+      : rule.impact[0] ?? 'This item should be reviewed with your developer or host.');
   const businessImpact =
     overrides.businessImpact ?? rule.impact[0] ?? 'This gap can reduce customer trust over time.';
   const technicalExplanation = overrides.technicalExplanation ?? rule.exploitScenario;
@@ -292,6 +294,51 @@ const CARD_TITLES: Record<string, string> = {
   analytics_tracking: 'Third-party analytics detected',
 };
 
+const EXPLOIT_EXPLAINER_OVERRIDES: Record<string, Partial<CatalogEntry>> = {
+  external_scripts: {
+    plainEnglish:
+      'Your site loads scripts from outside services. This is common, but each script is a dependency that should be reviewed regularly.',
+    businessImpact:
+      'External scripts are common, but each one adds a vendor dependency. If a provider changes, breaks, or is compromised, it can affect customer trust, functionality, performance, or security.',
+  },
+  third_party_dependencies: {
+    plainEnglish:
+      'Your site relies on known third-party libraries or services. Each dependency adds monitoring and update obligations.',
+    businessImpact:
+      'Vendor updates, outages, or security advisories can affect how your site behaves for customers.',
+  },
+  auth_endpoints: {
+    plainEnglish:
+      'CyberShield detected a login or authentication-related route. This is normal for many websites, but these routes should have rate limiting, secure cookies, and abuse monitoring.',
+    businessImpact:
+      'Login routes are high-trust surfaces. Weak protections can affect account safety and brand confidence.',
+  },
+  login_surface: {
+    plainEnglish:
+      'A login or account form is reachable from the scanned page. Confirm brute-force protection and secure session handling are in place.',
+    businessImpact:
+      'Customer login pages need HTTPS, rate limiting, and secure cookies — not necessarily signs of an active breach.',
+  },
+  admin_endpoints: {
+    plainEnglish:
+      'Administrative URL paths appear in your public page scan. Restrict access and require strong authentication.',
+    businessImpact:
+      'Discoverable admin paths are not a confirmed breach, but they can make unwanted probing easier if protections are weak.',
+  },
+  external_api_calls: {
+    plainEnglish:
+      'CyberShield detected external API or service connections from the page. These should be reviewed to confirm that no private keys, tokens, or sensitive endpoints are exposed client-side.',
+    businessImpact:
+      'External connections are often required for product features, but secrets must stay server-side and vendors should stay trusted.',
+  },
+  analytics_tracking: {
+    plainEnglish:
+      'Analytics or tracking scripts are active on your site. Confirm they match your privacy policy and performance expectations.',
+    businessImpact:
+      'Tracking helps marketing, but misconfigured tags can leak data or slow page load times.',
+  },
+};
+
 function operationalExplainer(id: string): FindingExplainer {
   const entry = OPERATIONAL_CATALOG[id];
   if (!entry) throw new Error(`Unknown operational finding ${id}`);
@@ -325,7 +372,8 @@ function buildCatalog(): Map<string, FindingExplainer> {
 
   for (const id of Object.keys(CARD_TITLES)) {
     const title = CARD_TITLES[id]!;
-    map.set(id, fromExploitRule(id, title));
+    const overrides = EXPLOIT_EXPLAINER_OVERRIDES[id] ?? {};
+    map.set(id, fromExploitRule(id, title, overrides));
   }
 
   for (const id of Object.keys(OPERATIONAL_CATALOG)) {
