@@ -50,6 +50,7 @@ function worstSeverity(alerts: AlertForGrouping[]): string {
 }
 
 function inferCategoryFromTitle(title: string): string {
+  if (/dns records|domain registration/i.test(title)) return 'DNS & Domain';
   if (/security protection|header/i.test(title)) return 'Security Protection';
   if (/ssl|https/i.test(title)) return 'SSL & HTTPS';
   if (/third.?party|script/i.test(title)) return 'Third-Party Service';
@@ -59,7 +60,15 @@ function inferCategoryFromTitle(title: string): string {
   return 'Website Change';
 }
 
+const CROSS_SCAN_GROUP_TYPES = new Set(['dns_changed']);
+
 function groupKey(alert: AlertForGrouping): string | null {
+  if (alert.type && CROSS_SCAN_GROUP_TYPES.has(alert.type) && alert.website_id) {
+    return `website:${alert.website_id}:${alert.type}`;
+  }
+  if (alert.website_id && /dns records changed/i.test(alert.title)) {
+    return `website:${alert.website_id}:dns_title`;
+  }
   if (!alert.scan_id) return null;
   if (alert.type && isChangeBasedAlertType(alert.type)) {
     return `${alert.scan_id}:changes`;
@@ -111,11 +120,20 @@ export function groupAlertsForDisplay(alerts: AlertForGrouping[]): GroupedAlertD
       new Date(a.created_at) > new Date(b.created_at) ? a : b,
     );
 
+    const isDnsGroup =
+      bucket[0]?.type === 'dns_changed' || /dns records changed/i.test(bucket[0]?.title ?? '');
+    const groupedTitle = isDnsGroup
+      ? `${softenCustomerAlertTitle(latest.title)} · ${bucket.length} update${bucket.length === 1 ? '' : 's'}`
+      : businessLanguageGroupedAlertTitle(categoryLabel, bucket.length);
+    const groupedMessage = isDnsGroup && bucket.length > 1
+      ? `${softenCustomerAlertMessage(softenStoredAlertMessage(latest.message))} (${bucket.length - 1} earlier DNS update${bucket.length === 2 ? '' : 's'} in history — expand to review.)`
+      : softenCustomerAlertMessage(softenStoredAlertMessage(latest.message));
+
     grouped.push({
-      id: `group:${latest.scan_id}:${categoryLabel}`,
+      id: `group:${latest.website_id ?? latest.scan_id}:${categoryLabel}`,
       scanId: latest.scan_id,
-      title: businessLanguageGroupedAlertTitle(categoryLabel, bucket.length),
-      message: softenCustomerAlertMessage(softenStoredAlertMessage(latest.message)),
+      title: groupedTitle,
+      message: groupedMessage,
       severity: worst,
       categoryLabel,
       is_read: allRead,

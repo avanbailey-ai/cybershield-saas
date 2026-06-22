@@ -33,7 +33,35 @@ export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
           {DASHBOARD_V4_COPY.immediateAttentionTitle}
         </p>
         {needsAttention.length > 0 ? (
-          <ul className="mt-4 space-y-3">
+          <>
+            {needsAttention.filter((i) => i.priority === 'review').length >= 2 && (
+              <div className="mt-4 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+                <p className="text-sm font-medium text-white">
+                  Review {needsAttention.filter((i) => i.priority === 'review').length} website trust
+                  improvements
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Preventive hardening items — not confirmed active vulnerabilities.
+                </p>
+                {data.websites[0]?.latestScanId && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/report/${data.websites[0]!.latestScanId}`}
+                      className="inline-flex rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
+                    >
+                      Open Report
+                    </Link>
+                    <Link
+                      href={`/report/${data.websites[0]!.latestScanId}#developer-handoff`}
+                      className="inline-flex rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-600"
+                    >
+                      Send all to developer
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+            <ul className="mt-4 space-y-3">
             {needsAttention.slice(0, 4).map((issue) => (
               <li
                 key={issue.id}
@@ -57,6 +85,7 @@ export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
               </li>
             ))}
           </ul>
+          </>
         ) : (
           <p className="mt-4 text-sm text-green-300">
             No urgent actions — monitoring continues automatically.
@@ -79,10 +108,10 @@ export default function DashboardV4TopRow({ data }: DashboardV4TopRowProps) {
           </Link>
           {recommendedNextStep.showDeveloperActions && data.websites[0]?.latestScanId && (
             <Link
-              href={`/report/${data.websites[0]!.latestScanId}`}
+              href={`/report/${data.websites[0]!.latestScanId}#developer-handoff`}
               className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-gray-700 px-4 py-2 text-xs font-medium text-gray-300 hover:border-gray-600"
             >
-              Send to Developer
+              Send all to developer
             </Link>
           )}
         </div>

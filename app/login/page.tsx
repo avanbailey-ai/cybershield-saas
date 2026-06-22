@@ -43,7 +43,7 @@ export default function LoginPage() {
       secondaryFooterLinkText="Enterprise sign in"
       secondaryFooterLinkHref="/enterprise/login"
       panelHeadline="Welcome Back"
-      panelDescription="Access your security monitoring dashboard and stay ahead of threats."
+      panelDescription="Monitor website trust, security posture, and meaningful changes over time."
       panelBullets={bullets}
     >
       <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>

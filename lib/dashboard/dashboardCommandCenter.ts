@@ -12,6 +12,8 @@ import type {
 /** Section markers — used by verify-dashboard-v2.ts */
 export const COMMAND_CENTER_COPY = {
   title: 'Website Protection Overview',
+  subtitle:
+    'Monitor website trust, security posture, and meaningful changes over time.',
   monitoringActive: 'Monitoring is active',
   monitoringActiveDetail:
     'Your websites are being checked automatically. We will alert you when meaningful changes are detected.',
@@ -630,8 +632,8 @@ export function formatActivityFeed(input: {
       const bucket = scoreToRiskBucket(scan.securityScore);
       items.push({
         id: scan.id,
-        title: `Website health updated for ${name}`,
-        detail: `Protection score ${scan.securityScore}/100 · ${band.label}`,
+        title: `Monitoring check completed · ${name}`,
+        detail: `Trust score ${scan.securityScore}/100 · ${band.label}`,
         timeLabel: time ? formatRelativeScanTime(time) : 'Recently',
         tone: bucket === 'low' ? 'good' : bucket === 'critical' || bucket === 'high' ? 'warn' : 'neutral',
         href: `/report/${scan.id}`,

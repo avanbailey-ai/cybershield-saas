@@ -289,6 +289,7 @@ function CommandCenterHeader({ data }: { data: CommandCenterData }) {
       <h2 className="mt-1 text-xl font-bold text-white sm:text-2xl">
         Welcome back, <span className="text-blue-400">{data.userDisplayName}</span>
       </h2>
+      <p className="mt-2 max-w-2xl text-sm text-gray-400">{COMMAND_CENTER_COPY.subtitle}</p>
     </div>
   );
 }

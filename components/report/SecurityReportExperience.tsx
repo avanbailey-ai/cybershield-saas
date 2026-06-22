@@ -129,6 +129,18 @@ export default function SecurityReportExperience({
 
   const isUrgentSection = fixTheseFirst.sectionLabel === 'Fix These First';
 
+  const isPaidPlan =
+    planLevel === 'pro' ||
+    planLevel === 'growth' ||
+    planLevel === 'agency' ||
+    planLevel === 'enterprise';
+
+  const monitoringCtaLabel = isPaidPlan
+    ? 'Monitoring active — view change history'
+    : `Start Pro Monitoring — ${monitoringValue.priceLabel}`;
+
+  const monitoringCtaHref = isPaidPlan ? '/app/websites' : monitoringValue.ctaHref;
+
   const priorityFindingIds = fixTheseFirst.actions.map((a) => a.findingId);
   const recommendedFixOrder =
     findings.length > 0
@@ -384,10 +396,10 @@ export default function SecurityReportExperience({
           ))}
         </ul>
         <Link
-          href={monitoringValue.ctaHref}
+          href={monitoringCtaHref}
           className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
         >
-          Start Pro Monitoring — {monitoringValue.priceLabel}
+          {monitoringCtaLabel}
         </Link>
       </section>
 

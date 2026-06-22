@@ -71,7 +71,8 @@ export default function DeveloperHandoffBar({
 
   return (
     <div
-      className={`rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-gray-900 p-5 ${className}`}
+      id="developer-handoff"
+      className={`rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-gray-900 p-5 scroll-mt-24 ${className}`}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>

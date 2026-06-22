@@ -192,17 +192,21 @@ export function buildProtectionStatusSummary(input: {
   const sitePhrase =
     count === 1
       ? `${primary.displayName} is currently rated ${primary.scoreBandLabel}${primary.score !== null ? ` at ${primary.score}/100` : ''}`
-      : `${count} websites are being monitored${avgScore !== null ? ` · average ${avgScore}/100` : ''}`;
+      : avgScore !== null
+        ? `Portfolio average ${avgScore}/100`
+        : 'Portfolio monitoring active';
+
+  const monitoredPrefix = `${count} website${count === 1 ? ' is' : 's are'} being monitored`;
 
   if (input.criticalCount > 0) {
-    return `${count} website${count === 1 ? ' is' : 's are'} being monitored. ${sitePhrase}. ${input.criticalCount} item${input.criticalCount === 1 ? '' : 's'} need urgent attention.`;
+    return `${monitoredPrefix}. ${sitePhrase}. ${input.criticalCount} item${input.criticalCount === 1 ? '' : 's'} need urgent attention.`;
   }
 
   if (input.reviewItemsCount > 0) {
-    return `${count} website${count === 1 ? ' is' : 's are'} being monitored. ${sitePhrase}. No critical issues were found. ${input.reviewItemsCount} review item${input.reviewItemsCount === 1 ? '' : 's'} ${input.reviewItemsCount === 1 ? 'is' : 'are'} recommended.`;
+    return `${monitoredPrefix}. ${sitePhrase}. No critical issues were found. ${input.reviewItemsCount} review item${input.reviewItemsCount === 1 ? '' : 's'} ${input.reviewItemsCount === 1 ? 'is' : 'are'} recommended.`;
   }
 
-  return `${count} website${count === 1 ? ' is' : 's are'} being monitored. ${sitePhrase}. No critical issues were found. Monitoring is active (${input.monitoringCadence.toLowerCase()}). Last check ${input.lastCheckLabel}.`;
+  return `${monitoredPrefix}. ${sitePhrase}. No critical issues were found. Monitoring is active (${input.monitoringCadence.toLowerCase()}). Last check ${input.lastCheckLabel}.`;
 }
 
 export function buildGroupedActivityFeed(input: {

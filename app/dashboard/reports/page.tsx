@@ -217,11 +217,11 @@ export default async function ReportsPage() {
                 />
               </svg>
             </div>
-            <p className="text-base font-semibold text-gray-200">No reports yet</p>
+            <p className="text-base font-semibold text-gray-200">No reports exported yet</p>
             <p className="mt-2 max-w-sm text-sm text-gray-500">
               {isAgency
-                ? 'Reports appear after scans are completed.'
-                : 'Reports are automatically generated after security scans complete. Add a website and run your first scan to see your security report here.'}
+                ? 'Complete a client scan, then open the report to export a client-ready PDF or copy developer handoff notes.'
+                : 'Open a scan result from your dashboard to view the full report, send findings to your developer, or save your first export.'}
             </p>
             <Link
               href="/app/websites"
