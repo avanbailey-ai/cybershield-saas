@@ -6,7 +6,7 @@ import type { FounderSectionId } from '@/lib/owner/founderNav';
 interface GrowthCommandCenterProps {
   growth: GrowthAutopilotSnapshot;
   pendingApprovals: number;
-  onNavigate: (section: FounderSectionId) => void;
+  onNavigate: (section: FounderSectionId | string) => void;
 }
 
 function deliverabilityTone(status: GrowthAutopilotSnapshot['deliverabilityStatus']): string {
@@ -63,7 +63,7 @@ export default function GrowthCommandCenter({
           {pendingApprovals > 0 && (
             <button
               type="button"
-              onClick={() => onNavigate('inbox')}
+              onClick={() => onNavigate('marketing')}
               className="text-xs text-emerald-300 hover:text-emerald-200"
             >
               {pendingApprovals} awaiting approval →
@@ -144,7 +144,7 @@ export default function GrowthCommandCenter({
           </h2>
           <button
             type="button"
-            onClick={() => onNavigate('inbox')}
+            onClick={() => onNavigate('marketing')}
             className="min-h-[40px] rounded-lg bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-500"
           >
             Open inbox ({pendingApprovals})

@@ -4,48 +4,20 @@ import Link from 'next/link';
 import LogoutButton from '@/components/dashboard/LogoutButton';
 import { FOUNDER_SECTIONS, useFounderNav } from './FounderNavContext';
 
-function sidebarStatusLabel(
-  inboxCount: number,
-  growth: { mode: string; prepareOnly: boolean; deliverabilityStatus: string } | undefined,
-): string {
-  if (inboxCount > 0) {
-    return `${inboxCount} need approval`;
-  }
-  if (
-    growth?.mode === 'limited' &&
-    !growth.prepareOnly &&
-    growth.deliverabilityStatus === 'healthy'
-  ) {
-    return 'Limited autopilot active';
-  }
-  if (growth?.mode === 'paused') {
-    return 'Autopilot paused';
-  }
-  return 'Manual approval required';
-}
-
 export default function FounderShell() {
-  const { section, setSection, email, founderData } = useFounderNav();
-  const inboxCount = founderData.inbox.length;
-  const growth = founderData.v6.growthAutopilot;
-  const statusLabel = sidebarStatusLabel(inboxCount, growth);
-  const showReadyDot =
-    growth?.mode === 'limited' &&
-    !growth.prepareOnly &&
-    growth.deliverabilityStatus === 'healthy' &&
-    inboxCount === 0;
+  const { section, setSection, email, commandCenter } = useFounderNav();
+  const alertCount = commandCenter.operations.alerts.filter(
+    (a) => a.severity === 'critical' || a.severity === 'warning',
+  ).length;
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-white/[0.06] bg-[#080c18]">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-white/[0.06] bg-[#080c18] lg:w-60">
       <div className="border-b border-white/[0.06] px-5 py-6">
         <p className="text-base font-semibold tracking-tight text-white">Founder OS</p>
-        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
-          {showReadyDot && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
-          {statusLabel}
-        </p>
+        <p className="mt-0.5 text-xs text-gray-500">CyberShieldCloud command center</p>
       </div>
 
-      <nav className="flex-1 px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-0.5">
           {FOUNDER_SECTIONS.map((m) => (
             <li key={m.id}>
@@ -59,9 +31,9 @@ export default function FounderShell() {
                 }`}
               >
                 {m.label}
-                {m.id === 'inbox' && inboxCount > 0 && (
-                  <span className="ml-2 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] text-white">
-                    {inboxCount}
+                {m.id === 'alerts' && alertCount > 0 && (
+                  <span className="ml-2 rounded-full bg-amber-600/80 px-1.5 py-0.5 text-[10px] text-white">
+                    {alertCount}
                   </span>
                 )}
               </button>
@@ -71,7 +43,10 @@ export default function FounderShell() {
       </nav>
 
       <div className="border-t border-white/[0.06] p-4">
-        <p className="mb-3 truncate text-xs text-gray-600">{email}</p>
+        <p className="mb-1 truncate text-xs text-gray-600">{email}</p>
+        <p className="mb-3 text-[10px] text-gray-700">
+          MRR ${commandCenter.revenue.mrr.toLocaleString()}
+        </p>
         <LogoutButton />
         <Link
           href="/dashboard/admin/owner"

@@ -25,6 +25,7 @@ import type { ActivityFeedSummary } from './activityFeed';
 import type { OwnerProspect, OwnerCrmLead } from './types';
 import type { GrowthAutopilotSnapshot } from './growthAutopilot';
 import { buildGrowthAutopilotSnapshot } from './growthAutopilot';
+import { resolveReviewSection } from './founderNav';
 import {
   filterBannedDemoInboxItems,
   isBannedDemoProspect,
@@ -577,7 +578,13 @@ export async function getFounderOsV6(input?: {
       title: i.title,
       why: i.whyItMatters ?? i.description,
       revenueImpact: i.revenueImpact ?? null,
-      section: i.module === 'prospects' ? 'prospects' : i.module === 'success' ? 'success' : 'inbox',
+      section: resolveReviewSection(
+        i.module === 'prospects'
+          ? 'prospects'
+          : i.module === 'success'
+            ? 'success'
+            : 'inbox',
+      ),
     })),
   });
 

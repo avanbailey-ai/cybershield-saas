@@ -456,8 +456,8 @@ export async function buildGrowthAutopilotSnapshot(
       why: 'Pipeline is quiet — add qualified prospects to the top of funnel.',
       estimatedMrr: null,
       confidence: 'medium',
-      action: 'Open prospects',
-      section: 'prospects',
+      action: 'Open sales / CRM',
+      section: 'sales',
       blockedReason: null,
     });
   }

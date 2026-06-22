@@ -56,6 +56,7 @@ export async function PUT(req: NextRequest) {
     discovery?: Partial<DiscoverySettings>;
     outreach?: Partial<OutreachExecutionSettings>;
     growthAutopilot?: Partial<GrowthAutopilotSettings>;
+    monthlyCosts?: { amount: number };
   };
 
   const admin = createAdminClient();
@@ -103,6 +104,18 @@ export async function PUT(req: NextRequest) {
   if (body.growthAutopilot) {
     const growthAutopilot = await saveGrowthAutopilotSettings(admin, body.growthAutopilot);
     results.growthAutopilot = growthAutopilot;
+  }
+
+  if (body.monthlyCosts && typeof body.monthlyCosts.amount === 'number') {
+    const { error } = await admin.from('owner_founder_settings').upsert({
+      key: 'monthly_costs',
+      value: { amount: body.monthlyCosts.amount },
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    results.monthlyCosts = body.monthlyCosts;
   }
 
   return NextResponse.json(results);

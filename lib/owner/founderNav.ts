@@ -1,19 +1,27 @@
 export const FOUNDER_SECTIONS = [
-  { id: 'home', label: 'Home' },
-  { id: 'inbox', label: 'Inbox' },
-  { id: 'prospects', label: 'Prospects' },
-  { id: 'success', label: 'Success' },
-  { id: 'customers', label: 'Customers' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'overview', label: 'Overview' },
+  { id: 'funnel', label: 'Traffic & Funnel' },
+  { id: 'product', label: 'Product Usage' },
+  { id: 'revenue', label: 'Revenue' },
+  { id: 'marketing', label: 'Marketing' },
+  { id: 'sales', label: 'Sales / CRM' },
+  { id: 'content', label: 'Site Content' },
+  { id: 'alerts', label: 'Operations' },
 ] as const;
 
 export type FounderSectionId = (typeof FOUNDER_SECTIONS)[number]['id'];
 
 const LEGACY_SECTION_MAP: Record<string, FounderSectionId> = {
-  overview: 'home',
-  crm: 'inbox',
-  insights: 'home',
-  outreach: 'inbox',
+  home: 'overview',
+  overview: 'overview',
+  inbox: 'marketing',
+  prospects: 'sales',
+  success: 'product',
+  customers: 'product',
+  settings: 'alerts',
+  insights: 'overview',
+  crm: 'sales',
+  outreach: 'marketing',
 };
 
 export function isFounderSectionId(value: string): value is FounderSectionId {
@@ -26,14 +34,14 @@ export function resolveFounderSection(value: string): FounderSectionId | null {
   return LEGACY_SECTION_MAP[value] ?? null;
 }
 
-/** Map inbox item modules to Founder OS nav sections for Review actions. */
+/** Map legacy inbox modules to new nav sections. */
 export function resolveReviewSection(
   module: 'inbox' | 'prospects' | 'customers' | 'success' | 'outreach',
 ): FounderSectionId {
-  if (module === 'prospects') return 'prospects';
-  if (module === 'customers') return 'customers';
-  if (module === 'success') return 'success';
-  return 'inbox';
+  if (module === 'prospects') return 'sales';
+  if (module === 'customers' || module === 'success') return 'product';
+  if (module === 'outreach') return 'marketing';
+  return 'marketing';
 }
 
 export const BANNED_DEMO_PATTERNS = [

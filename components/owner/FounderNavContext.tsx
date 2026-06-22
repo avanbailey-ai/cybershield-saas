@@ -7,6 +7,7 @@ import {
   type FounderSectionId,
   resolveFounderSection,
 } from '@/lib/owner/founderNav';
+import type { FounderCommandCenterData } from '@/lib/owner/founderCommandCenterTypes';
 import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
 
 export interface FounderReviewTarget {
@@ -17,11 +18,14 @@ export interface FounderReviewTarget {
 
 interface FounderNavContextValue {
   section: FounderSectionId;
-  setSection: (id: FounderSectionId) => void;
+  setSection: (id: FounderSectionId | string) => void;
   email: string;
+  commandCenter: FounderCommandCenterData;
+  refreshCommandCenter: () => Promise<void>;
+  /** @deprecated Legacy V6 payload — unmounted views only */
   founderData: FounderOsV6Data;
+  /** @deprecated Alias for refreshCommandCenter */
   refreshFounderData: () => Promise<void>;
-  setFounderData: (data: FounderOsV6Data) => void;
   reviewTarget: FounderReviewTarget | null;
   openProspectsReview: (target: FounderReviewTarget) => void;
   openFindCustomers: () => void;
@@ -32,40 +36,43 @@ const FounderNavContext = createContext<FounderNavContextValue | null>(null);
 
 export function FounderNavProvider({
   email,
-  initialFounderData,
+  initialCommandCenter,
+  initialLegacyFounder,
   children,
 }: {
   email: string;
-  initialFounderData: FounderOsV6Data;
+  initialCommandCenter: FounderCommandCenterData;
+  initialLegacyFounder: FounderOsV6Data;
   children: ReactNode;
 }) {
-  const [section, setSectionState] = useState<FounderSectionId>('home');
-  const [founderData, setFounderData] = useState(initialFounderData);
+  const [section, setSectionState] = useState<FounderSectionId>('overview');
+  const [commandCenter, setCommandCenter] = useState(initialCommandCenter);
   const [reviewTarget, setReviewTarget] = useState<FounderReviewTarget | null>(null);
 
-  const setSection = useCallback((id: FounderSectionId) => {
-    setSectionState(id);
-    window.history.replaceState(null, '', `#${id}`);
+  const setSection = useCallback((id: FounderSectionId | string) => {
+    const resolved = resolveFounderSection(id) ?? 'overview';
+    setSectionState(resolved);
+    window.history.replaceState(null, '', `#${resolved}`);
   }, []);
 
   const openProspectsReview = useCallback((target: FounderReviewTarget) => {
     setReviewTarget(target);
-    setSectionState('prospects');
-    window.history.replaceState(null, '', '#prospects');
+    setSectionState('sales');
+    window.history.replaceState(null, '', '#sales');
   }, []);
 
   const openFindCustomers = useCallback(() => {
     setReviewTarget({ focus: 'find-customers' });
-    setSectionState('prospects');
-    window.history.replaceState(null, '', '#prospects');
+    setSectionState('sales');
+    window.history.replaceState(null, '', '#sales');
   }, []);
 
   const clearReviewTarget = useCallback(() => setReviewTarget(null), []);
 
-  const refreshFounderData = useCallback(async () => {
-    const res = await fetch('/api/owner/founder-os');
+  const refreshCommandCenter = useCallback(async () => {
+    const res = await fetch('/api/owner/command-center');
     const json = await res.json();
-    if (json.data) setFounderData(json.data);
+    if (json.data) setCommandCenter(json.data);
   }, []);
 
   useEffect(() => {
@@ -80,9 +87,10 @@ export function FounderNavProvider({
         section,
         setSection,
         email,
-        founderData,
-        refreshFounderData,
-        setFounderData,
+        commandCenter,
+        refreshCommandCenter,
+        founderData: initialLegacyFounder,
+        refreshFounderData: refreshCommandCenter,
         reviewTarget,
         openProspectsReview,
         openFindCustomers,

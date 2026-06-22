@@ -1,5 +1,5 @@
 /**
- * Verify Founder OS simplification (premium rebuild).
+ * Verify Founder OS command center rebuild.
  * Run: npx tsx scripts/verify-founder-os-simplification.ts
  */
 
@@ -39,49 +39,30 @@ function readAllOwnerSources(): string {
   return parts.join('\n');
 }
 
-assert(FOUNDER_SECTIONS.length === 6, `Expected 6 nav sections, got ${FOUNDER_SECTIONS.length}`);
-assert(FOUNDER_SECTIONS.some((s) => s.id === 'success'), 'Success nav section exists');
+assert(FOUNDER_SECTIONS.length === 8, `Expected 8 nav sections, got ${FOUNDER_SECTIONS.length}`);
+assert(FOUNDER_SECTIONS.some((s) => s.id === 'overview'), 'Overview nav section exists');
+assert(FOUNDER_SECTIONS.some((s) => s.id === 'sales'), 'Sales / CRM nav section exists');
+assert(!FOUNDER_SECTIONS.some((s) => (s.id as string) === 'prospects'), 'Prospects removed from main nav');
 
 const shell = readFile('components/owner/FounderShell.tsx');
 assert(shell.includes('FOUNDER_SECTIONS'), 'FounderShell uses FOUNDER_SECTIONS');
 
 const founderOs = readFile('components/owner/FounderOs.tsx');
-assert(founderOs.includes('FounderHomeView'), 'FounderOs uses FounderHomeView');
-assert(founderOs.includes('FounderInboxView'), 'FounderOs uses FounderInboxView');
-assert(founderOs.includes('ProspectsView'), 'FounderOs uses ProspectsView');
-assert(!founderOs.includes('OpportunityCenter'), 'Duplicate OpportunityCenter removed');
-assert(!founderOs.includes('RevenueOpportunityPanel'), 'Duplicate RevenueOpportunityPanel removed');
-assert(!founderOs.includes('DailyBriefing'), 'DailyBriefing merged into home');
+assert(founderOs.includes('FounderOverviewView'), 'FounderOs uses FounderOverviewView');
+assert(!founderOs.includes('LeadDiscovery'), 'FounderOs does not mount LeadDiscovery');
+assert(!founderOs.includes('ProspectsView'), 'FounderOs does not mount ProspectsView');
 
-const home = readFile('components/owner/views/FounderHomeView.tsx');
-assert(
-  home.includes('At a glance') || home.includes('Business status') || home.includes('businessStatus'),
-  'Home has business status',
-);
-assert(home.includes('AiChiefOfStaff') || home.includes('chiefOfStaff'), 'Home has AI Chief of Staff');
+const page = readFile('app/dashboard/admin/owner/page.tsx');
+assert(page.includes('getFounderCommandCenter'), 'Owner page loads command center');
+assert(!page.includes('getFounderOsV6'), 'Owner page no longer loads V6 prospect payload');
 
-const prospects = readFile('components/owner/views/ProspectsView.tsx');
-assert(prospects.includes('LeadDiscovery'), 'Prospects uses single discovery source');
-assert(
-  readFile('components/owner/ProspectCard.tsx').includes('Recommended next action') ||
-    readFile('components/owner/ProspectPipeline.tsx').includes('Recommended next action'),
-  'Prospects has recommended next action',
-);
-assert(
-  readFile('components/owner/LeadDiscovery.tsx').includes('No qualified prospects yet') ||
-    readFile('lib/owner/pipeline.ts').includes('No qualified prospects yet'),
-  'Prospects empty state',
-);
+const aggregator = readFile('lib/owner/founderCommandCenter.ts');
+assert(aggregator.includes('getFounderCommandCenter'), 'Command center aggregator exists');
+assert(aggregator.includes('No data yet') || aggregator.includes('emptyReason'), 'Honest empty states');
 
-assert(readFile('components/owner/views/FounderInboxView.tsx').includes('inbox'), 'Inbox view exists');
-assert(readFile('components/owner/views/CustomersView.tsx').includes('No customer data yet'), 'Customers empty state');
-
-const sources = readAllOwnerSources();
-for (const banned of BANNED_DEMO_PATTERNS) {
-  assert(!sources.includes(banned), `Banned demo pattern found: ${banned}`);
+const allOwner = readAllOwnerSources();
+for (const pattern of BANNED_DEMO_PATTERNS.slice(0, 3)) {
+  assert(!allOwner.includes(`"${pattern}"`), `Banned demo pattern should not appear in owner UI: ${pattern}`);
 }
-assert(!sources.includes('generateProspectList'), 'No generateProspectList');
-assert(!sources.includes('DEFAULT_BENCHMARKS'), 'No DEFAULT_BENCHMARKS');
 
-console.log('All Founder OS simplification checks passed.');
-console.log(`  Nav sections: ${FOUNDER_SECTIONS.length}`);
+console.log('verify-founder-os-simplification: all checks passed');

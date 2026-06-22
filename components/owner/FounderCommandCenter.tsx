@@ -1,39 +1,9 @@
-﻿import type { FounderBriefing } from '@/lib/owner/briefing';
-import type {
-  BusinessOverviewMetrics,
-  TrendWindow,
-  OwnerProspect,
-  OwnerCrmLead,
-  OwnerCampaign,
-  OwnerCampaignTask,
-  OwnerCompetitor,
-  OwnerContentPost,
-} from '@/lib/owner/types';
-import type { MarketingInsight } from '@/lib/owner/generators/insights';
-import type { CustomerIntelligenceSummary } from '@/lib/owner/customerIntelligence';
-import type { DataMoatSnapshot } from '@/lib/owner/dataMoat';
-import type { RevenueOpportunitySummary } from '@/lib/owner/revenueOpportunity';
-import type { ContentSuggestion } from '@/lib/owner/generators/contentIntel';
-import type { CeoAdvisoryData } from '@/lib/owner/ceoAdvisory';
-import type { CeoDashboard } from '@/lib/owner/ceoDashboard';
+﻿import type { OwnerCrmLead } from '@/lib/owner/types';
+import type { FounderCommandCenterData } from '@/lib/owner/founderCommandCenterTypes';
 import type { FounderOsV6Data } from '@/lib/owner/founderOsV6';
 
-type CampaignWithTasks = OwnerCampaign & { owner_campaign_tasks: OwnerCampaignTask[] };
-
 export interface FounderCommandCenterProps {
-  briefing: FounderBriefing;
-  windows: Record<TrendWindow, BusinessOverviewMetrics>;
-  prospects: OwnerProspect[];
-  campaigns: CampaignWithTasks[];
+  commandCenter: FounderCommandCenterData;
   crmLeads: OwnerCrmLead[];
-  competitors: OwnerCompetitor[];
-  contentPosts: OwnerContentPost[];
-  insights: MarketingInsight[];
-  intelligence: CustomerIntelligenceSummary;
-  moat: DataMoatSnapshot;
-  revenue: RevenueOpportunitySummary;
-  contentSuggestions: ContentSuggestion[];
-  ceoAdvisory: CeoAdvisoryData;
-  ceoDashboard: CeoDashboard;
-  founderOsV5: FounderOsV6Data;
+  legacyFounder: FounderOsV6Data;
 }

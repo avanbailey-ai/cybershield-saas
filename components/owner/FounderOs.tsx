@@ -2,43 +2,59 @@
 
 import { FounderNavProvider, useFounderNav } from './FounderNavContext';
 import FounderShell from './FounderShell';
-import FounderHomeView from './views/FounderHomeView';
-import FounderInboxView from './views/FounderInboxView';
-import ProspectsView from './views/ProspectsView';
-import CustomersView from './views/CustomersView';
-import SettingsView from './views/SettingsView';
-import CustomerSuccessView from './views/CustomerSuccessView';
+import FounderOverviewView from './views/founder/FounderOverviewView';
+import FounderFunnelView from './views/founder/FounderFunnelView';
+import FounderProductView from './views/founder/FounderProductView';
+import FounderRevenueView from './views/founder/FounderRevenueView';
+import FounderMarketingView from './views/founder/FounderMarketingView';
+import FounderSalesView from './views/founder/FounderSalesView';
+import FounderSiteContentView from './views/founder/FounderSiteContentView';
+import FounderOperationsView from './views/founder/FounderOperationsView';
 import type { FounderCommandCenterProps } from './FounderCommandCenter';
 
-function FounderContent(props: FounderCommandCenterProps) {
-  const { section } = useFounderNav();
+function FounderContent({ crmLeads }: { crmLeads: FounderCommandCenterProps['crmLeads'] }) {
+  const { section, commandCenter, refreshCommandCenter } = useFounderNav();
 
   switch (section) {
-    case 'home':
-      return <FounderHomeView />;
-    case 'inbox':
-      return <FounderInboxView />;
-    case 'prospects':
-      return <ProspectsView prospects={props.prospects} revenue={props.revenue} />;
-    case 'success':
-      return <CustomerSuccessView />;
-    case 'customers':
-      return <CustomersView />;
-    case 'settings':
-      return <SettingsView />;
+    case 'overview':
+      return <FounderOverviewView data={commandCenter} />;
+    case 'funnel':
+      return <FounderFunnelView data={commandCenter} />;
+    case 'product':
+      return <FounderProductView data={commandCenter} />;
+    case 'revenue':
+      return <FounderRevenueView data={commandCenter} />;
+    case 'marketing':
+      return <FounderMarketingView data={commandCenter} />;
+    case 'sales':
+      return (
+        <FounderSalesView
+          data={commandCenter}
+          crmLeads={crmLeads}
+          onRefresh={() => void refreshCommandCenter()}
+        />
+      );
+    case 'content':
+      return <FounderSiteContentView data={commandCenter} />;
+    case 'alerts':
+      return <FounderOperationsView data={commandCenter} />;
     default:
-      return <FounderHomeView />;
+      return <FounderOverviewView data={commandCenter} />;
   }
 }
 
 export default function FounderOs(props: FounderCommandCenterProps & { email: string }) {
-  const { email, ...data } = props;
+  const { email, commandCenter, crmLeads, legacyFounder } = props;
   return (
-    <FounderNavProvider email={email} initialFounderData={props.founderOsV5}>
+    <FounderNavProvider
+      email={email}
+      initialCommandCenter={commandCenter}
+      initialLegacyFounder={legacyFounder}
+    >
       <div className="flex h-full min-h-screen w-full overflow-hidden bg-[#050810]">
         <FounderShell />
-        <main className="flex-1 overflow-y-auto px-6 py-10 lg:px-12 lg:py-12">
-          <FounderContent {...data} />
+        <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+          <FounderContent crmLeads={crmLeads} />
         </main>
       </div>
     </FounderNavProvider>
