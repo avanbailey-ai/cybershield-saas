@@ -83,9 +83,10 @@ const presentation = buildExecutiveReportPresentation({
   historicalScores: [48, 50],
 });
 
-assert(presentation.summary.headline.length > 0, 'executive summary headline');
-assert(presentation.summary.statusBullets.length > 0, 'status bullets');
-assert(presentation.summary.nextStep.length > 0, 'next step');
+assert(presentation.snapshot.trustScore === 55, 'snapshot trust score');
+assert(presentation.snapshot.mainTakeaway.length > 0, 'snapshot takeaway');
+assert(presentation.monitoringValue.ctaLabel.includes('$79'), 'monitoring cta price');
+assert(presentation.strengthGroups.length === 4, 'strength groups');
 assert(presentation.scoreExplanation.band === 'Below average', 'below average band');
 assert(presentation.fixTheseFirst.actions.length > 0, 'fix these first actions');
 assert(presentation.strengths.length > 0, 'strengths');
@@ -95,6 +96,8 @@ assert(presentation.progress.bestScore !== null, 'best score');
 assert(presentation.progress.trend.currentScore === 55, 'progress current');
 
 const view = buildFindingExecutiveView(mockFinding, 55);
+assert(view.business.plainTitle.length > 0, 'business plain title');
+assert(view.business.developerAction.length > 0, 'developer action');
 assert(view.businessImpact.label.includes('Business Impact'), 'business impact label');
 assert(view.businessImpact.ifIgnored.length > 0, 'if ignored copy');
 assert(view.effort.label.length > 0, 'effort label');
@@ -127,8 +130,8 @@ const goodReport: SecurityIntelligenceReport = {
 
 const goodPresentation = buildExecutiveReportPresentation({ report: goodReport, sslValid: true });
 assert(
-  goodPresentation.fixTheseFirst.sectionLabel === 'Recommended Hardening',
-  'good score uses hardening label',
+  goodPresentation.fixTheseFirst.sectionLabel === 'Recommended Website Trust Improvements',
+  'good score uses trust improvements label',
 );
 assert(
   goodPresentation.fixTheseFirst.potentialImprovement.includes('excellent range'),

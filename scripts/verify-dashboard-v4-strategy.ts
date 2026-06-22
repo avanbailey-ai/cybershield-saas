@@ -70,14 +70,14 @@ assert(!alertsList.includes('security issues'), 'AlertsList avoids scanner langu
 const groupAlerts = read('lib/alerts/groupAlertsForDisplay.ts');
 assert(groupAlerts.includes('softenCustomerAlertTitle'), 'grouped alerts use customer language');
 
-// --- Reports executive summary first ---
+// --- Reports executive snapshot first ---
 const reportExperience = read('components/report/SecurityReportExperience.tsx');
-const execIdx = reportExperience.indexOf('Executive Summary');
-const scoreIdx = reportExperience.indexOf('Security Score Explanation');
-assert(execIdx >= 0 && scoreIdx > execIdx, 'Executive Summary appears before technical sections');
-assert(reportExperience.includes('Website Status'), 'executive summary has Website Status');
-assert(reportExperience.includes('Primary Risk Drivers'), 'executive summary has risk drivers');
-assert(reportExperience.includes('Estimated Score Improvement'), 'executive summary has score improvement');
+const execIdx = reportExperience.indexOf('Executive Snapshot');
+const scoreIdx = reportExperience.indexOf('Score details');
+assert(execIdx >= 0 && scoreIdx > execIdx, 'Executive Snapshot appears before technical score details');
+assert(reportExperience.includes('Website Trust Score'), 'snapshot has trust score');
+assert(reportExperience.includes('Recommended action'), 'snapshot has recommended action');
+assert(reportExperience.includes('Why ongoing monitoring matters'), 'report has monitoring value section');
 
 // --- Agency client protection focus ---
 const agencyDashboard = read('components/enterprise/EnterpriseAgencyDashboard.tsx');

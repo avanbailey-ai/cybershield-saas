@@ -196,7 +196,7 @@ export const CARD_TRIGGERS: CardTrigger[] = [
 
     id: 'external_scripts',
 
-    title: 'External Third-Party Scripts',
+    title: 'Third-Party Scripts on Page',
 
     detect: (scan) => scan.pageSnapshot.scripts.some((s) => isExternalScript(s, scan.url)),
 
@@ -260,7 +260,7 @@ export const CARD_TRIGGERS: CardTrigger[] = [
 
     id: 'auth_endpoints',
 
-    title: 'Authentication Endpoints Detected',
+    title: 'Login/Admin Routes Detected',
 
     detect: (scan) => scan.pageSnapshot.endpoints.some((e) => /\/auth|\/login/i.test(e)),
 
@@ -292,7 +292,7 @@ export const CARD_TRIGGERS: CardTrigger[] = [
 
     id: 'external_api_calls',
 
-    title: 'External API Calls',
+    title: 'External Services/API Connections',
 
     detect: (scan) => scan.pageSnapshot.externalApiCalls.length > 0,
 

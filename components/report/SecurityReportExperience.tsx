@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import type {
   ExecutiveReportPresentation,
@@ -70,19 +71,21 @@ function trendClass(direction: string): string {
     case 'improving':
       return 'text-green-400';
     case 'declining':
-      return 'text-red-400';
+      return 'text-amber-400';
     default:
       return 'text-gray-400';
   }
 }
 
-function SummaryField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2.5">
-      <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="mt-1 text-sm font-medium text-gray-200">{value}</dd>
-    </div>
-  );
+function priorityBadgeClass(priority: string): string {
+  switch (priority) {
+    case 'Urgent':
+      return 'border-amber-500/40 bg-amber-500/10 text-amber-300';
+    case 'Recommended':
+      return 'border-blue-500/30 bg-blue-500/10 text-blue-300';
+    default:
+      return 'border-gray-600 bg-gray-800 text-gray-400';
+  }
 }
 
 export default function SecurityReportExperience({
@@ -97,8 +100,30 @@ export default function SecurityReportExperience({
   planLevel,
 }: SecurityReportExperienceProps) {
   const [viewMode, setViewMode] = useState<ReportViewMode>('executive');
-  const { summary, scoreExplanation, fixTheseFirst, strengths, groupedFindings, plan, progress } =
-    presentation;
+  const {
+    snapshot,
+    scoreChange,
+    monitoringValue,
+    strengthGroups,
+    scoreExplanation,
+    fixTheseFirst,
+    groupedFindings,
+    plan,
+    progress,
+  } = presentation;
+
+  const trendLabel = scoreChange.trendLabel;
+
+  const scoreRiskLevel =
+    scoreExplanation.score >= 80
+      ? 'low'
+      : scoreExplanation.score >= 60
+        ? 'medium'
+        : scoreExplanation.score >= 40
+          ? 'high'
+          : 'critical';
+
+  const isUrgentSection = fixTheseFirst.sectionLabel === 'Fix These First';
 
   return (
     <>
@@ -117,207 +142,124 @@ export default function SecurityReportExperience({
         </div>
       )}
 
-      {/* Executive Summary — structured first */}
+      {/* 1. Executive Snapshot */}
       <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Executive Summary
+        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          Executive Snapshot
         </h2>
-        <p className="text-lg font-semibold text-white">{summary.headline}</p>
-
-        <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <SummaryField label="Website Status" value={summary.statusBullets[0] ?? 'Under review'} />
-          <SummaryField
-            label="Protection Score"
-            value={`${scoreExplanation.score}/100 · ${scoreExplanation.band}`}
-          />
-          <SummaryField label="Risk Level" value={summary.overallRisk.replace(/^Overall risk:\s*/i, '')} />
-          <SummaryField
-            label="Primary Risk Drivers"
-            value={scoreExplanation.scoreDrivers.slice(0, 2).join(' · ') || 'None identified'}
-          />
-          <SummaryField label="Next Step" value={summary.nextStep} />
-          <SummaryField
-            label="Estimated Score Improvement"
-            value={
-              fixTheseFirst.potentialImprovement ||
-              (fixTheseFirst.totalEstimatedGain > 0
-                ? `Up to +${fixTheseFirst.totalEstimatedGain} points available`
-                : 'Maintain current protections')
-            }
-          />
-        </dl>
-
-        <ul className="mt-5 space-y-2">
-          {summary.statusBullets.map((bullet) => (
-            <li key={bullet} className="flex items-start gap-2 text-sm text-gray-300">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
-              {bullet}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* Security Score Explanation */}
-      <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Security Score Explanation
-        </h2>
-        <div className="flex flex-wrap items-baseline gap-3">
-          <p
-            className={`text-4xl font-bold tabular-nums ${riskScoreColor(
-              scoreExplanation.score >= 80
-                ? 'low'
-                : scoreExplanation.score >= 60
-                  ? 'medium'
-                  : scoreExplanation.score >= 40
-                    ? 'high'
-                    : 'critical',
-            )}`}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-baseline gap-4">
+            <p
+              className={`text-5xl font-bold tabular-nums ${riskScoreColor(scoreRiskLevel)}`}
+            >
+              {snapshot.trustScore}
+              <span className="text-xl font-normal text-gray-500">/100</span>
+            </p>
+            <div>
+              <p className="text-sm font-semibold text-white">Website Trust Score</p>
+              <p className="text-sm text-gray-400">{snapshot.band}</p>
+              <p className="mt-1 inline-flex rounded-full border border-gray-700 bg-gray-800 px-2.5 py-0.5 text-xs font-medium text-gray-300">
+                {snapshot.status}
+              </p>
+            </div>
+          </div>
+          <Link
+            href={monitoringValue.ctaHref}
+            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
           >
-            {scoreExplanation.score}
-            <span className="text-lg font-normal text-gray-500">/100</span>
-          </p>
-          <span className="rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-sm font-medium text-gray-300">
-            {scoreExplanation.band}
-          </span>
+            {snapshot.monitoringCtaLabel}
+          </Link>
         </div>
-        <p className="mt-3 text-sm leading-relaxed text-gray-400">
-          {scoreExplanation.percentileContext}
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Score drivers
-            </p>
-            <ul className="mt-2 space-y-1">
-              {scoreExplanation.scoreDrivers.map((driver) => (
-                <li key={driver} className="text-sm text-gray-300">• {driver}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Positive factors
-            </p>
-            <ul className="mt-2 space-y-1">
-              {scoreExplanation.positiveFactors.map((factor) => (
-                <li key={factor} className="text-sm text-green-300/90">• {factor}</li>
-              ))}
-            </ul>
-          </div>
+
+        <p className="mt-5 text-base leading-relaxed text-gray-200">{snapshot.mainTakeaway}</p>
+
+        <div className="mt-5 rounded-lg border border-gray-800 bg-gray-950/50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Recommended action
+          </p>
+          <p className="mt-1 text-sm text-gray-200">{snapshot.recommendedAction}</p>
         </div>
       </section>
 
-      {/* Fix These First / Recommended Hardening */}
+      {/* 2. Why Your Score Changed */}
+      {scoreChange.show && (
+        <section className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-amber-400/90">
+            {scoreChange.headline}
+          </h2>
+          <p className="text-sm text-gray-300">
+            <span className="font-medium text-white">
+              {scoreChange.previousScore} → {scoreChange.currentScore}
+            </span>
+            {' · '}
+            {scoreChange.whatChanged}
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-gray-400">{scoreChange.interpretation}</p>
+          <p className="mt-3 text-sm font-medium text-gray-200">{scoreChange.nextStep}</p>
+        </section>
+      )}
+
+      {/* 3. Recommended Website Trust Improvements */}
       {fixTheseFirst.actions.length > 0 && (
         <section
           className={`mb-6 rounded-xl border p-6 ${
-            fixTheseFirst.sectionLabel === 'Fix These First'
+            isUrgentSection
               ? 'border-amber-500/20 bg-amber-500/5'
               : 'border-blue-500/20 bg-blue-500/5'
           }`}
         >
           <h2
             className={`mb-4 text-sm font-semibold uppercase tracking-wider ${
-              fixTheseFirst.sectionLabel === 'Fix These First'
-                ? 'text-amber-400/90'
-                : 'text-blue-400/90'
+              isUrgentSection ? 'text-amber-400/90' : 'text-blue-400/90'
             }`}
           >
             {fixTheseFirst.sectionLabel}
           </h2>
-          <ol className="space-y-4">
+          <ol className="space-y-3">
             {fixTheseFirst.actions.map((action) => (
               <li
                 key={action.findingId}
-                className="rounded-lg border border-gray-800 bg-gray-900/80 p-4"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900/80 px-4 py-3"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <span
-                      className={`text-xs font-bold ${
-                        fixTheseFirst.sectionLabel === 'Fix These First'
-                          ? 'text-amber-400'
-                          : 'text-blue-400'
-                      }`}
-                    >
-                      #{action.rank}
-                    </span>
-                    <h3 className="mt-1 text-sm font-semibold text-white">{action.title}</h3>
-                    <p className="mt-1 text-xs text-gray-400">
-                      {action.effort.label} · {action.effort.timeRange}
-                    </p>
-                  </div>
-                  <div className="text-right text-xs">
-                    <p className="text-gray-500">Score impact preview</p>
-                    <p className="mt-1 font-semibold text-green-400">
-                      +{action.estimatedGain} pts → {action.projectedScore}/100
-                    </p>
-                  </div>
+                <div className="min-w-0">
+                  <span
+                    className={`text-xs font-bold ${
+                      isUrgentSection ? 'text-amber-400' : 'text-blue-400'
+                    }`}
+                  >
+                    #{action.rank}
+                  </span>
+                  <p className="mt-0.5 text-sm font-medium text-white">{action.title}</p>
+                  <p className="text-xs text-gray-500">
+                    {action.effort.label} · {action.effort.timeRange}
+                  </p>
                 </div>
+                <p className="text-xs text-gray-400">
+                  <span className="text-gray-500">Est. impact: </span>
+                  <span className="font-semibold text-green-400/90">
+                    +{action.estimatedGain} pts → {action.projectedScore}/100
+                  </span>
+                </p>
               </li>
             ))}
           </ol>
-          <div
-            className={`mt-4 flex flex-wrap gap-4 border-t pt-4 text-sm ${
-              fixTheseFirst.sectionLabel === 'Fix These First'
-                ? 'border-amber-500/20'
-                : 'border-blue-500/20'
-            }`}
-          >
-            <p className="text-gray-300">
-              <span className="text-gray-500">Total effort: </span>
-              {fixTheseFirst.totalEffortLabel}
-            </p>
-            <p className="text-gray-300">
-              <span className="text-gray-500">Potential improvement: </span>
-              {fixTheseFirst.potentialImprovement}
-            </p>
-          </div>
         </section>
       )}
 
-      {/* Security Strengths */}
-      {strengths.length > 0 && (
-        <section className="mb-6 rounded-xl border border-green-500/20 bg-green-500/5 p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-green-400/90">
-            Security Strengths
-          </h2>
-          <p className="mb-4 text-sm text-gray-400">What&apos;s already working on your site.</p>
-          <ul className="space-y-3">
-            {strengths.map((strength) => (
-              <li
-                key={strength.label}
-                className="rounded-lg border border-gray-800 bg-gray-900/60 px-4 py-3"
-              >
-                <p className="text-sm font-medium text-green-300">{strength.label}</p>
-                <p className="mt-1 text-sm text-gray-400">{strength.detail}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Grouped Findings */}
+      {/* 4. What This Means for Your Business */}
       {groupedFindings.length > 0 && (
         <section className="mb-6">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-500">
-            Findings by Business Impact
+          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wider text-gray-500">
+            What This Means for Your Business
           </h2>
-          <p className="mb-4 text-sm text-gray-400">
-            Each finding includes what it is, why it matters, business impact, and fix guidance.
-            Use the remediation assistant, send-to-developer, or generate ticket actions to
-            delegate fixes.
+          <p className="mb-4 text-sm text-gray-500">
+            Business impact first — expand any item for developer notes and remediation tools.
           </p>
-          <div className="space-y-6">
+          <div className="space-y-5">
             {groupedFindings.map((group) => (
-              <div
-                key={group.name}
-                className="rounded-xl border border-gray-800 bg-gray-900 p-6"
-              >
-                <h3 className="text-base font-semibold text-white">{group.name}</h3>
-                <p className="mt-1 text-sm text-gray-400">{group.description}</p>
-                <div className="mt-4 space-y-4">
+              <div key={group.name}>
+                <h3 className="mb-3 text-sm font-semibold text-gray-400">{group.name}</h3>
+                <div className="space-y-3">
                   {group.findings.map((view) => {
                     const finding = findings.find((f) => f.id === view.findingId);
                     if (!finding) return null;
@@ -338,6 +280,68 @@ export default function SecurityReportExperience({
         </section>
       )}
 
+      {/* 5. Security Strengths (compressed) */}
+      {strengthGroups.some((g) => g.active) && (
+        <section className="mb-6 rounded-xl border border-green-500/20 bg-green-500/5 p-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-green-400/90">
+            Security Strengths
+          </h2>
+          <p className="mb-4 text-sm text-gray-400">
+            Proof your site already has trust foundations in place.
+          </p>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {strengthGroups.map((group) => (
+              <li
+                key={group.label}
+                className={`rounded-lg border px-4 py-3 ${
+                  group.active
+                    ? 'border-green-500/20 bg-gray-900/60'
+                    : 'border-gray-800 bg-gray-950/40 opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                      group.active
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-gray-800 text-gray-500'
+                    }`}
+                  >
+                    {group.active ? '✓' : '—'}
+                  </span>
+                  <p className="text-sm font-medium text-green-300">{group.label}</p>
+                </div>
+                {group.active && (
+                  <p className="mt-1.5 pl-7 text-xs leading-relaxed text-gray-400">{group.detail}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* 6. Why ongoing monitoring matters */}
+      <section className="mb-6 rounded-xl border border-blue-500/25 bg-gradient-to-br from-blue-500/10 to-gray-900 p-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-blue-400">
+          {monitoringValue.title}
+        </h2>
+        <p className="max-w-2xl text-sm leading-relaxed text-gray-300">{monitoringValue.body}</p>
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          {monitoringValue.bullets.map((bullet) => (
+            <li key={bullet} className="flex items-center gap-2 text-sm text-gray-300">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+              {bullet}
+            </li>
+          ))}
+        </ul>
+        <Link
+          href={monitoringValue.ctaHref}
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
+        >
+          Start Pro Monitoring — {monitoringValue.priceLabel}
+        </Link>
+      </section>
+
       {/* 30-Day Plan */}
       {plan.some((w) => w.tasks.length > 0) && (
         <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
@@ -353,7 +357,9 @@ export default function SecurityReportExperience({
                 <h3 className="text-sm font-semibold text-white">{week.title}</h3>
                 <ul className="mt-3 space-y-2">
                   {week.tasks.map((task) => (
-                    <li key={task} className="text-sm text-gray-300">• {task}</li>
+                    <li key={task} className="text-sm text-gray-300">
+                      • {task}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -362,10 +368,10 @@ export default function SecurityReportExperience({
         </section>
       )}
 
-      {/* Security Progress */}
+      {/* Monitoring History */}
       <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
-          Security Progress
+          Monitoring History
         </h2>
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-4 py-3">
@@ -385,44 +391,93 @@ export default function SecurityReportExperience({
           <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-4 py-3">
             <p className="text-xs text-gray-500">Trend</p>
             <p className={`mt-1 text-sm font-semibold ${trendClass(progress.trend.direction)}`}>
-              {progress.trend.deltaLabel}
+              {trendLabel}
             </p>
           </div>
         </div>
       </section>
 
-      {/* SSL quick status in executive flow */}
-      <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
-        <h2 className="mb-4 text-sm font-semibold text-gray-300">SSL / HTTPS</h2>
-        <div className="flex items-center gap-3">
-          {sslValid ? (
-            <>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20">
-                <svg className="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </span>
-              <span className="text-sm font-medium text-green-400">HTTPS Enabled</span>
-            </>
-          ) : (
-            <>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
-                <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </span>
-              <span className="text-sm font-medium text-red-400">No HTTPS — traffic is unencrypted</span>
-            </>
-          )}
-        </div>
-      </section>
-
       {viewMode === 'technical' && (
         <>
-          <SecurityRecommendationsPanel
-            recommendations={recommendations}
-            findings={findings}
-          />
+          <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500">
+              Score details
+            </h2>
+            <p className="text-sm leading-relaxed text-gray-400">
+              {scoreExplanation.percentileContext}
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Score drivers
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {scoreExplanation.scoreDrivers.map((driver) => (
+                    <li key={driver} className="text-sm text-gray-300">
+                      • {driver}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Positive factors
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {scoreExplanation.positiveFactors.map((factor) => (
+                    <li key={factor} className="text-sm text-green-300/90">
+                      • {factor}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-6">
+            <h2 className="mb-4 text-sm font-semibold text-gray-300">SSL / HTTPS</h2>
+            <div className="flex items-center gap-3">
+              {sslValid ? (
+                <>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20">
+                    <svg
+                      className="h-4 w-4 text-green-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  <span className="text-sm font-medium text-green-400">HTTPS Enabled</span>
+                </>
+              ) : (
+                <>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
+                    <svg
+                      className="h-4 w-4 text-red-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </span>
+                  <span className="text-sm font-medium text-red-400">
+                    No HTTPS — traffic is unencrypted
+                  </span>
+                </>
+              )}
+            </div>
+          </section>
+
+          <SecurityRecommendationsPanel recommendations={recommendations} findings={findings} />
           {findings.map((finding) => (
             <div key={`tech-${finding.id}`} className="mb-4">
               <SecurityFindingCard finding={finding} actionContext={actionContext} />
@@ -447,55 +502,71 @@ function ExecutiveFindingCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showTechnical, setShowTechnical] = useState(false);
+  const { business } = view;
 
   return (
     <article className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-start justify-between gap-3 text-left"
-      >
-        <div className="min-w-0">
-          <h4 className="text-sm font-semibold text-white">{view.title}</h4>
-          <p className="mt-1 text-sm text-gray-300">{view.businessSummary}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-semibold text-white">{business.plainTitle}</h4>
           <div className="mt-2 flex flex-wrap gap-2">
-            <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] font-semibold text-gray-400">
-              {view.businessImpact.label}
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${priorityBadgeClass(business.priorityLabel)}`}
+            >
+              {business.priorityLabel}
             </span>
             <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] font-semibold text-gray-400">
               {view.effort.label} · {view.effort.timeRange}
             </span>
             <span className="rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">
-              +{view.scoreImpact.estimatedGain} pts
+              Est. +{view.scoreImpact.estimatedGain} pts
             </span>
           </div>
         </div>
-        <span className="text-xs text-gray-500">{expanded ? 'Hide' : 'Details'}</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="shrink-0 text-xs font-semibold text-blue-400 hover:text-blue-300"
+        >
+          {expanded ? 'Hide details' : 'Developer notes'}
+        </button>
+      </div>
+
+      <dl className="mt-4 space-y-3">
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            What CyberShield found
+          </dt>
+          <dd className="mt-1 text-sm text-gray-300">{business.whatWeFound}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Why it matters to your business
+          </dt>
+          <dd className="mt-1 text-sm text-gray-300">{business.whyItMatters}</dd>
+        </div>
+        {business.notConfirmedVulnerability && (
+          <p className="text-xs text-gray-500 italic">
+            This is a detected exposure or configuration signal — not a confirmed active vulnerability.
+          </p>
+        )}
+      </dl>
 
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-gray-800 pt-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
-              If ignored
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-400/90">
+              What to ask your developer or host
             </p>
-            <p className="mt-1 text-sm text-gray-300">{view.businessImpact.ifIgnored}</p>
+            <p className="mt-1 text-sm text-gray-300">{business.developerAction}</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Effort
+              Estimated score impact
             </p>
             <p className="mt-1 text-sm text-gray-300">
-              {view.effort.label} — {view.effort.timeRange}. {view.effort.expertise}.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Score impact preview
-            </p>
-            <p className="mt-1 text-sm text-gray-300">
-              Current {view.scoreImpact.currentScore}/100 → projected {view.scoreImpact.projectedScore}/100
-              (+{view.scoreImpact.estimatedGain})
+              Estimated {view.scoreImpact.currentScore}/100 → {view.scoreImpact.projectedScore}/100
+              (+{view.scoreImpact.estimatedGain} pts if addressed)
             </p>
           </div>
           <div>
@@ -517,7 +588,7 @@ function ExecutiveFindingCard({
               <p className="mt-1 text-sm leading-relaxed text-gray-400">
                 {view.technicalExplanation}
               </p>
-              <pre className="mt-3 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 px-4 py-3 font-mono text-xs text-emerald-300/90 whitespace-pre-wrap">
+              <pre className="mt-3 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80 px-4 py-3 font-mono text-xs whitespace-pre-wrap text-emerald-300/90">
                 {finding.fix}
               </pre>
             </div>

@@ -1,4 +1,8 @@
 import type { HeaderChecks } from '@/lib/scanner/runScan';
+import {
+  buildBusinessFindingCopy,
+  type BusinessFindingCopy,
+} from '@/lib/report/findingBusinessCopy';
 import { SEVERITY_DEDUCTIONS } from '@/lib/securityIntelligence/scoring';
 import type {
   FindingCategory,
@@ -13,6 +17,8 @@ import {
   securityTrend,
   type SecurityTrend,
 } from '@/lib/websiteHealth/healthCenterCopy';
+
+export type { BusinessFindingCopy };
 
 export type ReportViewMode = 'executive' | 'technical';
 
@@ -44,10 +50,47 @@ export interface FindingExecutiveView {
   severity: Severity;
   categoryGroup: string;
   businessSummary: string;
+  business: BusinessFindingCopy;
   businessImpact: BusinessImpactInfo;
   effort: EffortEstimate;
   scoreImpact: ScoreImpactPreview;
   technicalExplanation: string;
+}
+
+export interface ExecutiveSnapshot {
+  trustScore: number;
+  band: string;
+  status: string;
+  mainTakeaway: string;
+  recommendedAction: string;
+  monitoringCtaLabel: string;
+}
+
+export interface ScoreChangeExplanation {
+  show: boolean;
+  previousScore: number;
+  currentScore: number;
+  delta: number;
+  headline: string;
+  whatChanged: string;
+  interpretation: string;
+  nextStep: string;
+  trendLabel: string;
+}
+
+export interface MonitoringValueSection {
+  title: string;
+  body: string;
+  ctaLabel: string;
+  ctaHref: string;
+  priceLabel: string;
+  bullets: string[];
+}
+
+export interface StrengthGroup {
+  label: string;
+  active: boolean;
+  detail: string;
 }
 
 export interface FixFirstAction {
@@ -75,7 +118,7 @@ export function fixTheseFirstSectionLabel(
   if (score < 70 || hasCriticalHigh) {
     return 'Fix These First';
   }
-  return 'Recommended Hardening';
+  return 'Recommended Website Trust Improvements';
 }
 
 function buildPotentialImprovementText(
@@ -135,6 +178,10 @@ export interface SecurityProgress {
 }
 
 export interface ExecutiveReportPresentation {
+  snapshot: ExecutiveSnapshot;
+  scoreChange: ScoreChangeExplanation;
+  monitoringValue: MonitoringValueSection;
+  strengthGroups: StrengthGroup[];
   summary: ExecutiveSummary;
   scoreExplanation: SecurityScoreExplanation;
   fixTheseFirst: FixTheseFirstSummary;
@@ -155,18 +202,36 @@ export const BANNED_REPORT_PHRASES = [
 ] as const;
 
 export const REQUIRED_REPORT_PHRASES = [
-  'Executive Summary',
+  'Executive Snapshot',
   'Fix These First',
-  'Business Impact',
+  'What This Means for Your Business',
   'Below average',
-  'If ignored',
+  'Why ongoing monitoring matters',
   'Security Strengths',
   '30-Day Security Improvement Plan',
-  'Security Progress',
+  'Monitoring History',
   'Technical Explanation',
   'Executive view',
   'Technical view',
+  'Start Pro Monitoring',
 ] as const;
+
+export const MONITORING_VALUE_SECTION: MonitoringValueSection = {
+  title: 'Why ongoing monitoring matters',
+  body:
+    'A one-time scan is useful, but websites change. Plugins update, scripts get added, APIs change, and headers can be removed. CyberShieldCloud monitors these changes and alerts you before small configuration changes turn into trust or security problems.',
+  ctaLabel: 'Start Pro Monitoring — $79/month',
+  ctaHref: '/pricing',
+  priceLabel: '$79/month',
+  bullets: [
+    'Recurring scans',
+    'Score change tracking',
+    'Plain-English reports',
+    'Email alerts',
+    'Finding history',
+    'Developer-ready fix notes',
+  ],
+};
 
 const CATEGORY_GROUP: Record<FindingCategory, { name: string; description: string }> = {
   headers: {
@@ -215,9 +280,9 @@ function businessImpactFromSeverity(severity: Severity): BusinessImpactInfo {
   if (severity === 'medium') {
     return {
       level: 'moderate',
-      label: 'Moderate — review recommended',
+      label: 'Worth reviewing',
       ifIgnored:
-        'Unreviewed configuration can drift over time. Periodic review keeps a good baseline strong.',
+        'Unreviewed configuration can drift over time. Periodic review keeps customer trust strong.',
     };
   }
   return {
@@ -269,8 +334,41 @@ function effortForFinding(category: FindingCategory, severity: Severity): Effort
   };
 }
 
+/** Softer display gains for good-score sites — avoids implying each moderate item adds full engine delta. */
+function displayGainForFinding(score: number, severity: Severity): number {
+  const raw = SEVERITY_DEDUCTIONS[severity];
+  if (score >= 70 && score < 90) {
+    if (severity === 'medium') return Math.min(raw, Math.max(3, Math.ceil((100 - score) / 8)));
+    if (severity === 'low') return Math.min(raw, 3);
+  }
+  return raw;
+}
+
+function applyGoodScoreSequentialImpacts(
+  findingViews: FindingExecutiveView[],
+  startScore: number,
+): void {
+  if (startScore < 70 || startScore >= 90) return;
+
+  const ordered = [...findingViews].sort(
+    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
+  );
+
+  let running = startScore;
+  for (const view of ordered) {
+    const gain = displayGainForFinding(running, view.severity);
+    const projected = Math.min(100, running + gain);
+    view.scoreImpact = {
+      currentScore: running,
+      projectedScore: projected,
+      estimatedGain: projected - running,
+    };
+    running = projected;
+  }
+}
+
 function scoreImpactForFinding(currentScore: number, severity: Severity): ScoreImpactPreview {
-  const gain = SEVERITY_DEDUCTIONS[severity];
+  const gain = displayGainForFinding(currentScore, severity);
   const projected = Math.min(100, currentScore + gain);
   return {
     currentScore,
@@ -279,12 +377,8 @@ function scoreImpactForFinding(currentScore: number, severity: Severity): ScoreI
   };
 }
 
-function businessSummaryFromFinding(finding: SecurityFinding): string {
-  const firstImpact = finding.impact[0];
-  if (firstImpact && firstImpact.length < 120) {
-    return firstImpact;
-  }
-  return finding.description;
+function businessSummaryFromFinding(finding: SecurityFinding, business: BusinessFindingCopy): string {
+  return business.whyItMatters;
 }
 
 function technicalExplanationFromFinding(finding: SecurityFinding): string {
@@ -301,12 +395,14 @@ export function buildFindingExecutiveView(
   currentScore: number,
 ): FindingExecutiveView {
   const group = CATEGORY_GROUP[finding.category];
+  const business = buildBusinessFindingCopy(finding);
   return {
     findingId: finding.id,
-    title: finding.title,
+    title: business.plainTitle,
     severity: finding.severity,
     categoryGroup: group.name,
-    businessSummary: businessSummaryFromFinding(finding),
+    businessSummary: businessSummaryFromFinding(finding, business),
+    business,
     businessImpact: businessImpactFromSeverity(finding.severity),
     effort: effortForFinding(finding.category, finding.severity),
     scoreImpact: scoreImpactForFinding(currentScore, finding.severity),
@@ -363,7 +459,10 @@ export function buildFixTheseFirst(
   }));
 
   const totalGain = actions.reduce((sum, a) => sum + a.estimatedGain, 0);
-  const projectedTotal = Math.min(100, currentScore + totalGain);
+  const projectedTotal =
+    actions.length > 0
+      ? actions[actions.length - 1]!.projectedScore
+      : Math.min(100, currentScore + totalGain);
 
   const effortLevels = new Set(actions.map((a) => a.effort.level));
   let totalEffortLabel = 'Low effort overall';
@@ -387,6 +486,25 @@ export function buildFixTheseFirst(
       projectedTotal,
     ),
   };
+}
+
+function headerStrengthDetail(key: keyof HeaderChecks): string {
+  switch (key) {
+    case 'csp':
+      return 'Helps limit which scripts and resources the browser can load on your pages.';
+    case 'hsts':
+      return 'Tells browsers to use HTTPS only — reduces accidental insecure connections.';
+    case 'xFrame':
+      return 'Reduces clickjacking risk by controlling whether your site can be framed.';
+    case 'xContentType':
+      return 'Helps prevent browsers from misinterpreting file types.';
+    case 'referrerPolicy':
+      return 'Controls how much referrer information is sent with outbound links.';
+    case 'permissionsPolicy':
+      return 'Restricts access to sensitive browser features when not needed.';
+    default:
+      return 'This browser protection is active on your site.';
+  }
 }
 
 export function extractSecurityStrengths(
@@ -414,11 +532,18 @@ export function extractSecurityStrengths(
   ];
 
   if (headers) {
-    for (const { key, label } of headerLabels) {
-      if (headers[key]) {
+    const activeHeaders = headerLabels.filter(({ key }) => headers[key]);
+    if (activeHeaders.length >= 3) {
+      const shortNames = activeHeaders.map(({ label }) => label.split(' ')[0] ?? label);
+      strengths.push({
+        label: `${activeHeaders.length} browser security headers active`,
+        detail: `Includes ${shortNames.join(', ')} — these baseline browser protections are working as expected.`,
+      });
+    } else {
+      for (const { key, label } of activeHeaders) {
         strengths.push({
           label: `${label} active`,
-          detail: 'This browser protection is in place and working as expected.',
+          detail: headerStrengthDetail(key),
         });
       }
     }
@@ -446,6 +571,198 @@ export function extractSecurityStrengths(
   }
 
   return strengths;
+}
+
+export function buildStrengthGroups(
+  headers: HeaderChecks | null,
+  sslValid: boolean | null,
+): StrengthGroup[] {
+  const browserKeys: Array<keyof HeaderChecks> = ['csp', 'hsts', 'xContentType', 'permissionsPolicy'];
+  const privacyKeys: Array<keyof HeaderChecks> = ['referrerPolicy'];
+  const clickjackKeys: Array<keyof HeaderChecks> = ['xFrame'];
+
+  const countActive = (keys: Array<keyof HeaderChecks>) =>
+    headers ? keys.filter((k) => headers[k]).length : 0;
+
+  const browserActive = countActive(browserKeys);
+  const privacyActive = countActive(privacyKeys);
+  const clickjackActive = countActive(clickjackKeys);
+
+  return [
+    {
+      label: 'HTTPS / SSL active',
+      active: sslValid === true,
+      detail: sslValid
+        ? 'Visitor traffic is encrypted — a core trust signal for customers and search engines.'
+        : 'HTTPS was not confirmed on this scan. Enable encryption across the entire site.',
+    },
+    {
+      label: 'Browser security protections active',
+      active: browserActive > 0,
+      detail:
+        browserActive >= 2
+          ? `${browserActive} core browser protections are configured (e.g. CSP, HSTS).`
+          : browserActive === 1
+            ? 'One core browser protection is active — additional headers can further harden trust.'
+            : 'No core browser security headers were detected on this scan.',
+    },
+    {
+      label: 'Privacy / referrer protections active',
+      active: privacyActive > 0,
+      detail:
+        privacyActive > 0
+          ? 'Referrer and privacy-related headers help control what data leaves your site with outbound links.'
+          : 'Referrer policy was not detected — worth reviewing with your developer.',
+    },
+    {
+      label: 'Clickjacking protection active',
+      active: clickjackActive > 0,
+      detail:
+        clickjackActive > 0
+          ? 'Frame-control headers reduce the risk of your site being embedded on untrusted pages.'
+          : 'Clickjacking protection was not detected — consider adding frame-control headers.',
+    },
+  ];
+}
+
+/** Report-facing trend label — avoids "declining" unless multiple scans show consistent drops. */
+export function reportProgressTrendLabel(
+  trend: SecurityTrend,
+  historicalScores: number[],
+  currentScore: number,
+): string {
+  if (trend.direction === 'improving') return trend.deltaLabel;
+  if (trend.direction === 'stable') return trend.deltaLabel;
+  if (trend.direction === 'unknown') return trend.deltaLabel;
+
+  const allScores = [...historicalScores, currentScore];
+  const consistentDecline =
+    allScores.length >= 3 &&
+    allScores.every((s, i) => i === 0 || s <= allScores[i - 1]!);
+
+  if (consistentDecline && trend.previousScore !== null) {
+    return `Declining · ${trend.deltaLabel}`;
+  }
+  return `Score changed · ${trend.deltaLabel}`;
+}
+
+export function buildExecutiveSnapshot(
+  report: SecurityIntelligenceReport,
+  fixTheseFirst: FixTheseFirstSummary,
+  scoreExplanation: SecurityScoreExplanation,
+): ExecutiveSnapshot {
+  const score = report.securityScore;
+  const findingCount = report.findings.length;
+  const highCount = report.findings.filter(
+    (f) => f.severity === 'critical' || f.severity === 'high',
+  ).length;
+
+  let status = 'Monitoring recommended';
+  if (score >= 90 && findingCount === 0) {
+    status = 'Strong trust baseline';
+  } else if (score >= 70 && highCount === 0) {
+    status = 'Solid baseline — items to review';
+  } else if (score >= 50) {
+    status = 'Trust improvements available';
+  } else {
+    status = 'Priority items need attention';
+  }
+
+  let mainTakeaway: string;
+  if (findingCount === 0) {
+    mainTakeaway =
+      'This scan did not detect major public-facing configuration gaps. Ongoing monitoring helps you keep that baseline as your site changes.';
+  } else if (score >= 70 && highCount === 0) {
+    mainTakeaway = `Your website has a solid baseline, but this scan found ${findingCount} public-facing item${findingCount === 1 ? '' : 's'} worth reviewing. These are not confirmed vulnerabilities, but they are the kind of changes CyberShieldCloud is designed to monitor over time.`;
+  } else if (highCount > 0) {
+    mainTakeaway = `This scan found ${highCount} higher-priority item${highCount === 1 ? '' : 's'} that can affect customer trust or account safety. Address these with your developer or host — this is preventive hardening, not proof of an active breach unless confirmed separately.`;
+  } else {
+    mainTakeaway = `This scan found ${findingCount} configuration item${findingCount === 1 ? '' : 's'} worth reviewing. None of these alone confirms an active compromise — they are exposure and hardening signals CyberShieldCloud tracks over time.`;
+  }
+
+  let recommendedAction =
+    fixTheseFirst.actions.length > 0
+      ? fixTheseFirst.actions[0]!.title
+      : 'No urgent changes — keep monthly monitoring enabled.';
+
+  if (score >= 70 && highCount === 0 && fixTheseFirst.actions.length > 0) {
+    recommendedAction =
+      'Review the recommended trust improvements below with your developer or host when convenient.';
+  }
+
+  return {
+    trustScore: score,
+    band: scoreExplanation.band,
+    status,
+    mainTakeaway,
+    recommendedAction,
+    monitoringCtaLabel: MONITORING_VALUE_SECTION.ctaLabel,
+  };
+}
+
+export function buildScoreChangeExplanation(
+  report: SecurityIntelligenceReport,
+  previousScore: number | null,
+  historicalScores: number[],
+): ScoreChangeExplanation {
+  const currentScore = report.securityScore;
+  const trend = securityTrend(currentScore, previousScore);
+  const trendLabel = reportProgressTrendLabel(trend, historicalScores, currentScore);
+
+  if (previousScore === null || currentScore >= previousScore) {
+    return {
+      show: false,
+      previousScore: previousScore ?? currentScore,
+      currentScore,
+      delta: 0,
+      headline: 'Why your score changed',
+      whatChanged: '',
+      interpretation: '',
+      nextStep: '',
+      trendLabel,
+    };
+  }
+
+  const delta = currentScore - previousScore;
+  const newFindingCount = report.findings.length;
+  const highlights = report.changeSummary.highlights.slice(0, 2);
+
+  let whatChanged: string;
+  if (highlights.length > 0) {
+    whatChanged = highlights.join(' ');
+  } else if (newFindingCount > 0) {
+    whatChanged = `New items were detected since your last scan (${Math.abs(delta)} point${Math.abs(delta) === 1 ? '' : 's'} estimated impact).`;
+  } else {
+    whatChanged = `Your score is ${Math.abs(delta)} point${Math.abs(delta) === 1 ? '' : 's'} lower than the previous scan based on updated checks.`;
+  }
+
+  const hasCriticalHigh = report.findings.some(
+    (f) => f.severity === 'critical' || f.severity === 'high',
+  );
+
+  const interpretation = hasCriticalHigh
+    ? 'This reflects additional detected exposure and priority gaps — not necessarily a confirmed active attack. Treat urgent items as hardening work with your developer.'
+    : 'This reflects new detected exposure or configuration differences — not a confirmed compromise. Many score changes come from new scripts, headers, or routes appearing between scans.';
+
+  const nextStep =
+    fixTheseFirstSectionLabel(
+      currentScore,
+      report.findings.map((f) => f.severity),
+    ) === 'Fix These First'
+      ? 'Start with the priority items below and re-scan after changes.'
+      : 'Review the new items below when convenient — monitoring will alert you if they change again.';
+
+  return {
+    show: true,
+    previousScore,
+    currentScore,
+    delta,
+    headline: 'Why your score changed',
+    whatChanged,
+    interpretation,
+    nextStep,
+    trendLabel,
+  };
 }
 
 export function buildThirtyDayPlan(
@@ -610,40 +927,24 @@ export function buildExecutiveSummary(
   const score = report.securityScore;
   const findingCount = report.findings.length;
   const band = securityScoreBand(score);
+  const highCount = report.findings.filter(
+    (f) => f.severity === 'critical' || f.severity === 'high',
+  ).length;
 
   const statusBullets: string[] = [];
 
-  if (score >= 70) {
-    statusBullets.push('Your website has a solid security baseline.');
-  } else if (score >= 50) {
-    statusBullets.push('Your website is operational but missing key browser protections.');
-  } else {
-    statusBullets.push('Your website has urgent security gaps that visitors and partners may notice.');
+  if (report.changeSummary.posture === 'improved') {
+    statusBullets.push('Trust score improved since your last scan.');
+  } else if (report.changeSummary.posture === 'degraded') {
+    statusBullets.push('New items detected since your last scan — see score change details below.');
   }
 
   if (findingCount === 0) {
     statusBullets.push('No major misconfigurations detected in this scan.');
-  } else {
-    const highCount = report.findings.filter(
-      (f) => f.severity === 'critical' || f.severity === 'high',
-    ).length;
-    if (highCount > 0) {
-      statusBullets.push(
-        `${highCount} high-impact item${highCount === 1 ? '' : 's'} should be addressed soon.`,
-      );
-    } else {
-      statusBullets.push(
-        score >= 70
-          ? `${findingCount} hardening opportunit${findingCount === 1 ? 'y' : 'ies'} identified — your baseline is solid.`
-          : `${findingCount} improvement${findingCount === 1 ? '' : 's'} identified — mostly quick wins.`,
-      );
-    }
-  }
-
-  if (report.changeSummary.posture === 'improved') {
-    statusBullets.push('Security posture improved since your last scan.');
-  } else if (report.changeSummary.posture === 'degraded') {
-    statusBullets.push('New changes since your last scan reduced your security score.');
+  } else if (highCount > 0) {
+    statusBullets.push(
+      `${highCount} priority item${highCount === 1 ? '' : 's'} flagged for review with your developer or host.`,
+    );
   }
 
   const overallRisk =
@@ -651,26 +952,20 @@ export function buildExecutiveSummary(
       ? 'Overall risk: Low — maintain monitoring'
       : report.riskLevel === 'medium'
         ? score >= 70
-          ? 'Overall risk: Moderate — hardening review recommended'
+          ? 'Overall risk: Moderate — trust improvements available'
           : 'Overall risk: Moderate — schedule fixes this month'
         : report.riskLevel === 'high'
           ? 'Overall risk: High — prioritize remediation this week'
           : 'Overall risk: Critical — act immediately';
 
-  let nextStep = 'No action needed — monitoring continues automatically.';
-  if (fixTheseFirst.actions.length > 0) {
-    const highCount = report.findings.filter(
-      (f) => f.severity === 'critical' || f.severity === 'high',
-    ).length;
-    if (score >= 70 && highCount === 0) {
-      nextStep =
-        'Review the recommended hardening items below — preventive improvements, not confirmed vulnerabilities.';
-    } else {
-      nextStep = `Start with "${fixTheseFirst.actions[0].title}" — highest impact for your score.`;
-    }
-  } else if (findingCount > 0) {
-    nextStep = 'Review grouped findings below and tackle easy wins first.';
-  }
+  const nextStep =
+    fixTheseFirst.actions.length > 0
+      ? score >= 70 && highCount === 0
+        ? 'Review recommended trust improvements below — preventive, not confirmed vulnerabilities.'
+        : `Start with "${fixTheseFirst.actions[0]!.title}".`
+      : findingCount > 0
+        ? 'Review findings below and tackle easy wins first.'
+        : 'No action needed — monitoring continues automatically.';
 
   const headline =
     findingCount === 0
@@ -680,7 +975,7 @@ export function buildExecutiveSummary(
         : band === 'Below average'
           ? 'Room to improve — mostly configuration fixes'
           : score >= 70
-            ? 'Good baseline — hardening opportunities identified'
+            ? 'Solid baseline — trust improvements identified'
             : 'Good foundation — a few upgrades recommended';
 
   return {
@@ -739,7 +1034,10 @@ export function buildExecutiveReportPresentation(
   const findingViews = report.findings.map((f) =>
     buildFindingExecutiveView(f, report.securityScore),
   );
+  applyGoodScoreSequentialImpacts(findingViews, report.securityScore);
+
   const strengths = extractSecurityStrengths(passed, headers, sslValid, report.findings);
+  const strengthGroups = buildStrengthGroups(headers, sslValid);
   const fixTheseFirst = buildFixTheseFirst(findingViews, report.securityScore);
   const groupedFindings = groupFindingsByBusinessImpact(findingViews);
   const plan = buildThirtyDayPlan(findingViews, report.securityScore);
@@ -749,6 +1047,12 @@ export function buildExecutiveReportPresentation(
     strengths,
   );
   const summary = buildExecutiveSummary(report, fixTheseFirst);
+  const snapshot = buildExecutiveSnapshot(report, fixTheseFirst, scoreExplanation);
+  const scoreChange = buildScoreChangeExplanation(
+    report,
+    previousScore,
+    historicalScores,
+  );
   const progress = buildSecurityProgress(
     report.securityScore,
     previousScore,
@@ -758,6 +1062,10 @@ export function buildExecutiveReportPresentation(
   );
 
   return {
+    snapshot,
+    scoreChange,
+    monitoringValue: MONITORING_VALUE_SECTION,
+    strengthGroups,
     summary,
     scoreExplanation,
     fixTheseFirst,
