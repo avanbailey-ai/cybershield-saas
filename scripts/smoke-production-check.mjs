@@ -34,6 +34,7 @@ const BASE_URL = (
 
 const SESSION_COOKIE = process.env.SMOKE_SESSION_COOKIE?.trim() || '';
 const REQUEST_TIMEOUT_MS = 30_000;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 function pass(name) {
   console.log(`PASS: ${name}`);
@@ -46,7 +47,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = new URL(pathname, `${BASE_URL}/`).toString();
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -71,6 +72,25 @@ async function request(pathname, options = {}) {
   }
 
   return { status: res.status, headers: res.headers, body, url };
+}
+
+async function followRedirects(pathname, options = {}) {
+  const chain = [];
+  let target = pathname;
+
+  for (let i = 0; i < 6; i += 1) {
+    const res = await request(target, { ...options, redirect: 'manual' });
+    chain.push(res);
+
+    const location = res.headers.get('location');
+    if (!REDIRECT_STATUSES.has(res.status) || !location) {
+      return chain;
+    }
+
+    target = new URL(location, res.url).toString();
+  }
+
+  return chain;
 }
 
 async function checkUserPlan() {
@@ -163,20 +183,23 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  const chain = await followRedirects('/enterprise/portal');
+  const res = chain[chain.length - 1];
 
-  if (res.status === 500) {
+  if (chain.some((step) => step.status === 500)) {
     fail(name, 'GET /enterprise/portal returned 500');
   }
 
-  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
-  if (!redirectStatuses.has(res.status)) {
-    fail(name, `unauthenticated expected redirect, got ${res.status}`);
+  if (REDIRECT_STATUSES.has(res.status)) {
+    fail(name, `redirect chain did not settle after ${chain.length} hops`);
   }
 
-  const location = res.headers.get('location') ?? '';
-  if (!location.includes('/enterprise/login') && !location.includes('/login')) {
-    fail(name, `expected redirect to login, got location=${location || '(empty)'}`);
+  if (res.status !== 200) {
+    fail(name, `unauthenticated login page expected 200, got ${res.status}`);
+  }
+
+  if (!res.url.includes('/enterprise/login') && !res.url.includes('/login')) {
+    fail(name, `expected final redirect target to be login, got url=${res.url}`);
   }
 
   pass(name);
