@@ -46,7 +46,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//i.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -71,6 +71,28 @@ async function request(pathname, options = {}) {
   }
 
   return { status: res.status, headers: res.headers, body, url };
+}
+
+async function followCanonicalRedirects(pathname, options = {}, maxRedirects = 3) {
+  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+  let currentPath = pathname;
+  let response = await request(currentPath, { ...options, redirect: 'manual' });
+
+  for (let redirects = 0; redirects < maxRedirects && redirectStatuses.has(response.status); redirects += 1) {
+    const location = response.headers.get('location') ?? '';
+    if (!location) break;
+
+    const nextUrl = new URL(location, response.url);
+    const currentUrl = new URL(response.url);
+    if (nextUrl.pathname !== currentUrl.pathname || nextUrl.toString() === currentUrl.toString()) {
+      break;
+    }
+
+    currentPath = nextUrl.toString();
+    response = await request(currentPath, { ...options, redirect: 'manual' });
+  }
+
+  return response;
 }
 
 async function checkUserPlan() {
@@ -163,7 +185,7 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  const res = await followCanonicalRedirects('/enterprise/portal');
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
