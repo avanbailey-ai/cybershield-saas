@@ -292,7 +292,8 @@ function ScanInputInner(_props: ScanInputProps) {
           Scan Your Website — Free
         </h2>
         <p className="mb-6 text-sm text-gray-400 sm:mb-8 sm:text-base">
-          Instant security score. No login required.
+          Get a one-time score and top finding headlines. No login required; full reports and
+          monitoring unlock on paid plans.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:gap-3">
@@ -352,7 +353,7 @@ function ScanInputInner(_props: ScanInputProps) {
         {revealing && pendingData && (
           <div className="mt-6 rounded-lg border border-gray-700/60 bg-gray-900/60 p-4 text-left sm:mt-8 sm:rounded-xl sm:p-6">
             <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Preliminary findings
+              Free scan preview
             </p>
             <ul className="space-y-2">
               {pendingData.issues.slice(0, 3).map((issue, i) => (

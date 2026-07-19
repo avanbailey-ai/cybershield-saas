@@ -127,12 +127,12 @@ export default function PlanComparisonTable() {
                 <div className="mt-0.5 text-xs text-gray-500">{planPrice(planId)}</div>
                 {planId === 'growth' && (
                   <span className="mt-1 inline-block rounded-full bg-blue-600/20 px-2 py-0.5 text-xs font-semibold text-blue-400">
-                    Most Popular
+                    Faster monitoring
                   </span>
                 )}
                 {(planId === 'pro' || planId === 'growth') && planId === recommendedPlan && (
                   <span className="mt-1 inline-block rounded-full bg-green-600/20 px-2 py-0.5 text-xs font-semibold text-green-400">
-                    Recommended for you
+                    Best match for scan
                   </span>
                 )}
               </th>
@@ -158,7 +158,8 @@ export default function PlanComparisonTable() {
         </tbody>
       </table>
       <p className="border-t border-gray-800 bg-gray-900/40 px-4 py-3 text-xs text-gray-500">
-        Automated monitoring checks run on schedule and are separate from manual deep scan quotas.
+        Free is a one-time preview. Paid plans add scheduled monitoring; manual deep scan quotas are
+        separate from automated checks.
       </p>
     </div>
   );

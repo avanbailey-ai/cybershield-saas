@@ -124,7 +124,7 @@ export default function ScanResultPaywall({
     brainConfig.cta_placement === 'bottom' || brainConfig.cta_placement === 'both';
 
   const upgradeCtaLabel = scoreAtRisk
-    ? 'See Exact Fixes'
+    ? 'Unlock fix guidance'
     : isSecondScan
       ? 'Start Monitoring This Website'
       : 'Unlock Full Security Report';
@@ -245,8 +245,8 @@ export default function ScanResultPaywall({
             Top findings ({topIssues.length} of {result.vulnerabilitiesCount})
           </p>
           <p className="mb-4 text-sm text-gray-400">
-            Each finding includes what it is, why it matters, business impact, and how to fix it.
-            Upgrade to unlock remediation assistant, send-to-developer, and ticket generation.
+            The free scan shows finding headlines so you can understand the risk area. Upgrade to see
+            why each finding matters, the business impact, and step-by-step remediation guidance.
           </p>
           <ul className="space-y-3">
             {topIssues.map((issue, i) => (
@@ -264,7 +264,7 @@ export default function ScanResultPaywall({
                       Why it matters
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400 blur-[3px] select-none">
-                      Business impact and risk context locked on Free plan
+                      Business impact and risk context included in Pro
                     </p>
                   </div>
                   <div>
@@ -272,7 +272,7 @@ export default function ScanResultPaywall({
                       How to fix
                     </p>
                     <p className="mt-0.5 text-xs text-gray-400 blur-[3px] select-none">
-                      Remediation steps and fix guidance locked on Free plan
+                      Remediation steps and fix guidance included in Pro
                     </p>
                   </div>
                 </div>
@@ -315,9 +315,10 @@ export default function ScanResultPaywall({
 
       {funnel.showEnterpriseReview && paywallVisible && (
         <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-5">
-          <p className="text-sm font-semibold text-amber-200">Security review recommended</p>
+          <p className="text-sm font-semibold text-amber-200">Enterprise security review option</p>
           <p className="mt-1 text-xs text-amber-200/80">
-            Critical exposure detected. Request an automated security review for your domain.
+            For regulated teams, high-traffic sites, or multi-stakeholder reviews. Self-serve Pro and
+            Growth plans cover most small business websites.
           </p>
           <Link
             href={funnel.enterpriseHref}
@@ -331,7 +332,7 @@ export default function ScanResultPaywall({
             }
             className="mt-4 inline-flex rounded-lg border border-amber-500/40 px-5 py-2.5 text-sm font-medium text-amber-100 transition-colors hover:border-amber-400 hover:text-white"
           >
-            Request Security Review
+            Request enterprise review
           </Link>
         </div>
       )}

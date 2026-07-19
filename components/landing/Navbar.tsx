@@ -40,7 +40,7 @@ export default function Navbar() {
               size="sm"
               className="inline-flex whitespace-nowrap !px-2.5 !py-1 !text-xs md:!px-3 md:!py-1.5 md:!text-sm"
             >
-              Get Started
+              Sign Up
             </Button>
           </Link>
           <Link href="/#scan">
@@ -49,8 +49,8 @@ export default function Navbar() {
               size="sm"
               className="whitespace-nowrap !px-2.5 !py-1 !text-xs md:!px-3 md:!py-1.5 md:!text-sm"
             >
-              <span className="md:hidden">Start</span>
-              <span className="hidden md:inline">Start monitoring</span>
+              <span className="md:hidden">Scan</span>
+              <span className="hidden md:inline">Start free scan</span>
             </Button>
           </Link>
           <Link href="/login">

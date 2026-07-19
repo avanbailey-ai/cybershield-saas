@@ -19,14 +19,13 @@ export default function Hero() {
             </div>
 
             <h1 className="max-w-[18rem] text-[1.625rem] font-bold leading-snug tracking-tight text-white sm:mb-6 sm:max-w-none sm:text-5xl sm:leading-tight lg:text-6xl">
-              Website Security Monitoring{" "}
-              <span className="text-blue-400">— SSL, Health & Change Detection</span>
+              Find website security gaps before visitors lose trust
             </h1>
 
             <p className="max-w-xl text-sm leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              CyberShield Cloud monitors business websites for security settings, SSL certificate
-              issues, domain registration signals, HTTP status from scans, and configuration changes — with
-              alerts when supported issues are detected.
+              Start with a free scan for your score and top findings. Upgrade when you want the full
+              report, step-by-step fix guidance, and continuous monitoring for SSL, uptime, headers,
+              domain signals, and website changes.
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
@@ -41,22 +40,22 @@ export default function Hero() {
                 href="#health-center"
                 className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-gray-700 px-5 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white sm:min-h-[48px] sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
               >
-                See Health Center
+                See what monitoring adds
               </a>
             </div>
 
             <div className="flex flex-col gap-2.5 text-xs text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2 sm:text-sm">
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                SSL expiry alerts before browser warnings
+                Free score plus top findings
               </span>
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Uptime checks — catch downtime early
+                Full report and fixes on Pro
               </span>
               <span className="hidden items-center gap-2 sm:flex">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Change timeline — your website&apos;s memory
+                Continuous monitoring after upgrade
               </span>
             </div>
           </div>
