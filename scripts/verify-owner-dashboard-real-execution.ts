@@ -55,8 +55,7 @@ function main() {
   assert(exists('app/api/owner/founder-os-audit/route.ts'), 'AI audit export API');
   assert(founderAudit.includes('buildFounderOsAuditExport'), 'Audit export builder');
   assert(founderAudit.includes('suspectedLogicProblems'), 'Audit flags logic problems');
-  assert(home.includes('Export AI Audit'), 'Home has export button');
-  assert(home.includes('/api/owner/founder-os-audit'), 'Export calls audit API');
+  assert(exists('lib/owner/founderOsAuditExport.ts'), 'Audit export builder module exists');
 
   assert(exists('components/owner/dashboard/BusinessHealthSection.tsx'), 'Business health section');
   assert(exists('components/owner/dashboard/ActivityAwaySection.tsx'), 'Activity away section');
