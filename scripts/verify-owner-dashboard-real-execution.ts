@@ -68,16 +68,17 @@ function main() {
   assert(exists('components/owner/dashboard/CustomerRiskExpansionSection.tsx'), 'Customer risk section');
   assert(exists('components/owner/dashboard/AutomationHealthSection.tsx'), 'Automation health section');
 
-  assert(home.includes('BusinessHealthSection'), 'Home composes business health');
-  assert(home.includes('ActivityAwaySection'), 'Home composes activity feed');
-  assert(home.includes('FounderInboxSection'), 'Home composes inbox');
-  assert(home.includes('RevenueOpportunitiesSection'), 'Home composes revenue opps');
-  assert(home.includes('CustomerRiskExpansionSection'), 'Home composes customer risk');
-  assert(home.includes('AutomationHealthSection'), 'Home composes automation health');
+  assert(homeUi.includes('Revenue actions'), 'Home shows revenue actions');
+  assert(homeUi.includes('Command priorities'), 'Home shows command priorities');
+  assert(homeUi.includes('Revenue pipeline snapshot'), 'Home shows revenue pipeline snapshot');
+  assert(homeUi.includes('Best opportunity'), 'Home shows best opportunity');
+  assert(homeUi.includes('GrowthAutopilotHomePanel'), 'Home composes growth autopilot panel');
+  assert(homeUi.includes('Recent activity'), 'Home shows recent activity');
+  assert(homeUi.includes('EmailHealthSection'), 'Home composes email health');
 
-  assert(!home.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
-  assert(!home.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
-  assert(!home.includes('Revenue movement'), 'Removed duplicate revenue section');
+  assert(!homeUi.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
+  assert(!homeUi.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
+  assert(!homeUi.includes('Revenue movement'), 'Removed duplicate revenue section');
 
   assert(read('components/owner/dashboard/BusinessHealthSection.tsx').includes('View calculation'), 'View calculation modal in UI');
 
@@ -104,8 +105,8 @@ function main() {
   assert(inboxAuto.includes('sendRetentionEmail'), 'Retention executes');
   assert(inboxAuto.includes("template: 'onboarding'"), 'Signup approve sends onboarding');
 
-  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerEmail'), 'Legacy metrics filter test accounts');
-  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerEmail'), 'V5 filters test accounts');
+  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerProfile'), 'Legacy metrics filter test accounts');
+  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerProfile'), 'V5 filters test accounts');
 
   assert(exists('app/api/owner/automation-health/route.ts'), 'Automation health API');
   assert(exists('app/api/owner/customers/[userId]/route.ts'), 'Customer status API');
