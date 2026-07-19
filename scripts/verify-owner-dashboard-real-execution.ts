@@ -44,7 +44,7 @@ function main() {
 
   assert(exists('lib/owner/businessHealthMetrics.ts'), 'Business health metrics module');
   assert(businessHealth.includes('getBusinessHealthMetrics'), 'Business health aggregator');
-  assert(businessHealth.includes('isInternalCustomerEmail'), 'MRR excludes test accounts');
+  assert(businessHealth.includes('isInternalCustomerProfile'), 'MRR excludes test accounts');
   assert(businessHealth.includes('View calculation') || businessHealth.includes('calculation'), 'MRR/conversion calculation metadata');
 
   assert(exists('lib/owner/automationHealth.ts'), 'Automation health module');
@@ -115,6 +115,7 @@ function main() {
   assert(read('lib/owner/followUpScheduler.ts').includes('scheduleFollowUps'), 'Follow-ups scheduled on send');
 
   assert(filters.includes('OWNER_EMAIL'), 'Owner email excluded from metrics');
+  assert(filters.includes('isInternalCustomerProfile'), 'Profile-level internal accounts excluded');
   assert(filters.includes('test@gmail.com'), 'Test gmail excluded');
 
   assert(!read('components/owner/ProspectsActionQueue.tsx').includes('Approve & Send') || read('components/owner/ProspectsActionQueue.tsx').includes('hasOutreachContact'), 'Prospects queue respects contact gate');
