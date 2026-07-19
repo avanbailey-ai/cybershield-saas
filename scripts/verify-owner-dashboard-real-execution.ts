@@ -26,6 +26,8 @@ function assert(cond: boolean, msg: string) {
 
 function main() {
   const home = read('components/owner/views/FounderHomeView.tsx');
+  const commandCenterHome = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
+  const homeUi = `${home}\n${commandCenterHome}`;
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
@@ -56,8 +58,8 @@ function main() {
   assert(exists('app/api/owner/founder-os-audit/route.ts'), 'AI audit export API');
   assert(founderAudit.includes('buildFounderOsAuditExport'), 'Audit export builder');
   assert(founderAudit.includes('suspectedLogicProblems'), 'Audit flags logic problems');
-  assert(home.includes('Export AI Audit'), 'Home has export button');
-  assert(home.includes('/api/owner/founder-os-audit'), 'Export calls audit API');
+  assert(homeUi.includes('Export AI Audit'), 'Home has export button');
+  assert(homeUi.includes('/api/owner/founder-os-audit'), 'Export calls audit API');
 
   assert(exists('components/owner/dashboard/BusinessHealthSection.tsx'), 'Business health section');
   assert(exists('components/owner/dashboard/ActivityAwaySection.tsx'), 'Activity away section');
