@@ -149,7 +149,12 @@ for (const f of ownerLib) {
 ok('Owner layer avoids fake/example domains');
 
 // ── Test account filtering ──
-const filters = read('lib/owner/founderCustomerFilters.ts');
+const legacyFilters = read('lib/owner/founderCustomerFilters.ts');
+const filters = read('lib/owner/internalAccountFilters.ts');
+assert(
+  legacyFilters.includes("from './internalAccountFilters'") && legacyFilters.includes('export'),
+  'Legacy founderCustomerFilters re-exports consolidated filters',
+);
 assert(filters.includes('isInternalCustomerEmail'), 'Internal customer filter exists');
 assert(filters.includes('OWNER_EMAIL'), 'Owner email excluded from metrics');
 ok('Founder customer filter module exists');
