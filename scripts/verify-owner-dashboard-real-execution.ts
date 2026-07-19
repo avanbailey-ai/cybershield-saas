@@ -26,13 +26,15 @@ function assert(cond: boolean, msg: string) {
 
 function main() {
   const home = read('components/owner/views/FounderHomeView.tsx');
+  const commandHome = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
   const automation = read('lib/owner/automationHealth.ts');
   const founderAudit = read('lib/owner/founderOsAudit.ts');
   const revenueOpps = read('lib/owner/revenueOpportunities.ts');
-  const filters = read('lib/owner/founderCustomerFilters.ts');
+  const filters = read('lib/owner/internalAccountFilters.ts');
+  const legacyFilters = read('lib/owner/founderCustomerFilters.ts');
   const execution = read('lib/owner/outreachExecution.ts');
   const inboxAuto = read('lib/owner/inboxAutomation.ts');
   const approvalCard = read('components/owner/OutreachApprovalCard.tsx');
@@ -44,7 +46,7 @@ function main() {
 
   assert(exists('lib/owner/businessHealthMetrics.ts'), 'Business health metrics module');
   assert(businessHealth.includes('getBusinessHealthMetrics'), 'Business health aggregator');
-  assert(businessHealth.includes('isInternalCustomerEmail'), 'MRR excludes test accounts');
+  assert(businessHealth.includes('isInternalCustomerProfile'), 'MRR excludes test accounts');
   assert(businessHealth.includes('View calculation') || businessHealth.includes('calculation'), 'MRR/conversion calculation metadata');
 
   assert(exists('lib/owner/automationHealth.ts'), 'Automation health module');
@@ -55,8 +57,9 @@ function main() {
   assert(exists('app/api/owner/founder-os-audit/route.ts'), 'AI audit export API');
   assert(founderAudit.includes('buildFounderOsAuditExport'), 'Audit export builder');
   assert(founderAudit.includes('suspectedLogicProblems'), 'Audit flags logic problems');
-  assert(home.includes('Export AI Audit'), 'Home has export button');
-  assert(home.includes('/api/owner/founder-os-audit'), 'Export calls audit API');
+  assert(home.includes('FounderCommandCenterHome'), 'Home renders command center');
+  assert(commandHome.includes('Export AI Audit'), 'Command center has export button');
+  assert(commandHome.includes('/api/owner/founder-os-audit'), 'Export calls audit API');
 
   assert(exists('components/owner/dashboard/BusinessHealthSection.tsx'), 'Business health section');
   assert(exists('components/owner/dashboard/ActivityAwaySection.tsx'), 'Activity away section');
@@ -65,16 +68,15 @@ function main() {
   assert(exists('components/owner/dashboard/CustomerRiskExpansionSection.tsx'), 'Customer risk section');
   assert(exists('components/owner/dashboard/AutomationHealthSection.tsx'), 'Automation health section');
 
-  assert(home.includes('BusinessHealthSection'), 'Home composes business health');
-  assert(home.includes('ActivityAwaySection'), 'Home composes activity feed');
-  assert(home.includes('FounderInboxSection'), 'Home composes inbox');
-  assert(home.includes('RevenueOpportunitiesSection'), 'Home composes revenue opps');
-  assert(home.includes('CustomerRiskExpansionSection'), 'Home composes customer risk');
-  assert(home.includes('AutomationHealthSection'), 'Home composes automation health');
+  assert(commandHome.includes('Revenue actions'), 'Command center shows revenue actions');
+  assert(commandHome.includes('Review drafts'), 'Command center links to inbox work');
+  assert(commandHome.includes('Enrich contacts'), 'Command center links to prospect enrichment');
+  assert(commandHome.includes('EmailHealthSection'), 'Command center exposes email health');
+  assert(commandHome.includes('GrowthAutopilotHomePanel'), 'Command center exposes growth autopilot status');
 
-  assert(!home.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
-  assert(!home.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
-  assert(!home.includes('Revenue movement'), 'Removed duplicate revenue section');
+  assert(!commandHome.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
+  assert(!commandHome.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
+  assert(!commandHome.includes('Revenue movement'), 'Removed duplicate revenue section');
 
   assert(read('components/owner/dashboard/BusinessHealthSection.tsx').includes('View calculation'), 'View calculation modal in UI');
 
@@ -94,15 +96,15 @@ function main() {
   assert(execution.includes('require_approval'), 'Approval required before send');
   assert(execution.includes('isCustomerEmail'), 'Blocks prospecting customers');
 
-  assert(approvalCard.includes('hasOutreachContact'), 'NO CONTACT gate on approval card');
+  assert(approvalCard.includes('canFounderApproveOutreach'), 'NO CONTACT gate on approval card');
   assert(approvalCard.includes('disabled={busy || !canSend}'), 'Approve disabled without contact');
 
   assert(inboxAuto.includes('sendApprovedOutreach'), 'Inbox wired to outreach send');
   assert(inboxAuto.includes('sendRetentionEmail'), 'Retention executes');
   assert(inboxAuto.includes("template: 'onboarding'"), 'Signup approve sends onboarding');
 
-  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerEmail'), 'Legacy metrics filter test accounts');
-  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerEmail'), 'V5 filters test accounts');
+  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerProfile'), 'Legacy metrics filter test accounts');
+  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerProfile'), 'V5 filters test accounts');
 
   assert(exists('app/api/owner/automation-health/route.ts'), 'Automation health API');
   assert(exists('app/api/owner/customers/[userId]/route.ts'), 'Customer status API');
@@ -115,7 +117,9 @@ function main() {
   assert(read('lib/owner/followUpScheduler.ts').includes('scheduleFollowUps'), 'Follow-ups scheduled on send');
 
   assert(filters.includes('OWNER_EMAIL'), 'Owner email excluded from metrics');
+  assert(filters.includes('isInternalCustomerProfile'), 'Profile-level internal accounts excluded');
   assert(filters.includes('test@gmail.com'), 'Test gmail excluded');
+  assert(legacyFilters.includes("from './internalAccountFilters'"), 'Legacy customer filters re-export current filters');
 
   assert(!read('components/owner/ProspectsActionQueue.tsx').includes('Approve & Send') || read('components/owner/ProspectsActionQueue.tsx').includes('hasOutreachContact'), 'Prospects queue respects contact gate');
 
