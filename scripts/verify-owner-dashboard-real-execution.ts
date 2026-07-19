@@ -101,8 +101,8 @@ function main() {
   assert(inboxAuto.includes('sendRetentionEmail'), 'Retention executes');
   assert(inboxAuto.includes("template: 'onboarding'"), 'Signup approve sends onboarding');
 
-  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerEmail'), 'Legacy metrics filter test accounts');
-  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerEmail'), 'V5 filters test accounts');
+  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerProfile'), 'Legacy metrics filter test accounts');
+  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerProfile'), 'V5 filters test accounts');
 
   assert(exists('app/api/owner/automation-health/route.ts'), 'Automation health API');
   assert(exists('app/api/owner/customers/[userId]/route.ts'), 'Customer status API');
@@ -114,8 +114,9 @@ function main() {
   assert(read('lib/owner/activityFeed.ts').includes('getActivityFeed'), 'Activity feed for away section');
   assert(read('lib/owner/followUpScheduler.ts').includes('scheduleFollowUps'), 'Follow-ups scheduled on send');
 
-  assert(filters.includes('OWNER_EMAIL'), 'Owner email excluded from metrics');
-  assert(filters.includes('test@gmail.com'), 'Test gmail excluded');
+  const canonicalFilters = read('lib/owner/internalAccountFilters.ts');
+  assert(canonicalFilters.includes('OWNER_EMAIL'), 'Owner email excluded from metrics');
+  assert(canonicalFilters.includes('test@gmail.com'), 'Test gmail excluded');
 
   assert(!read('components/owner/ProspectsActionQueue.tsx').includes('Approve & Send') || read('components/owner/ProspectsActionQueue.tsx').includes('hasOutreachContact'), 'Prospects queue respects contact gate');
 
