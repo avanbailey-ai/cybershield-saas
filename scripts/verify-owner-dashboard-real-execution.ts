@@ -32,7 +32,8 @@ function main() {
   const automation = read('lib/owner/automationHealth.ts');
   const founderAudit = read('lib/owner/founderOsAudit.ts');
   const revenueOpps = read('lib/owner/revenueOpportunities.ts');
-  const filters = read('lib/owner/founderCustomerFilters.ts');
+  const legacyFilters = read('lib/owner/founderCustomerFilters.ts');
+  const filters = read('lib/owner/internalAccountFilters.ts');
   const execution = read('lib/owner/outreachExecution.ts');
   const inboxAuto = read('lib/owner/inboxAutomation.ts');
   const approvalCard = read('components/owner/OutreachApprovalCard.tsx');
@@ -114,6 +115,10 @@ function main() {
   assert(read('lib/owner/activityFeed.ts').includes('getActivityFeed'), 'Activity feed for away section');
   assert(read('lib/owner/followUpScheduler.ts').includes('scheduleFollowUps'), 'Follow-ups scheduled on send');
 
+  assert(
+    legacyFilters.includes("from './internalAccountFilters'") && legacyFilters.includes('export'),
+    'Legacy founderCustomerFilters re-exports consolidated filters',
+  );
   assert(filters.includes('OWNER_EMAIL'), 'Owner email excluded from metrics');
   assert(filters.includes('test@gmail.com'), 'Test gmail excluded');
 
