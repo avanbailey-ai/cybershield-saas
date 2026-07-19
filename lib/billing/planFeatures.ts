@@ -111,5 +111,5 @@ export const ENTERPRISE_MARKETING = {
     'Organization controls',
     'Audit-friendly scan history for internal review',
   ],
-  cta: 'Contact Sales',
+  cta: 'Request a Security Review',
 } as const;
