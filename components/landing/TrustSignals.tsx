@@ -56,11 +56,11 @@ export default function TrustSignals() {
             Platform Trust
           </p>
           <h2 className="mb-3 text-xl font-bold tracking-tight text-white sm:mb-4 sm:text-3xl">
-            Built for continuous protection
+            Trust signals stay grounded in real data
           </h2>
           <p className="mx-auto max-w-2xl text-sm text-gray-400 sm:text-base">
-            CyberShield tracks real monitoring activity across your portfolio — not vanity metrics.
-            Platform-wide totals will appear here once aggregated reporting is enabled.
+            CyberShield shows verified website data in your dashboard and avoids fabricated platform
+            counts. Public totals will appear here once aggregated reporting is enabled.
           </p>
         </div>
 

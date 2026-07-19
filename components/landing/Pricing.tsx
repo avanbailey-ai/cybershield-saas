@@ -25,12 +25,12 @@ const smbPlans = [
   {
     id: 'pro' as const,
     name: 'Pro',
-    subtitle: 'Recommended after your scan',
-    badge: 'Best for your site',
+    subtitle: 'Best first upgrade after a scan',
+    badge: 'Start here',
     price: '',
     period: '/mo',
     description:
-      'Unlock the full report and start daily monitoring with fix guidance for the issues your scan revealed.',
+      'Unlock the full report, daily monitoring, alerts, and fix guidance for the issues your scan revealed.',
     roiLine: 'Pro unlocks full reports, monitoring, and step-by-step fix guidance.',
     features: getPlanMarketing('pro').bullets,
     cta: 'Start Monitoring',
@@ -45,8 +45,8 @@ const smbPlans = [
     price: '',
     period: '/mo',
     description:
-      'Continuous protection with hourly monitoring, change detection, and trend tracking.',
-    roiLine: 'Hourly monitoring catches new risks between deep scans.',
+      'Hourly monitoring, change detection, and trend tracking for teams that need faster visibility.',
+    roiLine: 'Choose Growth when you monitor multiple sites or need faster change alerts.',
     features: getPlanMarketing('growth').bullets,
     cta: 'Start Monitoring',
     highlighted: false,
@@ -206,8 +206,8 @@ function PricingInner() {
             </div>
           )}
           <p className="mx-auto mt-4 max-w-xl text-gray-400">
-            Your free scan showed the gaps. Pro unlocks full reports, daily monitoring, and step-by-step
-            fix guidance.
+            Your free scan showed the score and top finding headlines. Pro adds the full report,
+            daily monitoring, alerts, and step-by-step fix guidance.
           </p>
           {trustSignals && (
             <p className="mx-auto mt-3 max-w-xl text-xs text-gray-500">
@@ -289,7 +289,7 @@ function PricingInner() {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                Incomplete without monitoring
+                What stays free
               </p>
               <h3 className="mt-1 text-lg font-semibold text-gray-400">{freePlan.name}</h3>
               <p className="mt-1 text-sm text-gray-500">{freePlan.description}</p>
@@ -349,7 +349,10 @@ function PricingInner() {
             </p>
             <h3 className="mt-3 text-2xl font-bold text-white">{ENTERPRISE_MARKETING.headline}</h3>
             <p className="mt-3 text-sm leading-relaxed text-gray-400">{ENTERPRISE_MARKETING.body}</p>
-            <p className="mt-2 text-sm text-gray-500">{ENTERPRISE_MARKETING.pricingNote}</p>
+            <p className="mt-2 text-sm text-gray-500">
+              {ENTERPRISE_MARKETING.pricingNote} For most small business websites, start with Pro or
+              Growth above.
+            </p>
             <ul className="mt-6 inline-flex flex-col gap-2 text-left text-sm text-gray-400">
               {ENTERPRISE_MARKETING.bullets.map((item) => (
                 <li key={item} className="flex items-center gap-2">
@@ -374,11 +377,11 @@ function PricingInner() {
                 onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_review' })}
                 className="rounded-lg border border-gray-700 px-8 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
               >
-                Request Security Review
+                Enterprise security review
               </Link>
             </div>
             <p className="mt-4 text-xs text-gray-500">
-              Enterprise inquiries:{' '}
+              Enterprise inquiries for regulated teams, procurement, or custom limits:{' '}
               <a href={`mailto:${SEO_SALES_EMAIL}`} className="text-blue-400 hover:text-blue-300">
                 {SEO_SALES_EMAIL}
               </a>

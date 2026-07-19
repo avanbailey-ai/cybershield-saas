@@ -25,7 +25,7 @@ export default function PaywallUpgradeCards({
   return (
     <div className={className}>
       <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">
-        Recommended plans
+        Choose how you want to protect this site
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         {CARD_PLANS.map((plan) => {
@@ -49,7 +49,7 @@ export default function PaywallUpgradeCards({
                 </div>
                 {highlighted && (
                   <span className="rounded-full bg-blue-600/20 px-2 py-0.5 text-xs font-semibold text-blue-300">
-                    Recommended
+                    Best match for scan
                   </span>
                 )}
               </div>
@@ -68,7 +68,7 @@ export default function PaywallUpgradeCards({
                     : 'border border-gray-600 text-gray-200 hover:border-gray-500 hover:text-white'
                 }`}
               >
-                {plan === 'pro' ? 'Unlock Full Report' : 'Start Monitoring'}
+                {plan === 'pro' ? 'Unlock report and fixes' : 'Monitor more often'}
               </button>
             </div>
           );
@@ -76,7 +76,9 @@ export default function PaywallUpgradeCards({
       </div>
 
       <div className="mt-6 rounded-lg border border-gray-700/50 bg-gray-800/20 px-4 py-3 text-center">
-        <p className="text-sm text-gray-400">Need agency or enterprise coverage?</p>
+        <p className="text-sm text-gray-400">
+          Managing many client sites or a regulated security review?
+        </p>
         <div className="mt-2 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
           <Link href="/pricing" className="text-sm font-medium text-blue-400 hover:text-blue-300">
             View all plans
@@ -86,7 +88,7 @@ export default function PaywallUpgradeCards({
             href="/enterprise/review"
             className="text-sm font-medium text-amber-400 hover:text-amber-300"
           >
-            Request Security Review
+            Enterprise security review
           </Link>
         </div>
       </div>
