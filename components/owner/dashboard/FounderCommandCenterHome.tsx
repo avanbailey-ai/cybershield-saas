@@ -53,6 +53,8 @@ export default function FounderCommandCenterHome() {
   const { founderData: data, setSection, refreshFounderData, openFindCustomers } = useFounderNav();
   const v6 = data.v6;
   const [prospects, setProspects] = useState<OwnerProspect[]>([]);
+  const [auditExporting, setAuditExporting] = useState(false);
+  const [auditExportError, setAuditExportError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/owner/prospects')
@@ -152,6 +154,33 @@ export default function FounderCommandCenterHome() {
     [prospects, v6.executionStats.pendingApprovals],
   );
 
+  async function exportFounderAudit() {
+    setAuditExporting(true);
+    setAuditExportError(null);
+    try {
+      const response = await fetch('/api/owner/founder-os-audit');
+      if (!response.ok) {
+        throw new Error(`audit_export_failed_${response.status}`);
+      }
+      const payload = await response.json();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `founder-os-audit-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setAuditExportError('Audit export failed. Refresh and try again.');
+    } finally {
+      setAuditExporting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -161,14 +190,27 @@ export default function FounderCommandCenterHome() {
           </h1>
           <p className="mt-2 text-sm text-gray-500">{acquisition.summaryLine}</p>
         </div>
-        <button
-          type="button"
-          onClick={refreshFounderData}
-          className="min-h-[40px] rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={exportFounderAudit}
+            disabled={auditExporting}
+            className="min-h-[40px] rounded-lg border border-violet-500/40 px-3 py-2 text-xs font-medium text-violet-200 hover:border-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {auditExporting ? 'Exporting...' : 'Export AI Audit'}
+          </button>
+          <button
+            type="button"
+            onClick={refreshFounderData}
+            className="min-h-[40px] rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white"
+          >
+            Refresh
+          </button>
+        </div>
       </header>
+      {auditExportError && (
+        <p className="-mt-3 text-right text-xs text-red-300">{auditExportError}</p>
+      )}
 
       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5 sm:p-6">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
