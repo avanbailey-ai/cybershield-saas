@@ -32,7 +32,7 @@ function main() {
   const automation = read('lib/owner/automationHealth.ts');
   const founderAudit = read('lib/owner/founderOsAudit.ts');
   const revenueOpps = read('lib/owner/revenueOpportunities.ts');
-  const filters = read('lib/owner/founderCustomerFilters.ts');
+  const filters = read('lib/owner/internalAccountFilters.ts');
   const execution = read('lib/owner/outreachExecution.ts');
   const inboxAuto = read('lib/owner/inboxAutomation.ts');
   const approvalCard = read('components/owner/OutreachApprovalCard.tsx');
