@@ -46,7 +46,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//i.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -163,13 +163,26 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  let res = await request('/enterprise/portal', { redirect: 'manual' });
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
   }
 
   const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+  const initialLocation = res.headers.get('location') ?? '';
+  if (redirectStatuses.has(res.status) && initialLocation) {
+    try {
+      const target = new URL(initialLocation, BASE_URL);
+      const base = new URL(BASE_URL);
+      if (target.pathname === '/enterprise/portal' && target.hostname !== base.hostname) {
+        res = await request(target.toString(), { redirect: 'manual' });
+      }
+    } catch {
+      // Keep the original response; the login redirect assertion below will report the issue.
+    }
+  }
+
   if (!redirectStatuses.has(res.status)) {
     fail(name, `unauthenticated expected redirect, got ${res.status}`);
   }
