@@ -34,6 +34,7 @@ const BASE_URL = (
 
 const SESSION_COOKIE = process.env.SMOKE_SESSION_COOKIE?.trim() || '';
 const REQUEST_TIMEOUT_MS = 30_000;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 function pass(name) {
   console.log(`PASS: ${name}`);
@@ -46,7 +47,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//i.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -71,6 +72,26 @@ async function request(pathname, options = {}) {
   }
 
   return { status: res.status, headers: res.headers, body, url };
+}
+
+async function requestFollowingSamePathCanonicalRedirect(pathname, options = {}) {
+  let res = await request(pathname, options);
+
+  for (let i = 0; i < 3; i += 1) {
+    if (!REDIRECT_STATUSES.has(res.status)) break;
+
+    const location = res.headers.get('location');
+    if (!location) break;
+
+    const current = new URL(res.url);
+    const next = new URL(location, current);
+    const samePath = current.pathname === next.pathname && current.search === next.search;
+    if (!samePath || current.origin === next.origin) break;
+
+    res = await request(next.toString(), options);
+  }
+
+  return res;
 }
 
 async function checkUserPlan() {
@@ -163,14 +184,15 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  const res = await requestFollowingSamePathCanonicalRedirect('/enterprise/portal', {
+    redirect: 'manual',
+  });
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
   }
 
-  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
-  if (!redirectStatuses.has(res.status)) {
+  if (!REDIRECT_STATUSES.has(res.status)) {
     fail(name, `unauthenticated expected redirect, got ${res.status}`);
   }
 
