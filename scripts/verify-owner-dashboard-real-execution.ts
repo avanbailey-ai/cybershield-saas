@@ -101,8 +101,16 @@ function main() {
   assert(inboxAuto.includes('sendRetentionEmail'), 'Retention executes');
   assert(inboxAuto.includes("template: 'onboarding'"), 'Signup approve sends onboarding');
 
-  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerEmail'), 'Legacy metrics filter test accounts');
-  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerEmail'), 'V5 filters test accounts');
+  const legacyMetrics = read('lib/owner/metrics.ts');
+  assert(
+    legacyMetrics.includes('isInternalCustomerProfile') && legacyMetrics.includes('is_qa_account'),
+    'Legacy metrics filter internal and QA accounts',
+  );
+  const founderOsV5 = read('lib/owner/founderOsV5.ts');
+  assert(
+    founderOsV5.includes('isInternalCustomerProfile') && founderOsV5.includes('is_qa_account'),
+    'V5 filters internal and QA accounts',
+  );
 
   assert(exists('app/api/owner/automation-health/route.ts'), 'Automation health API');
   assert(exists('app/api/owner/customers/[userId]/route.ts'), 'Customer status API');
