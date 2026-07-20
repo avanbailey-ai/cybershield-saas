@@ -44,7 +44,7 @@ function main() {
 
   assert(exists('lib/owner/businessHealthMetrics.ts'), 'Business health metrics module');
   assert(businessHealth.includes('getBusinessHealthMetrics'), 'Business health aggregator');
-  assert(businessHealth.includes('isInternalCustomerEmail'), 'MRR excludes test accounts');
+  assert(businessHealth.includes('isInternalCustomerProfile'), 'MRR excludes internal/test/QA accounts');
   assert(businessHealth.includes('View calculation') || businessHealth.includes('calculation'), 'MRR/conversion calculation metadata');
 
   assert(exists('lib/owner/automationHealth.ts'), 'Automation health module');
@@ -101,8 +101,8 @@ function main() {
   assert(inboxAuto.includes('sendRetentionEmail'), 'Retention executes');
   assert(inboxAuto.includes("template: 'onboarding'"), 'Signup approve sends onboarding');
 
-  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerEmail'), 'Legacy metrics filter test accounts');
-  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerEmail'), 'V5 filters test accounts');
+  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerProfile'), 'Legacy metrics filter internal/test/QA accounts');
+  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerProfile'), 'V5 filters internal/test/QA accounts');
 
   assert(exists('app/api/owner/automation-health/route.ts'), 'Automation health API');
   assert(exists('app/api/owner/customers/[userId]/route.ts'), 'Customer status API');
