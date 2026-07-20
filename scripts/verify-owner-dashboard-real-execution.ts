@@ -32,7 +32,7 @@ function main() {
   const automation = read('lib/owner/automationHealth.ts');
   const founderAudit = read('lib/owner/founderOsAudit.ts');
   const revenueOpps = read('lib/owner/revenueOpportunities.ts');
-  const filters = read('lib/owner/founderCustomerFilters.ts');
+  const filters = read('lib/owner/internalAccountFilters.ts');
   const execution = read('lib/owner/outreachExecution.ts');
   const inboxAuto = read('lib/owner/inboxAutomation.ts');
   const approvalCard = read('components/owner/OutreachApprovalCard.tsx');
@@ -44,7 +44,10 @@ function main() {
 
   assert(exists('lib/owner/businessHealthMetrics.ts'), 'Business health metrics module');
   assert(businessHealth.includes('getBusinessHealthMetrics'), 'Business health aggregator');
-  assert(businessHealth.includes('isInternalCustomerEmail'), 'MRR excludes test accounts');
+  assert(
+    businessHealth.includes('isInternalCustomerProfile') && businessHealth.includes('is_qa_account'),
+    'MRR excludes internal and QA accounts',
+  );
   assert(businessHealth.includes('View calculation') || businessHealth.includes('calculation'), 'MRR/conversion calculation metadata');
 
   assert(exists('lib/owner/automationHealth.ts'), 'Automation health module');
@@ -101,8 +104,16 @@ function main() {
   assert(inboxAuto.includes('sendRetentionEmail'), 'Retention executes');
   assert(inboxAuto.includes("template: 'onboarding'"), 'Signup approve sends onboarding');
 
-  assert(read('lib/owner/metrics.ts').includes('isInternalCustomerEmail'), 'Legacy metrics filter test accounts');
-  assert(read('lib/owner/founderOsV5.ts').includes('isInternalCustomerEmail'), 'V5 filters test accounts');
+  const legacyMetrics = read('lib/owner/metrics.ts');
+  assert(
+    legacyMetrics.includes('isInternalCustomerProfile') && legacyMetrics.includes('is_qa_account'),
+    'Legacy metrics filter internal and QA accounts',
+  );
+  const founderOsV5 = read('lib/owner/founderOsV5.ts');
+  assert(
+    founderOsV5.includes('isInternalCustomerProfile') && founderOsV5.includes('is_qa_account'),
+    'V5 filters internal and QA accounts',
+  );
 
   assert(exists('app/api/owner/automation-health/route.ts'), 'Automation health API');
   assert(exists('app/api/owner/customers/[userId]/route.ts'), 'Customer status API');
