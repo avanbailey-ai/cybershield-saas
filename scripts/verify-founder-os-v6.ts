@@ -42,7 +42,7 @@ function main() {
 
   assert(risk.includes('getRevenueAtRisk'), 'Revenue At Risk exists');
   assert(risk.includes('potentialMonthlyLoss'), 'Potential monthly loss');
-  assert(read('lib/owner/founderCustomerFilters.ts').includes('isInternalCustomerEmail'), 'Test accounts filtered');
+  assert(read('lib/owner/internalAccountFilters.ts').includes('isInternalCustomerEmail'), 'Test accounts filtered');
 
   assert(read('lib/owner/prospectDisplay.ts').includes('resolveProspectScores'), 'Prospect scores resolved at read');
   assert(read('lib/owner/prospectDisplay.ts').includes('hasOutreachContact'), 'Outreach contact gating');
