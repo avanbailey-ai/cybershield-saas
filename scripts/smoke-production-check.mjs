@@ -46,7 +46,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//i.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -97,7 +97,7 @@ async function followSamePathCanonicalRedirect(pathname, options = {}) {
     return first;
   }
 
-  return request(`${nextUrl.pathname}${nextUrl.search}`, { ...options, redirect: 'manual' });
+  return request(nextUrl.toString(), { ...options, redirect: 'manual' });
 }
 
 async function checkUserPlan() {
