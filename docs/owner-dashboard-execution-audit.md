@@ -11,11 +11,11 @@ The pre-rebuild dashboard mixed real execution (outreach send, inbox approve, di
 **Top issues fixed in this rebuild:**
 - Home reduced to exactly 6 operator sections
 - MRR/conversion now explainable via `businessHealthMetrics.ts` + View calculation modal
-- Test accounts excluded from metrics via `founderCustomerFilters.ts`
+- Test accounts excluded from metrics via `internalAccountFilters.ts`
 - Signup inbox approval now sends onboarding email (was task-only)
 - Pending approval count includes all approvable inbox types
 - Customers page gains retention/upgrade/mark status actions
-- Automation health + AI audit export added
+- Automation health + protected AI audit export API added
 
 ---
 
@@ -52,7 +52,7 @@ The pre-rebuild dashboard mixed real execution (outreach send, inbox approve, di
 5. **Customer Risk & Expansion** — health + expansion + retention/upgrade approve
 6. **Automation Health** — `v6.automationHealth` from env + DB checks
 
-**Export AI Audit** → `GET /api/owner/founder-os-audit` downloads JSON.
+**AI audit export API** → owner-only `GET /api/owner/founder-os-audit` returns diagnostic JSON.
 
 ---
 
@@ -249,7 +249,7 @@ These components exist but are **not mounted** in `FounderOs.tsx`:
 - [x] Home has exactly 6 sections
 - [x] MRR/conversion explainable
 - [x] Test accounts excluded
-- [x] AI audit export
+- [x] Protected AI audit export API
 - [x] Automation health panel
 - [x] Verification script
 - [x] Customers page actions
