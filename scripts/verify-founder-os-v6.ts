@@ -21,7 +21,8 @@ function assert(cond: boolean, msg: string) {
 }
 
 function main() {
-  const home = read('components/owner/views/FounderHomeView.tsx');
+  const homeEntry = read('components/owner/views/FounderHomeView.tsx');
+  const home = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
   const inbox = read('components/owner/views/FounderInboxView.tsx');
   const success = read('components/owner/views/CustomerSuccessView.tsx');
   const founderOs = read('components/owner/FounderOs.tsx');
@@ -52,7 +53,8 @@ function main() {
 
   assert(feed.includes('getActivityFeed'), 'Activity feed exists');
   assert(fs.existsSync(path.join(root, 'components/owner/ActivityFeed.tsx')), 'ActivityFeed component exists');
-  assert(home.includes('ActivityFeed'), 'Activity feed wired to Home');
+  assert(homeEntry.includes('FounderCommandCenterHome'), 'Home renders command center dashboard');
+  assert(home.includes('recentActivity') && home.includes('v6.activityFeed.events'), 'Activity feed wired to Home');
 
   assert(inbox.includes('INBOX_GROUPS'), 'Founder Inbox V2 filter groups');
   assert(inbox.includes('executes automation') || inbox.includes('execute'), 'Inbox described as useful');
@@ -69,14 +71,17 @@ function main() {
   assert(!home.includes('Pipeline'), 'Pipeline clutter removed from Home');
   assert(!home.includes('Customer success') || home.includes('success center'), 'Customer success detail moved off Home');
 
-  assert(home.includes('Quiet period') || read('components/owner/ActivityFeed.tsx').includes('Quiet period'), 'Professional empty states');
+  assert(home.includes('No recent activity yet') || read('components/owner/ActivityFeed.tsx').includes('Quiet period'), 'Professional empty states');
   assert(!v6.includes('example.com'), 'No fake data in V6 lib');
   assert(!read('components/owner/views/CustomersView.tsx').includes('ContentPerformance'), 'Legacy content tracker removed from Customers');
   assert(read('components/owner/views/CustomersView.tsx').includes('useFounderNav'), 'Customers uses live health data');
   assert(read('components/owner/FounderNavContext.tsx').includes('refreshFounderData'), 'Inbox refresh after approve');
   assert(sales.includes('isJunkProspect'), 'Prospect junk filtering improved');
-  assert(home.includes('Events (24h)'), 'Home metric labels clarified');
-  assert(home.includes('opportunityScore >= 25'), 'Best opportunity requires minimum score');
+  assert(home.includes('Revenue actions') && home.includes('Command priorities'), 'Home metric labels clarified');
+  assert(
+    read('lib/owner/founderPipelineSignals.ts').includes('(p.opportunity_score ?? 0) >= 25'),
+    'Best opportunity requires minimum score',
+  );
 
   assert(audit.includes('Usefulness score'), 'Every page scored for usefulness');
   assert(audit.includes('8.5'), 'Audit targets 8.5+ usefulness');
