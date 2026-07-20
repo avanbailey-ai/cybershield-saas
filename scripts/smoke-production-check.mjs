@@ -45,8 +45,7 @@ function fail(name, reason) {
   process.exit(1);
 }
 
-async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+async function requestUrl(url, options = {}) {
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -71,6 +70,26 @@ async function request(pathname, options = {}) {
   }
 
   return { status: res.status, headers: res.headers, body, url };
+}
+
+async function request(pathname, options = {}) {
+  return requestUrl(`${BASE_URL}${pathname}`, options);
+}
+
+function isSamePathCanonicalRedirect(location, pathname) {
+  if (!location) return false;
+
+  try {
+    const original = new URL(`${BASE_URL}${pathname}`);
+    const target = new URL(location, original);
+    return (
+      target.origin !== original.origin &&
+      target.pathname === original.pathname &&
+      target.search === original.search
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function checkUserPlan() {
@@ -162,11 +181,12 @@ async function checkStripeWebhook() {
 
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
+  const pathname = '/enterprise/portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  let res = await request(pathname, { redirect: 'manual' });
 
   if (res.status === 500) {
-    fail(name, 'GET /enterprise/portal returned 500');
+    fail(name, `GET ${pathname} returned 500`);
   }
 
   const redirectStatuses = new Set([301, 302, 303, 307, 308]);
@@ -174,7 +194,18 @@ async function checkEnterprisePortal() {
     fail(name, `unauthenticated expected redirect, got ${res.status}`);
   }
 
-  const location = res.headers.get('location') ?? '';
+  let location = res.headers.get('location') ?? '';
+  if (isSamePathCanonicalRedirect(location, pathname)) {
+    res = await requestUrl(new URL(location, `${BASE_URL}${pathname}`).toString(), { redirect: 'manual' });
+    if (res.status === 500) {
+      fail(name, `GET canonical ${pathname} returned 500`);
+    }
+    if (!redirectStatuses.has(res.status)) {
+      fail(name, `canonical unauthenticated expected redirect, got ${res.status}`);
+    }
+    location = res.headers.get('location') ?? '';
+  }
+
   if (!location.includes('/enterprise/login') && !location.includes('/login')) {
     fail(name, `expected redirect to login, got location=${location || '(empty)'}`);
   }
