@@ -99,7 +99,7 @@ function main() {
   assert(execution.includes('require_approval'), 'Approval required before send');
   assert(execution.includes('isCustomerEmail'), 'Blocks prospecting customers');
 
-  assert(approvalCard.includes('hasOutreachContact'), 'NO CONTACT gate on approval card');
+  assert(approvalCard.includes('canFounderApproveOutreach'), 'NO CONTACT gate on approval card');
   assert(approvalCard.includes('disabled={busy || !canSend}'), 'Approve disabled without contact');
 
   assert(inboxAuto.includes('sendApprovedOutreach'), 'Inbox wired to outreach send');
@@ -123,7 +123,12 @@ function main() {
   assert(filters.includes('test@gmail.com'), 'Test gmail excluded');
   assert(legacyFilters.includes("from './internalAccountFilters'"), 'Legacy customer filter re-exports source of truth');
 
-  assert(!read('components/owner/ProspectsActionQueue.tsx').includes('Approve & Send') || read('components/owner/ProspectsActionQueue.tsx').includes('hasOutreachContact'), 'Prospects queue respects contact gate');
+  assert(
+    !read('components/owner/ProspectsActionQueue.tsx').includes('Approve & Send') ||
+      (read('components/owner/ProspectsActionQueue.tsx').includes('effectiveOutreachEmail') &&
+        read('components/owner/ProspectsActionQueue.tsx').includes('isEmailSendEligible')),
+    'Prospects queue respects contact gate',
+  );
 
   const outreachExec = read('lib/owner/outreachExecution.ts');
   assert(outreachExec.includes("draft.outreach_type === 'follow_up'"), 'Follow-ups bypass outreach cooldown');
