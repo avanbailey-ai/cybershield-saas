@@ -45,8 +45,10 @@ function fail(name, reason) {
   process.exit(1);
 }
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -71,6 +73,39 @@ async function request(pathname, options = {}) {
   }
 
   return { status: res.status, headers: res.headers, body, url };
+}
+
+function resolveRedirectLocation(location, currentUrl) {
+  try {
+    return new URL(location, currentUrl);
+  } catch {
+    return null;
+  }
+}
+
+async function followSamePathCanonicalRedirect(pathname, initialResponse, options = {}) {
+  let response = initialResponse;
+
+  for (let attempts = 0; attempts < 3; attempts++) {
+    if (!REDIRECT_STATUSES.has(response.status)) return response;
+
+    const location = response.headers.get('location');
+    if (!location) return response;
+
+    const currentUrl = new URL(response.url);
+    const nextUrl = resolveRedirectLocation(location, response.url);
+    if (!nextUrl) return response;
+
+    const isSamePath = nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search;
+    const isCanonicalHostHop = nextUrl.origin !== currentUrl.origin;
+    if (!isSamePath || !isCanonicalHostHop || nextUrl.pathname !== pathname) {
+      return response;
+    }
+
+    response = await request(nextUrl.toString(), options);
+  }
+
+  return response;
 }
 
 async function checkUserPlan() {
@@ -163,14 +198,17 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  const res = await followSamePathCanonicalRedirect(
+    '/enterprise/portal',
+    await request('/enterprise/portal', { redirect: 'manual' }),
+    { redirect: 'manual' },
+  );
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
   }
 
-  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
-  if (!redirectStatuses.has(res.status)) {
+  if (!REDIRECT_STATUSES.has(res.status)) {
     fail(name, `unauthenticated expected redirect, got ${res.status}`);
   }
 
