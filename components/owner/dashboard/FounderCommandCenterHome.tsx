@@ -161,13 +161,22 @@ export default function FounderCommandCenterHome() {
           </h1>
           <p className="mt-2 text-sm text-gray-500">{acquisition.summaryLine}</p>
         </div>
-        <button
-          type="button"
-          onClick={refreshFounderData}
-          className="min-h-[40px] rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => window.open('/api/owner/founder-os-audit', '_blank', 'noopener,noreferrer')}
+            className="min-h-[40px] rounded-lg border border-violet-500/40 px-3 py-2 text-xs font-medium text-violet-200 hover:border-violet-400 hover:text-white"
+          >
+            Export AI Audit
+          </button>
+          <button
+            type="button"
+            onClick={refreshFounderData}
+            className="min-h-[40px] rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-400 hover:text-white"
+          >
+            Refresh
+          </button>
+        </div>
       </header>
 
       <section className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-5 sm:p-6">
