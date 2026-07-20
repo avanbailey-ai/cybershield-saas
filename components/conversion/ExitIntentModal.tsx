@@ -87,7 +87,7 @@ export default function ExitIntentModal({ enabled = true }: ExitIntentModalProps
         <h2 className="mt-2 text-xl font-bold text-white">Your scan results are ready</h2>
         <p className="mt-3 text-sm text-gray-400">
           A one-time scan can&apos;t catch new threats. Upgrade for daily monitoring
-          {domain ? ` on ${domain}` : ''} and real-time alerts.
+          {domain ? ` on ${domain}` : ''} and monitoring alerts when supported issues are detected.
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <button
@@ -103,7 +103,7 @@ export default function ExitIntentModal({ enabled = true }: ExitIntentModalProps
             onClick={() => setVisible(false)}
             className="text-sm text-gray-500 hover:text-gray-300"
           >
-            No thanks, I&apos;ll risk it
+            Keep viewing results
           </button>
         </div>
       </div>

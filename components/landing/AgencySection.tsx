@@ -71,10 +71,10 @@ export default function AgencySection() {
             View Agency plans
           </Link>
           <Link
-            href="/enterprise"
+            href="/enterprise/pricing"
             className="inline-flex min-h-[44px] w-full items-center justify-center rounded-lg border border-gray-700 px-6 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white sm:w-auto sm:px-7"
           >
-            Enterprise & custom limits
+            Enterprise custom coverage
           </Link>
         </div>
       </div>

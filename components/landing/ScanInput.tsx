@@ -21,8 +21,8 @@ interface ScanInputProps {
 }
 
 const SCAN_STAGES = [
-  { label: 'Checking SSL and security headers…', progress: 35 },
-  { label: 'Building your monitoring baseline…', progress: 70 },
+  { label: 'Checking SSL, headers, and response health…', progress: 35 },
+  { label: 'Preparing your findings preview…', progress: 70 },
   { label: 'Calculating your security score…', progress: 95 },
 ] as const;
 
@@ -292,7 +292,7 @@ function ScanInputInner(_props: ScanInputProps) {
           Scan Your Website — Free
         </h2>
         <p className="mb-6 text-sm text-gray-400 sm:mb-8 sm:text-base">
-          Instant security score. No login required.
+          See your security score and top findings in plain English. No login required.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:gap-3">
@@ -329,7 +329,7 @@ function ScanInputInner(_props: ScanInputProps) {
                 {loading ? 'Scanning…' : 'Analyzing…'}
               </>
             ) : (
-              'Scan your website for free'
+              'Get my free security score'
             )}
           </button>
         </form>
@@ -344,7 +344,7 @@ function ScanInputInner(_props: ScanInputProps) {
               />
             </div>
             <p className="mt-3 text-xs text-gray-500">
-              Stage {scanStage + 1} of {SCAN_STAGES.length} — scans can take up to 3 minutes
+              Stage {scanStage + 1} of {SCAN_STAGES.length} — most scans finish in a few minutes
             </p>
           </div>
         )}
@@ -352,7 +352,7 @@ function ScanInputInner(_props: ScanInputProps) {
         {revealing && pendingData && (
           <div className="mt-6 rounded-lg border border-gray-700/60 bg-gray-900/60 p-4 text-left sm:mt-8 sm:rounded-xl sm:p-6">
             <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Preliminary findings
+              Top findings preview
             </p>
             <ul className="space-y-2">
               {pendingData.issues.slice(0, 3).map((issue, i) => (

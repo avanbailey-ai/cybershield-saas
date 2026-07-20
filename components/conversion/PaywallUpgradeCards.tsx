@@ -68,7 +68,7 @@ export default function PaywallUpgradeCards({
                     : 'border border-gray-600 text-gray-200 hover:border-gray-500 hover:text-white'
                 }`}
               >
-                {plan === 'pro' ? 'Unlock Full Report' : 'Start Monitoring'}
+                {plan === 'pro' ? 'Unlock report + daily monitoring' : 'Add hourly monitoring'}
               </button>
             </div>
           );
@@ -76,7 +76,7 @@ export default function PaywallUpgradeCards({
       </div>
 
       <div className="mt-6 rounded-lg border border-gray-700/50 bg-gray-800/20 px-4 py-3 text-center">
-        <p className="text-sm text-gray-400">Need agency or enterprise coverage?</p>
+        <p className="text-sm text-gray-400">Need more than self-serve monitoring?</p>
         <div className="mt-2 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
           <Link href="/pricing" className="text-sm font-medium text-blue-400 hover:text-blue-300">
             View all plans
@@ -86,7 +86,7 @@ export default function PaywallUpgradeCards({
             href="/enterprise/review"
             className="text-sm font-medium text-amber-400 hover:text-amber-300"
           >
-            Request Security Review
+            Enterprise review for custom coverage
           </Link>
         </div>
       </div>

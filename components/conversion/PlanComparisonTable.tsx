@@ -49,17 +49,17 @@ const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string 
   },
   {
     feature: 'Full vulnerability report',
-    freeNote: 'Not enabled on Free plan',
+    freeNote: 'Free scan shows a limited preview',
     values: { free: false, pro: true, growth: true, agency: true },
   },
   {
     feature: 'Change detection',
-    freeNote: 'Not enabled on Free plan',
+    freeNote: 'Included with Growth and Agency',
     values: { free: false, pro: false, growth: true, agency: true },
   },
   {
     feature: 'Email alerts',
-    freeNote: 'Not enabled on Free plan',
+    freeNote: 'Included with paid monitoring',
     values: { free: false, pro: true, growth: true, agency: true },
   },
   {
@@ -71,7 +71,7 @@ const ROWS: { feature: string; freeNote?: string; values: Record<PlanId, string 
 const PLAN_IDS: PlanId[] = ['free', 'pro', 'growth', 'agency'];
 
 const PLAN_LABELS: Record<PlanId, string> = {
-  free: 'First Scan',
+  free: 'Free Scan',
   pro: PLAN_LIMITS.pro.name,
   growth: PLAN_LIMITS.growth.name,
   agency: PLAN_LIMITS.agency.name,

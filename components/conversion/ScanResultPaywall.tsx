@@ -124,7 +124,7 @@ export default function ScanResultPaywall({
     brainConfig.cta_placement === 'bottom' || brainConfig.cta_placement === 'both';
 
   const upgradeCtaLabel = scoreAtRisk
-    ? 'See Exact Fixes'
+    ? 'See fixes and full report'
     : isSecondScan
       ? 'Start Monitoring This Website'
       : 'Unlock Full Security Report';
@@ -245,8 +245,8 @@ export default function ScanResultPaywall({
             Top findings ({topIssues.length} of {result.vulnerabilitiesCount})
           </p>
           <p className="mb-4 text-sm text-gray-400">
-            Each finding includes what it is, why it matters, business impact, and how to fix it.
-            Upgrade to unlock remediation assistant, send-to-developer, and ticket generation.
+            The free scan shows top finding headlines. Upgrade to see plain-English impact,
+            remediation steps, send-to-developer notes, and ticket generation.
           </p>
           <ul className="space-y-3">
             {topIssues.map((issue, i) => (
@@ -317,7 +317,8 @@ export default function ScanResultPaywall({
         <div className="mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-5">
           <p className="text-sm font-semibold text-amber-200">Security review recommended</p>
           <p className="mt-1 text-xs text-amber-200/80">
-            Critical exposure detected. Request an automated security review for your domain.
+            Recommended for regulated teams, larger organizations, or custom coverage needs.
+            Self-serve sites can start with Pro or Growth monitoring.
           </p>
           <Link
             href={funnel.enterpriseHref}
@@ -350,7 +351,7 @@ export default function ScanResultPaywall({
       {requireExplicitClick && !showPaywall && lockedCount > 0 && (
         <div className="mt-8 rounded-lg border border-gray-700/50 bg-gray-800/30 p-5 text-center">
           <p className="mb-3 text-sm text-gray-400">
-            {lockedCount} hidden risk{lockedCount !== 1 ? 's' : ''} detected in your full report.
+            {lockedCount} additional finding detail{lockedCount !== 1 ? 's' : ''} available in your full report.
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <button
@@ -361,7 +362,7 @@ export default function ScanResultPaywall({
               }}
               className="rounded-lg border border-gray-600 px-5 py-2.5 text-sm font-semibold text-gray-200 hover:border-gray-500 hover:text-white"
             >
-              View full preview
+              Preview locked details
             </button>
             <button
               type="button"

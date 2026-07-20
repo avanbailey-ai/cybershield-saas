@@ -19,14 +19,14 @@ export default function Hero() {
             </div>
 
             <h1 className="max-w-[18rem] text-[1.625rem] font-bold leading-snug tracking-tight text-white sm:mb-6 sm:max-w-none sm:text-5xl sm:leading-tight lg:text-6xl">
-              Website Security Monitoring{" "}
-              <span className="text-blue-400">— SSL, Health & Change Detection</span>
+              Find website security gaps{" "}
+              <span className="text-blue-400">before visitors do</span>
             </h1>
 
             <p className="max-w-xl text-sm leading-relaxed text-gray-400 sm:mb-8 sm:text-lg">
-              CyberShield Cloud monitors business websites for security settings, SSL certificate
-              issues, domain registration signals, HTTP status from scans, and configuration changes — with
-              alerts when supported issues are detected.
+              Start with a free security score and top findings. Then enable monitoring for SSL
+              expiry, uptime, security headers, and website changes with alerts when supported issues
+              are detected.
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
@@ -48,11 +48,11 @@ export default function Hero() {
             <div className="flex flex-col gap-2.5 text-xs text-gray-500 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2 sm:text-sm">
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                SSL expiry alerts before browser warnings
+                Free score with top findings
               </span>
               <span className="flex items-center gap-2">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
-                Uptime checks — catch downtime early
+                SSL and uptime monitoring after upgrade
               </span>
               <span className="hidden items-center gap-2 sm:flex">
                 <CheckIcon className="h-4 w-4 shrink-0 text-green-500/80" />
