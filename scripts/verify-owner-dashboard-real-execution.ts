@@ -26,6 +26,7 @@ function assert(cond: boolean, msg: string) {
 
 function main() {
   const home = read('components/owner/views/FounderHomeView.tsx');
+  const commandHome = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
@@ -66,12 +67,13 @@ function main() {
   assert(exists('components/owner/dashboard/CustomerRiskExpansionSection.tsx'), 'Customer risk section');
   assert(exists('components/owner/dashboard/AutomationHealthSection.tsx'), 'Automation health section');
 
-  assert(home.includes('BusinessHealthSection'), 'Home composes business health');
-  assert(home.includes('ActivityAwaySection'), 'Home composes activity feed');
-  assert(home.includes('FounderInboxSection'), 'Home composes inbox');
-  assert(home.includes('RevenueOpportunitiesSection'), 'Home composes revenue opps');
-  assert(home.includes('CustomerRiskExpansionSection'), 'Home composes customer risk');
-  assert(home.includes('AutomationHealthSection'), 'Home composes automation health');
+  assert(commandHome.includes('Revenue actions'), 'Command home shows revenue actions');
+  assert(commandHome.includes('Command priorities'), 'Command home shows priorities');
+  assert(commandHome.includes('Revenue pipeline snapshot'), 'Command home shows pipeline snapshot');
+  assert(commandHome.includes('Best opportunity'), 'Command home shows best opportunity');
+  assert(commandHome.includes('GrowthAutopilotHomePanel'), 'Command home composes growth autopilot');
+  assert(commandHome.includes('Recent activity'), 'Command home shows activity feed');
+  assert(commandHome.includes('EmailHealthSection'), 'Command home composes email health');
 
   assert(!home.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
   assert(!home.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
