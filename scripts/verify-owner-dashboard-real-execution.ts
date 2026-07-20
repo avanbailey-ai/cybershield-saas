@@ -95,7 +95,8 @@ function main() {
   assert(execution.includes('require_approval'), 'Approval required before send');
   assert(execution.includes('isCustomerEmail'), 'Blocks prospecting customers');
 
-  assert(approvalCard.includes('hasOutreachContact'), 'NO CONTACT gate on approval card');
+  assert(approvalCard.includes('canFounderApproveOutreach'), 'NO CONTACT gate on approval card');
+  assert(approvalCard.includes('sendGate.reason'), 'Approval card shows send gate reason');
   assert(approvalCard.includes('disabled={busy || !canSend}'), 'Approve disabled without contact');
 
   assert(inboxAuto.includes('sendApprovedOutreach'), 'Inbox wired to outreach send');
