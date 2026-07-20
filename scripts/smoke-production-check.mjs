@@ -46,7 +46,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -163,7 +163,21 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  let res = await request('/enterprise/portal', { redirect: 'manual' });
+  for (let redirects = 0; redirects < 3; redirects++) {
+    const location = res.headers.get('location') ?? '';
+    if (!location) break;
+
+    let nextUrl;
+    try {
+      nextUrl = new URL(location, res.url);
+    } catch {
+      break;
+    }
+
+    if (nextUrl.pathname !== '/enterprise/portal') break;
+    res = await request(nextUrl.toString(), { redirect: 'manual' });
+  }
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
