@@ -68,7 +68,8 @@ function main() {
   assert(v6.includes('customerHealth') && v6.includes('revenueAtRisk'), 'V6 bundles engines');
 
   assert(!home.includes('Revenue engine'), 'Duplicate revenue engine removed from Home');
-  assert(!home.includes('Pipeline'), 'Pipeline clutter removed from Home');
+  assert(home.includes('Revenue pipeline snapshot'), 'Revenue pipeline snapshot present on Home');
+  assert(!home.includes('ContentPerformance'), 'Legacy pipeline/content clutter removed from Home');
   assert(!home.includes('Customer success') || home.includes('success center'), 'Customer success detail moved off Home');
 
   assert(home.includes('No recent activity yet') || read('components/owner/ActivityFeed.tsx').includes('Quiet period'), 'Professional empty states');
