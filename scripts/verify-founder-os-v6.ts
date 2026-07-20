@@ -57,7 +57,7 @@ function main() {
   assert(home.includes('recentActivity') && home.includes('v6.activityFeed.events'), 'Activity feed wired to Home');
 
   assert(inbox.includes('INBOX_GROUPS'), 'Founder Inbox V2 filter groups');
-  assert(inbox.includes('executes automation') || inbox.includes('execute'), 'Inbox described as useful');
+  assert(inbox.includes('Real actions only') && inbox.includes("postInbox('approve'"), 'Inbox described as useful');
   assert(inboxApi.includes('executeInboxApproval'), 'Automation actions execute');
 
   assert(success.includes('Customer Success'), 'Customer Success dashboard exists');
