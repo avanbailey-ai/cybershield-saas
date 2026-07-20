@@ -44,13 +44,11 @@ The pre-rebuild dashboard mixed real execution (outreach send, inbox approve, di
 | Best opportunity | biggestOpportunity (real) | Overlapped Prospects + Revenue opportunities |
 | Customer risks | inbox filter (real) | Duplicated Success page |
 
-### After (6 sections only)
-1. **Business Health** — `v6.businessHealth` from `getBusinessHealthMetrics()` (filtered real subscriptions)
-2. **What Happened While You Were Away** — `v6.activityFeed` (real events, 24h)
-3. **Founder Inbox** — top 5 inbox items; approve/dismiss → `/api/owner/inbox`
-4. **Next Revenue Opportunities** — `v6.revenueOpportunities`; execute → inbox approve or navigate
-5. **Customer Risk & Expansion** — health + expansion + retention/upgrade approve
-6. **Automation Health** — `v6.automationHealth` from env + DB checks
+### Current home command center
+1. **Revenue actions** — acquisition snapshot with send queue, form queue, drafts, contact enrichment, manual review, and next recommended action.
+2. **Primary actions** — Find customers, Review drafts, and Enrich contacts route to the correct founder workflows.
+3. **Priority work** — today's priorities, blocked revenue items, lead recommendations, and follow-up paths.
+4. **Growth autopilot + email health** — `v6.growthAutopilot` and `v6.emailHealth` surface execution readiness.
 
 **AI audit export API** → owner-only `GET /api/owner/founder-os-audit` returns diagnostic JSON.
 
@@ -246,7 +244,7 @@ These components exist but are **not mounted** in `FounderOs.tsx`:
 
 ## Post-rebuild success criteria
 
-- [x] Home has exactly 6 sections
+- [x] Home routes to customer discovery, inbox review, and prospect enrichment
 - [x] MRR/conversion explainable
 - [x] Test accounts excluded
 - [x] Protected AI audit export API

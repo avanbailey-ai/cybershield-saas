@@ -25,7 +25,8 @@ function assert(cond: boolean, msg: string) {
 }
 
 function main() {
-  const home = read('components/owner/views/FounderHomeView.tsx');
+  const homeWrapper = read('components/owner/views/FounderHomeView.tsx');
+  const home = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
@@ -56,25 +57,17 @@ function main() {
   assert(founderAudit.includes('buildFounderOsAuditExport'), 'Audit export builder');
   assert(founderAudit.includes('suspectedLogicProblems'), 'Audit flags logic problems');
 
-  assert(exists('components/owner/dashboard/BusinessHealthSection.tsx'), 'Business health section');
-  assert(exists('components/owner/dashboard/ActivityAwaySection.tsx'), 'Activity away section');
-  assert(exists('components/owner/dashboard/FounderInboxSection.tsx'), 'Founder inbox section');
-  assert(exists('components/owner/dashboard/RevenueOpportunitiesSection.tsx'), 'Revenue opportunities section');
-  assert(exists('components/owner/dashboard/CustomerRiskExpansionSection.tsx'), 'Customer risk section');
-  assert(exists('components/owner/dashboard/AutomationHealthSection.tsx'), 'Automation health section');
-
-  assert(home.includes('BusinessHealthSection'), 'Home composes business health');
-  assert(home.includes('ActivityAwaySection'), 'Home composes activity feed');
-  assert(home.includes('FounderInboxSection'), 'Home composes inbox');
-  assert(home.includes('RevenueOpportunitiesSection'), 'Home composes revenue opps');
-  assert(home.includes('CustomerRiskExpansionSection'), 'Home composes customer risk');
-  assert(home.includes('AutomationHealthSection'), 'Home composes automation health');
+  assert(homeWrapper.includes('FounderCommandCenterHome'), 'Home view renders command center home');
+  assert(home.includes('Revenue actions') && home.includes('not vanity metrics'), 'Home frames revenue actions clearly');
+  assert(home.includes('openFindCustomers') && home.includes('Find customers'), 'Home can open customer discovery');
+  assert(home.includes("setSection('inbox')") && home.includes('Review drafts'), 'Home routes to inbox draft review');
+  assert(home.includes("setSection('prospects')") && home.includes('Enrich contacts'), 'Home routes to prospect contact enrichment');
+  assert(home.includes('GrowthAutopilotHomePanel'), 'Home composes growth autopilot health');
+  assert(home.includes('EmailHealthSection'), 'Home composes email health status');
 
   assert(!home.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
   assert(!home.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
   assert(!home.includes('Revenue movement'), 'Removed duplicate revenue section');
-
-  assert(read('components/owner/dashboard/BusinessHealthSection.tsx').includes('View calculation'), 'View calculation modal in UI');
 
   assert(v6.includes('businessHealth'), 'V6 bundles business health');
   assert(v6.includes('automationHealth'), 'V6 bundles automation health');
