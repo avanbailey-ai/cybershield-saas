@@ -26,6 +26,7 @@ function assert(cond: boolean, msg: string) {
 
 function main() {
   const home = read('components/owner/views/FounderHomeView.tsx');
+  const commandHome = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
@@ -57,28 +58,22 @@ function main() {
   assert(exists('app/api/owner/founder-os-audit/route.ts'), 'AI audit export API');
   assert(founderAudit.includes('buildFounderOsAuditExport'), 'Audit export builder');
   assert(founderAudit.includes('suspectedLogicProblems'), 'Audit flags logic problems');
-  assert(home.includes('Export AI Audit'), 'Home has export button');
-  assert(home.includes('/api/owner/founder-os-audit'), 'Export calls audit API');
 
-  assert(exists('components/owner/dashboard/BusinessHealthSection.tsx'), 'Business health section');
-  assert(exists('components/owner/dashboard/ActivityAwaySection.tsx'), 'Activity away section');
-  assert(exists('components/owner/dashboard/FounderInboxSection.tsx'), 'Founder inbox section');
-  assert(exists('components/owner/dashboard/RevenueOpportunitiesSection.tsx'), 'Revenue opportunities section');
-  assert(exists('components/owner/dashboard/CustomerRiskExpansionSection.tsx'), 'Customer risk section');
-  assert(exists('components/owner/dashboard/AutomationHealthSection.tsx'), 'Automation health section');
+  assert(home.includes('FounderCommandCenterHome'), 'Home delegates to command center');
+  assert(commandHome.includes('Today&apos;s customer acquisition work'), 'Command center has customer acquisition heading');
+  assert(commandHome.includes('Revenue actions'), 'Command center shows revenue actions');
+  assert(commandHome.includes('Find customers'), 'Command center has find customers action');
+  assert(commandHome.includes('Review drafts'), 'Command center has draft review action');
+  assert(commandHome.includes('Enrich contacts'), 'Command center has contact enrichment action');
+  assert(commandHome.includes("setSection('inbox')"), 'Command center links to inbox');
+  assert(commandHome.includes("setSection('prospects')"), 'Command center links to prospects');
+  assert(commandHome.includes('GrowthAutopilotHomePanel'), 'Command center includes growth autopilot panel');
+  assert(commandHome.includes('EmailHealthSection'), 'Command center includes email health panel');
+  assert(commandHome.includes('/api/owner/prospects'), 'Command center loads live prospects');
 
-  assert(home.includes('BusinessHealthSection'), 'Home composes business health');
-  assert(home.includes('ActivityAwaySection'), 'Home composes activity feed');
-  assert(home.includes('FounderInboxSection'), 'Home composes inbox');
-  assert(home.includes('RevenueOpportunitiesSection'), 'Home composes revenue opps');
-  assert(home.includes('CustomerRiskExpansionSection'), 'Home composes customer risk');
-  assert(home.includes('AutomationHealthSection'), 'Home composes automation health');
-
-  assert(!home.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
-  assert(!home.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
-  assert(!home.includes('Revenue movement'), 'Removed duplicate revenue section');
-
-  assert(read('components/owner/dashboard/BusinessHealthSection.tsx').includes('View calculation'), 'View calculation modal in UI');
+  assert(!commandHome.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
+  assert(!commandHome.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
+  assert(!commandHome.includes('Revenue movement'), 'Removed duplicate revenue section');
 
   assert(v6.includes('businessHealth'), 'V6 bundles business health');
   assert(v6.includes('automationHealth'), 'V6 bundles automation health');
