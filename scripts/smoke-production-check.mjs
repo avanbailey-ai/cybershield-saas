@@ -45,8 +45,7 @@ function fail(name, reason) {
   process.exit(1);
 }
 
-async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+async function requestUrl(url, options = {}) {
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -71,6 +70,42 @@ async function request(pathname, options = {}) {
   }
 
   return { status: res.status, headers: res.headers, body, url };
+}
+
+async function request(pathname, options = {}) {
+  return requestUrl(`${BASE_URL}${pathname}`, options);
+}
+
+function resolveRedirectLocation(location, baseUrl) {
+  try {
+    return new URL(location, baseUrl);
+  } catch {
+    return null;
+  }
+}
+
+async function followSamePathCanonicalRedirects(initialResponse, maxHops = 3) {
+  let current = initialResponse;
+  const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+
+  for (let hop = 0; hop < maxHops && redirectStatuses.has(current.status); hop += 1) {
+    const location = current.headers.get('location') ?? '';
+    const nextUrl = resolveRedirectLocation(location, current.url);
+    if (!nextUrl) {
+      return current;
+    }
+
+    const currentUrl = new URL(current.url);
+    const samePath = nextUrl.pathname === currentUrl.pathname && nextUrl.search === currentUrl.search;
+    const canonicalHostHop = nextUrl.origin !== currentUrl.origin;
+    if (!samePath || !canonicalHostHop) {
+      return current;
+    }
+
+    current = await requestUrl(nextUrl.toString(), { redirect: 'manual' });
+  }
+
+  return current;
 }
 
 async function checkUserPlan() {
@@ -163,7 +198,8 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  let res = await request('/enterprise/portal', { redirect: 'manual' });
+  res = await followSamePathCanonicalRedirects(res);
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
