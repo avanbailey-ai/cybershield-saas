@@ -46,7 +46,7 @@ function fail(name, reason) {
 }
 
 async function request(pathname, options = {}) {
-  const url = `${BASE_URL}${pathname}`;
+  const url = /^https?:\/\//.test(pathname) ? pathname : `${BASE_URL}${pathname}`;
   const headers = { ...(options.headers ?? {}) };
   if (SESSION_COOKIE && !headers.Cookie) {
     headers.Cookie = SESSION_COOKIE;
@@ -163,10 +163,26 @@ async function checkStripeWebhook() {
 async function checkEnterprisePortal() {
   const name = 'enterprise-portal';
 
-  const res = await request('/enterprise/portal', { redirect: 'manual' });
+  let res = await request('/enterprise/portal', { redirect: 'manual' });
 
   if (res.status === 500) {
     fail(name, 'GET /enterprise/portal returned 500');
+  }
+
+  const initialUrl = new URL(`${BASE_URL}/enterprise/portal`);
+  const firstLocation = res.headers.get('location') ?? '';
+  if (firstLocation) {
+    try {
+      const redirectUrl = new URL(firstLocation, BASE_URL);
+      if (
+        redirectUrl.pathname === initialUrl.pathname &&
+        redirectUrl.hostname !== initialUrl.hostname
+      ) {
+        res = await request(redirectUrl.toString(), { redirect: 'manual' });
+      }
+    } catch {
+      // Ignore malformed locations; the login redirect assertion below will fail clearly.
+    }
   }
 
   const redirectStatuses = new Set([301, 302, 303, 307, 308]);
