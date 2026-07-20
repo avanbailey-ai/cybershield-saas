@@ -25,7 +25,7 @@ function assert(cond: boolean, msg: string) {
 }
 
 function main() {
-  const home = read('components/owner/views/FounderHomeView.tsx');
+  const home = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
