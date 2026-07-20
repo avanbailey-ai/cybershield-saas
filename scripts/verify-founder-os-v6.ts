@@ -61,8 +61,8 @@ function main() {
   assert(inboxApi.includes('executeInboxApproval'), 'Automation actions execute');
 
   assert(success.includes('Customer Success'), 'Customer Success dashboard exists');
-  assert(founderOs.includes('CustomerSuccessView'), 'Success view in shell');
-  assert(nav.includes("'success'"), 'Success in navigation');
+  assert(founderOs.includes('FounderProductView'), 'Product usage view in shell');
+  assert(nav.includes("success: 'product'"), 'Legacy success route maps to product section');
 
   assert(v6.includes('getFounderOsV6'), 'V6 aggregator exists');
   assert(v6.includes('customerHealth') && v6.includes('revenueAtRisk'), 'V6 bundles engines');
