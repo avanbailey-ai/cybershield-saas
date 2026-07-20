@@ -33,7 +33,7 @@ const smbPlans = [
       'Unlock the full report and start daily monitoring with fix guidance for the issues your scan revealed.',
     roiLine: 'Pro unlocks full reports, monitoring, and step-by-step fix guidance.',
     features: getPlanMarketing('pro').bullets,
-    cta: 'Start Monitoring',
+    cta: 'Unlock full report',
     highlighted: true,
     stripePlan: 'pro' as const,
   },
@@ -48,7 +48,7 @@ const smbPlans = [
       'Continuous protection with hourly monitoring, change detection, and trend tracking.',
     roiLine: 'Hourly monitoring catches new risks between deep scans.',
     features: getPlanMarketing('growth').bullets,
-    cta: 'Start Monitoring',
+    cta: 'Start hourly monitoring',
     highlighted: false,
     stripePlan: 'growth' as const,
   },
@@ -347,9 +347,13 @@ function PricingInner() {
             <p className="text-xs font-semibold uppercase tracking-widest text-amber-400/80">
               {ENTERPRISE_MARKETING.title}
             </p>
-            <h3 className="mt-3 text-2xl font-bold text-white">{ENTERPRISE_MARKETING.headline}</h3>
+              <h3 className="mt-3 text-2xl font-bold text-white">{ENTERPRISE_MARKETING.headline}</h3>
             <p className="mt-3 text-sm leading-relaxed text-gray-400">{ENTERPRISE_MARKETING.body}</p>
             <p className="mt-2 text-sm text-gray-500">{ENTERPRISE_MARKETING.pricingNote}</p>
+              <p className="mx-auto mt-3 max-w-xl text-xs text-gray-500">
+                Most small teams should choose Pro or Growth above. Use enterprise when you need
+                custom limits, procurement review, or regulated-team workflows.
+              </p>
             <ul className="mt-6 inline-flex flex-col gap-2 text-left text-sm text-gray-400">
               {ENTERPRISE_MARKETING.bullets.map((item) => (
                 <li key={item} className="flex items-center gap-2">
@@ -374,7 +378,7 @@ function PricingInner() {
                 onClick={() => trackEvent('upgrade_clicked', { trigger: 'pricing_enterprise_review' })}
                 className="rounded-lg border border-gray-700 px-8 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
               >
-                Request Security Review
+                Enterprise security review
               </Link>
             </div>
             <p className="mt-4 text-xs text-gray-500">

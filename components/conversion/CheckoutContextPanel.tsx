@@ -12,12 +12,32 @@ interface CheckoutContextPanelProps {
   funnelState?: FunnelSessionState | null;
 }
 
-const PRO_UNLOCKS = [
-  'Full vulnerability report with remediation steps',
-  'Daily automated scans & email alerts',
-  'Attack surface & change detection monitoring',
-  'Exploit scenario analysis',
-];
+const PLAN_LABELS: Record<BilledPlan, string> = {
+  pro: 'Pro',
+  growth: 'Growth',
+  agency: 'Agency',
+};
+
+const PLAN_UNLOCKS: Record<BilledPlan, string[]> = {
+  pro: [
+    'Full vulnerability report with remediation steps',
+    'Daily automated monitoring and email alerts',
+    'Scan history for up to 10 websites',
+    'Exploit scenario analysis',
+  ],
+  growth: [
+    'Full vulnerability report with remediation steps',
+    'Hourly automated monitoring and priority alerts',
+    'Change detection and trend tracking',
+    'Coverage for up to 50 websites',
+  ],
+  agency: [
+    'Client-ready reports across your portfolio',
+    'Agency dashboard and website organization',
+    'Priority monitoring slots for critical sites',
+    'Coverage for up to 250 websites',
+  ],
+};
 
 export default function CheckoutContextPanel({
   open,
@@ -33,7 +53,7 @@ export default function CheckoutContextPanel({
   const hostname = state ? hostnameFromUrl(state.scanned_site) : null;
   const score = state?.score;
   const issues = state?.issue_count ?? 0;
-  const planLabel = plan === 'growth' ? 'Continuous Protection' : plan === 'pro' ? 'Pro' : plan;
+  const planLabel = PLAN_LABELS[plan];
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
@@ -76,7 +96,7 @@ export default function CheckoutContextPanel({
                     : 'Security gaps found'}
                 </p>
                 <p className="mt-0.5 text-xs text-gray-400">
-                  {planLabel} unlocks full reports and continuous protection
+                  {planLabel} unlocks the paid report and monitoring listed below
                 </p>
               </div>
             </div>
@@ -88,7 +108,7 @@ export default function CheckoutContextPanel({
             What {planLabel} unlocks
           </p>
           <ul className="space-y-2">
-            {PRO_UNLOCKS.map((item) => (
+            {PLAN_UNLOCKS[plan].map((item) => (
               <li key={item} className="flex items-start gap-2 text-sm text-gray-300">
                 <svg
                   className="mt-0.5 h-4 w-4 shrink-0 text-blue-400"

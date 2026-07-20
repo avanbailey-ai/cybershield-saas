@@ -24,7 +24,7 @@ export default function CTA() {
               href="/signup"
               className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-gray-700 px-6 py-3 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white sm:min-h-[48px] sm:w-auto sm:px-8 sm:py-3.5 sm:text-base"
             >
-              Enable monitoring
+              Create account for monitoring
             </Link>
           </div>
         </div>
