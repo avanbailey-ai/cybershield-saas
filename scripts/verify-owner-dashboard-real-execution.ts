@@ -69,12 +69,13 @@ function main() {
   assert(exists('components/owner/dashboard/CustomerRiskExpansionSection.tsx'), 'Customer risk section');
   assert(exists('components/owner/dashboard/AutomationHealthSection.tsx'), 'Automation health section');
 
-  assert(home.includes('BusinessHealthSection'), 'Home composes business health');
-  assert(home.includes('ActivityAwaySection'), 'Home composes activity feed');
-  assert(home.includes('FounderInboxSection'), 'Home composes inbox');
-  assert(home.includes('RevenueOpportunitiesSection'), 'Home composes revenue opps');
-  assert(home.includes('CustomerRiskExpansionSection'), 'Home composes customer risk');
-  assert(home.includes('AutomationHealthSection'), 'Home composes automation health');
+  assert(home.includes('Revenue pipeline snapshot') && home.includes('v6.businessHealth'), 'Home composes business health');
+  assert(home.includes('Recent activity') && home.includes('recentActivity'), 'Home composes activity feed');
+  assert(home.includes('Open inbox') && home.includes("setSection('inbox')"), 'Home composes inbox');
+  assert(home.includes('Best opportunity') && home.includes('BestLeadCard'), 'Home composes revenue opportunities');
+  assert(home.includes('Warnings & blockers') && home.includes('v6.customerHealth'), 'Home composes customer risk signals');
+  assert(home.includes('GrowthAutopilotHomePanel'), 'Home composes growth autopilot health');
+  assert(home.includes('EmailHealthSection'), 'Home composes email health');
 
   assert(!home.includes('AiChiefOfStaff'), 'Removed AI chief clutter from home');
   assert(!home.includes('ExecutionCommandBanner'), 'Removed duplicate execution banner');
