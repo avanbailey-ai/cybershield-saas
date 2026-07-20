@@ -25,7 +25,8 @@ function assert(cond: boolean, msg: string) {
 }
 
 function main() {
-  const home = read('components/owner/views/FounderHomeView.tsx');
+  const home = read('components/owner/dashboard/FounderCommandCenterHome.tsx');
+  const homeWrapper = read('components/owner/views/FounderHomeView.tsx');
   const auditDoc = read('docs/owner-dashboard-execution-audit.md');
   const v6 = read('lib/owner/founderOsV6.ts');
   const businessHealth = read('lib/owner/businessHealthMetrics.ts');
@@ -42,6 +43,7 @@ function main() {
   assert(exists('docs/owner-dashboard-execution-audit.md'), 'Execution audit doc exists');
   assert(auditDoc.includes('Executive summary'), 'Audit doc has executive summary');
   assert(auditDoc.includes('Dead / fake buttons'), 'Audit documents dead buttons');
+  assert(homeWrapper.includes('FounderCommandCenterHome'), 'Founder home renders command center home');
 
   assert(exists('lib/owner/businessHealthMetrics.ts'), 'Business health metrics module');
   assert(businessHealth.includes('getBusinessHealthMetrics'), 'Business health aggregator');
