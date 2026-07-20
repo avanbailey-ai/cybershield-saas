@@ -44,7 +44,10 @@ function main() {
 
   assert(exists('lib/owner/businessHealthMetrics.ts'), 'Business health metrics module');
   assert(businessHealth.includes('getBusinessHealthMetrics'), 'Business health aggregator');
-  assert(businessHealth.includes('isInternalCustomerEmail'), 'MRR excludes test accounts');
+  assert(
+    businessHealth.includes('isInternalCustomerProfile') && businessHealth.includes('is_qa_account'),
+    'MRR excludes internal and QA accounts',
+  );
   assert(businessHealth.includes('View calculation') || businessHealth.includes('calculation'), 'MRR/conversion calculation metadata');
 
   assert(exists('lib/owner/automationHealth.ts'), 'Automation health module');
